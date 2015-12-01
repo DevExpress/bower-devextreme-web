@@ -1,14 +1,11 @@
 (function($, DX, undefined) {
-    var DefaultLayoutController = DX.framework.html.DefaultLayoutController,
-        abstract = DefaultLayoutController.abstract,
-        commonUtils = DX.require("/utils/utils.common");
-    DX.framework.html.OverlayLayoutControllerBase = DefaultLayoutController.inherit({
+    DX.framework.html.OverlayLayoutControllerBase = DX.framework.html.DefaultLayoutController.inherit({
         ctor: function(options) {
             options = options || {};
             this.callBase(options);
             if (!options.childController) {
                 this._ensureChildController("SimpleLayoutController", "SimpleLayout");
-                var bestMatches = commonUtils.findBestMatches(DX.devices.current(), layoutSets["simple"] || []);
+                var bestMatches = DX.utils.findBestMatches(DX.devices.current(), layoutSets["simple"] || []);
                 this.childController = bestMatches.length ? bestMatches[0].controller : new DX.framework.html.SimpleLayoutController
             }
             else
@@ -30,10 +27,10 @@
                 throw new Error(controllerName + " is not found but it is required by the '" + this.name + "' layout for specified platform and device. Make sure the " + layoutName + ".* files are referenced in your main *.html file or specify other platform and device.");
         },
         _base: function() {
-            return DefaultLayoutController.prototype
+            return DX.framework.html.DefaultLayoutController.prototype
         },
-        _showContainerWidget: abstract,
-        _hideContainerWidget: abstract,
+        _showContainerWidget: DX.abstract,
+        _hideContainerWidget: DX.abstract,
         init: function(options) {
             options = options || {};
             this.callBase(options);

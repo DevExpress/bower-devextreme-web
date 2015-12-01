@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme (Visualization Core Library)
-* Version: 15.2.2
-* Build date: Nov 16, 2015
+* Version: 15.1.8
+* Build date: Oct 29, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -17,16 +17,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(DevExpress);
     /*! Module viz-core, file utils.js */
     (function(DX, $, undefined) {
-        var commonUtils = DevExpress.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            log = DX.require("/errors").log,
-            _mathUtils = DX.require("/utils/utils.math"),
+        var _utils = DX.utils,
+            _isDefined = _utils.isDefined,
             _inArray = $.inArray,
             _each = $.each,
             _math = Math,
             _round = _math.round,
-            _extend = $.extend,
-            core = DX.viz.core = {};
+            _extend = $.extend;
+        DevExpress.viz.core = {};
         function map(array, callback) {
             var i = 0,
                 len = array.length,
@@ -99,22 +97,22 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var shiftAngle = 90,
                     cossin;
                 angle = _isDefined(angle) ? angle + startAngle - shiftAngle : 0;
-                cossin = _mathUtils.getCosAndSin(angle);
+                cossin = _utils.getCosAndSin(angle);
                 return {
                         x: _round(centerCoords.x + radius * cossin.cos),
                         y: _round(centerCoords.y + radius * cossin.sin)
                     }
             },
             convertXYToPolar: function(centerCoords, x, y) {
-                var radius = _mathUtils.getDistance(centerCoords.x, centerCoords.y, x, y),
+                var radius = _utils.getDistance(centerCoords.x, centerCoords.y, x, y),
                     angle = _math.atan2(y - centerCoords.y, x - centerCoords.x);
                 return {
-                        phi: _round(_mathUtils.normalizeAngle(angle * 180 / _math.PI)),
+                        phi: _round(_utils.normalizeAngle(angle * 180 / _math.PI)),
                         r: _round(radius)
                     }
             },
             processSeriesTemplate: function(seriesTemplate, items) {
-                var customizeSeries = commonUtils.isFunction(seriesTemplate.customizeSeries) ? seriesTemplate.customizeSeries : $.noop,
+                var customizeSeries = _utils.isFunction(seriesTemplate.customizeSeries) ? seriesTemplate.customizeSeries : $.noop,
                     nameField = seriesTemplate.nameField || 'series',
                     generatedSeries = {},
                     seriesOrder = [],
@@ -217,45 +215,1372 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         return result
                     })
             },
-            map: map,
-            wrapDeprecate: function(methodName, method) {
-                core[methodName] = function() {
-                    log("W0002", "DevExpress.viz.core", methodName, "15.1", "Use the 'DevExpress.viz." + methodName + "' method instead");
-                    return method.apply(this, arguments)
-                }
-            }
+            map: map
         }
     })(DevExpress, jQuery);
     /*! Module viz-core, file errorsWarnings.js */
-    DevExpress.define("/vis/core/errorWarnings", ["/utils/utils.error", "/errors"], function(errorUtils, errors) {
-        return errorUtils(errors.ERROR_MESSAGES, {
-                E2001: "Invalid data source",
-                E2002: "Axis type and data type are incompatible",
-                E2003: "\"{0}\" data source field contains data of unsupported type",
-                E2004: "\"{0}\" data source field is inconsistent",
-                E2101: "Unknown series type was specified: {0}",
-                E2102: "Ambiguity occurred between two value axes with the same name",
-                E2103: "\"{0}\" option must be a function",
-                E2104: "Invalid logarithm base",
-                E2105: "Invalid value of a \"{0}\"",
-                E2106: "Invalid visible range",
-                E2202: "Invalid scale {0} value",
-                E2203: "The \"{0}\" field of the \"selectedRange\" configuration object is not valid",
-                W2002: "The {0} data field is absent",
-                W2003: "Tick interval is too small",
-                W2101: "\"{0}\" pane does not exist; \"{1}\" pane is used instead",
-                W2102: "Value axis with the \"{0}\" name was created automatically",
-                W2103: "Chart title was hidden due to container size",
-                W2104: "Legend was hidden due to container size",
-                W2105: "Title of \"{0}\" axis was hidden due to container size",
-                W2106: "Labels of \"{0}\" axis were hidden due to container size",
-                W2301: "Invalid value range"
-            })
-    });
+    (function($, DX) {
+        $.extend(DX.ERROR_MESSAGES, {
+            E2001: "Invalid data source",
+            E2002: "Axis type and data type are incompatible",
+            E2003: "\"{0}\" data source field contains data of unsupported type",
+            E2004: "\"{0}\" data source field is inconsistent",
+            E2101: "Unknown series type was specified: {0}",
+            E2102: "Ambiguity occurred between two value axes with the same name",
+            E2103: "\"{0}\" option must be a function",
+            E2104: "Invalid logarithm base",
+            E2105: "Invalid value of a \"{0}\"",
+            E2106: "Invalid visible range",
+            E2202: "Invalid scale {0} value",
+            E2203: "The \"{0}\" field of the \"selectedRange\" configuration object is not valid",
+            W2002: "The {0} data field is absent",
+            W2003: "Tick interval is too small",
+            W2101: "\"{0}\" pane does not exist; \"{1}\" pane is used instead",
+            W2102: "Value axis with the \"{0}\" name was created automatically",
+            W2103: "Chart title was hidden due to container size",
+            W2104: "Legend was hidden due to container size",
+            W2105: "Title of \"{0}\" axis was hidden due to container size",
+            W2106: "Labels of \"{0}\" axis were hidden due to container size",
+            W2301: "Invalid value range"
+        })
+    })(jQuery, DevExpress);
+    /*! Module viz-core, file utils.js */
+    (function(DX, $, undefined) {
+        var _utils = DX.utils,
+            _isDefined = _utils.isDefined,
+            _inArray = $.inArray,
+            _each = $.each,
+            _math = Math,
+            _round = _math.round,
+            _extend = $.extend;
+        DevExpress.viz.core = {};
+        function map(array, callback) {
+            var i = 0,
+                len = array.length,
+                ret = [],
+                value;
+            while (i < len) {
+                value = callback(array[i], i);
+                if (value !== null)
+                    ret.push(value);
+                i++
+            }
+            return ret
+        }
+        function selectByKeys(object, keys) {
+            return map(keys, function(key) {
+                    return object[key] ? object[key] : null
+                })
+        }
+        function decreaseFields(object, keys, eachDecrease, decrease) {
+            var dec = decrease;
+            _each(keys, function(_, key) {
+                if (object[key]) {
+                    object[key] -= eachDecrease;
+                    dec -= eachDecrease
+                }
+            });
+            return dec
+        }
+        function normalizeEnum(value) {
+            return String(value).toLowerCase()
+        }
+        DX.viz.utils = {
+            decreaseGaps: function(object, keys, decrease) {
+                var arrayGaps;
+                do {
+                    arrayGaps = selectByKeys(object, keys);
+                    arrayGaps.push(_math.ceil(decrease / arrayGaps.length));
+                    decrease = decreaseFields(object, keys, _math.min.apply(null, arrayGaps), decrease)
+                } while (decrease > 0 && arrayGaps.length > 1);
+                return decrease
+            },
+            normalizeEnum: normalizeEnum,
+            parseScalar: function(value, defaultValue) {
+                return value !== undefined ? value : defaultValue
+            },
+            enumParser: function(values) {
+                var stored = {},
+                    i,
+                    ii;
+                for (i = 0, ii = values.length; i < ii; ++i)
+                    stored[normalizeEnum(values[i])] = 1;
+                return function(value, defaultValue) {
+                        var _value = normalizeEnum(value);
+                        return stored[_value] ? _value : defaultValue
+                    }
+            },
+            patchFontOptions: function(options) {
+                var fontOptions = {};
+                _each(options || {}, function(key, value) {
+                    if (/^(cursor|opacity)$/i.test(key));
+                    else if (key === "color")
+                        key = "fill";
+                    else
+                        key = "font-" + key;
+                    fontOptions[key] = value
+                });
+                return fontOptions
+            },
+            convertPolarToXY: function(centerCoords, startAngle, angle, radius) {
+                var shiftAngle = 90,
+                    cossin;
+                angle = _isDefined(angle) ? angle + startAngle - shiftAngle : 0;
+                cossin = _utils.getCosAndSin(angle);
+                return {
+                        x: _round(centerCoords.x + radius * cossin.cos),
+                        y: _round(centerCoords.y + radius * cossin.sin)
+                    }
+            },
+            convertXYToPolar: function(centerCoords, x, y) {
+                var radius = _utils.getDistance(centerCoords.x, centerCoords.y, x, y),
+                    angle = _math.atan2(y - centerCoords.y, x - centerCoords.x);
+                return {
+                        phi: _round(_utils.normalizeAngle(angle * 180 / _math.PI)),
+                        r: _round(radius)
+                    }
+            },
+            processSeriesTemplate: function(seriesTemplate, items) {
+                var customizeSeries = _utils.isFunction(seriesTemplate.customizeSeries) ? seriesTemplate.customizeSeries : $.noop,
+                    nameField = seriesTemplate.nameField || 'series',
+                    generatedSeries = {},
+                    seriesOrder = [],
+                    series,
+                    i = 0,
+                    length,
+                    data;
+                for (length = items.length; i < length; i++) {
+                    data = items[i];
+                    if (nameField in data) {
+                        series = generatedSeries[data[nameField]];
+                        if (!series) {
+                            series = generatedSeries[data[nameField]] = {
+                                name: data[nameField],
+                                data: []
+                            };
+                            seriesOrder.push(series.name)
+                        }
+                        series.data.push(data)
+                    }
+                }
+                return map(seriesOrder, function(orderedName) {
+                        var group = generatedSeries[orderedName];
+                        return $.extend(group, customizeSeries.call(null, group.name))
+                    })
+            },
+            getCategoriesInfo: function(categories, startValue, endValue) {
+                if (!(categories && categories.length > 0))
+                    return {};
+                startValue = _isDefined(startValue) ? startValue : categories[0];
+                endValue = _isDefined(endValue) ? endValue : categories[categories.length - 1];
+                var categoriesValue = map(categories, function(category) {
+                        return _isDefined(category) ? category.valueOf() : null
+                    }),
+                    visibleCategories,
+                    indexStartValue = _isDefined(startValue) ? _inArray(startValue.valueOf(), categoriesValue) : 0,
+                    indexEndValue = _isDefined(endValue) ? _inArray(endValue.valueOf(), categoriesValue) : categories.length - 1,
+                    swapBuf,
+                    hasVisibleCategories,
+                    inverted = false,
+                    visibleCategoriesLen;
+                indexStartValue < 0 && (indexStartValue = 0);
+                indexEndValue < 0 && (indexEndValue = categories.length - 1);
+                if (indexEndValue < indexStartValue) {
+                    swapBuf = indexEndValue;
+                    indexEndValue = indexStartValue;
+                    indexStartValue = swapBuf;
+                    inverted = true
+                }
+                visibleCategories = categories.slice(indexStartValue, indexEndValue + 1);
+                visibleCategoriesLen = visibleCategories.length;
+                hasVisibleCategories = visibleCategoriesLen > 0;
+                return {
+                        categories: hasVisibleCategories ? visibleCategories : null,
+                        start: hasVisibleCategories ? visibleCategories[inverted ? visibleCategoriesLen - 1 : 0] : null,
+                        end: hasVisibleCategories ? visibleCategories[inverted ? 0 : visibleCategoriesLen - 1] : null,
+                        inverted: inverted
+                    }
+            },
+            setCanvasValues: function(canvas) {
+                if (canvas) {
+                    canvas.originalTop = canvas.top;
+                    canvas.originalBottom = canvas.bottom;
+                    canvas.originalLeft = canvas.left;
+                    canvas.originalRight = canvas.right
+                }
+            },
+            updatePanesCanvases: function(panes, canvas, rotated) {
+                var weightSum = 0;
+                _each(panes, function(_, pane) {
+                    pane.weight = pane.weight || 1;
+                    weightSum += pane.weight
+                });
+                var distributedSpace = 0,
+                    padding = panes.padding || 10,
+                    paneSpace = rotated ? canvas.width - canvas.left - canvas.right : canvas.height - canvas.top - canvas.bottom,
+                    oneWeight = (paneSpace - padding * (panes.length - 1)) / weightSum,
+                    startName = rotated ? "left" : "top",
+                    endName = rotated ? "right" : "bottom";
+                _each(panes, function(_, pane) {
+                    var calcLength = _round(pane.weight * oneWeight);
+                    pane.canvas = pane.canvas || {};
+                    _extend(pane.canvas, {
+                        deltaLeft: 0,
+                        deltaRight: 0,
+                        deltaTop: 0,
+                        deltaBottom: 0
+                    }, canvas);
+                    pane.canvas[startName] = canvas[startName] + distributedSpace;
+                    pane.canvas[endName] = canvas[endName] + (paneSpace - calcLength - distributedSpace);
+                    distributedSpace = distributedSpace + calcLength + padding;
+                    DX.viz.utils.setCanvasValues(pane.canvas)
+                })
+            },
+            unique: function(array) {
+                var values = {};
+                return map(array, function(item) {
+                        var result = !values[item] ? item : null;
+                        values[item] = true;
+                        return result
+                    })
+            },
+            map: map
+        }
+    })(DevExpress, jQuery);
+    /*! Module viz-core, file numericTickManager.js */
+    (function($, DX, undefined) {
+        var viz = DX.viz,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
+            _adjustValue = utils.adjustValue,
+            applyPrecisionByMinDelta = utils.applyPrecisionByMinDelta,
+            _math = Math,
+            _abs = _math.abs,
+            _ceil = _math.ceil,
+            _floor = _math.floor,
+            _noop = $.noop,
+            MINOR_TICKS_COUNT_LIMIT = 200,
+            DEFAULT_MINOR_NUMBER_MULTIPLIERS = [2, 4, 5, 8, 10];
+        function adjustNumericTickValue(value, interval, min) {
+            return utils.isExponential(value) ? _adjustValue(value) : applyPrecisionByMinDelta(min, interval, value)
+        }
+        viz.outOfScreen = {
+            x: -1000,
+            y: -1000
+        };
+        viz.tickManager = {continuous: {
+                _hasUnitBeginningTickCorrection: _noop,
+                _removeBoundedOverlappingDates: _noop,
+                _correctInterval: function(step) {
+                    this._tickInterval *= step
+                },
+                _correctMax: function(tickInterval) {
+                    this._max = adjustNumericTickValue(_ceil(this._max / tickInterval) * tickInterval, tickInterval, this._min)
+                },
+                _correctMin: function(tickInterval) {
+                    this._min = adjustNumericTickValue(_floor(this._min / tickInterval) * tickInterval, tickInterval, this._min)
+                },
+                _findBusinessDelta: function(min, max) {
+                    return _adjustValue(_abs(min - max))
+                },
+                _findTickIntervalForCustomTicks: function() {
+                    return _abs(this._customTicks[1] - this._customTicks[0])
+                },
+                _getBoundInterval: function() {
+                    var that = this,
+                        boundCoef = that._options.boundCoef;
+                    return _isDefined(boundCoef) && isFinite(boundCoef) ? that._tickInterval * _abs(boundCoef) : that._tickInterval / 2
+                },
+                _getInterval: function(deltaCoef, numberMultipliers) {
+                    var interval = deltaCoef || this._getDeltaCoef(this._screenDelta, this._businessDelta, this._options.gridSpacingFactor),
+                        multipliers = numberMultipliers || this._options.numberMultipliers,
+                        factor,
+                        result = 0,
+                        newResult,
+                        hasResult = false,
+                        i;
+                    if (interval > 1.0)
+                        for (factor = 1; !hasResult; factor *= 10)
+                            for (i = 0; i < multipliers.length; i++) {
+                                result = multipliers[i] * factor;
+                                if (interval <= result) {
+                                    hasResult = true;
+                                    break
+                                }
+                            }
+                    else if (interval > 0) {
+                        result = 1;
+                        for (factor = 0.1; !hasResult; factor /= 10)
+                            for (i = multipliers.length - 1; i >= 0; i--) {
+                                newResult = multipliers[i] * factor;
+                                if (interval > newResult) {
+                                    hasResult = true;
+                                    break
+                                }
+                                result = newResult
+                            }
+                    }
+                    return _adjustValue(result)
+                },
+                _getMarginValue: function(min, max, margin) {
+                    return applyPrecisionByMinDelta(min, margin, _abs(max - min) * margin)
+                },
+                _getDefaultMinorInterval: function(screenDelta, businessDelta) {
+                    var deltaCoef = this._getDeltaCoef(screenDelta, businessDelta, this._options.minorGridSpacingFactor),
+                        multipliers = DEFAULT_MINOR_NUMBER_MULTIPLIERS,
+                        i = multipliers.length - 1,
+                        result;
+                    for (i; i >= 0; i--) {
+                        result = businessDelta / multipliers[i];
+                        if (deltaCoef <= result)
+                            return _adjustValue(result)
+                    }
+                    return 0
+                },
+                _getMinorInterval: function(screenDelta, businessDelta) {
+                    var that = this,
+                        options = that._options,
+                        minorTickInterval = options.minorTickInterval,
+                        minorTickCount = options.minorTickCount,
+                        interval,
+                        intervalsCount,
+                        count;
+                    if (isFinite(minorTickInterval) && that._isTickIntervalCorrect(minorTickInterval, MINOR_TICKS_COUNT_LIMIT, businessDelta)) {
+                        interval = minorTickInterval;
+                        count = interval < businessDelta ? _ceil(businessDelta / interval) - 1 : 0
+                    }
+                    else if (_isDefined(minorTickCount)) {
+                        intervalsCount = _isDefined(minorTickCount) ? minorTickCount + 1 : _floor(screenDelta / options.minorGridSpacingFactor);
+                        count = intervalsCount - 1;
+                        interval = count > 0 ? businessDelta / intervalsCount : 0
+                    }
+                    else {
+                        interval = that._getDefaultMinorInterval(screenDelta, businessDelta);
+                        count = interval < businessDelta ? _floor(businessDelta / interval) - 1 : 0
+                    }
+                    that._minorTickInterval = interval;
+                    that._minorTickCount = count
+                },
+                _getNextTickValue: function(value, tickInterval, isTickIntervalNegative) {
+                    tickInterval = _isDefined(isTickIntervalNegative) && isTickIntervalNegative ? -tickInterval : tickInterval;
+                    value += tickInterval;
+                    return adjustNumericTickValue(value, tickInterval, this._min)
+                },
+                _isTickIntervalValid: function(tickInterval) {
+                    return _isDefined(tickInterval) && isFinite(tickInterval) && tickInterval !== 0
+                }
+            }}
+    })(jQuery, DevExpress);
+    /*! Module viz-core, file datetimeTickManager.js */
+    (function($, DX, undefined) {
+        var utils = DX.utils,
+            tickManager = DX.viz.tickManager,
+            _isDefined = utils.isDefined,
+            _convertDateUnitToMilliseconds = utils.convertDateUnitToMilliseconds,
+            _correctDateWithUnitBeginning = utils.correctDateWithUnitBeginning,
+            _dateToMilliseconds = utils.dateToMilliseconds,
+            _convertMillisecondsToDateUnits = utils.convertMillisecondsToDateUnits,
+            _math = Math,
+            _abs = _math.abs,
+            _ceil = _math.ceil,
+            _floor = _math.floor,
+            _round = _math.round,
+            MINOR_TICKS_COUNT_LIMIT = 50,
+            DEFAULT_DATETIME_MULTIPLIERS = {
+                millisecond: [1, 2, 5, 10, 25, 100, 250, 300, 500],
+                second: [1, 2, 3, 5, 10, 15, 20, 30],
+                minute: [1, 2, 3, 5, 10, 15, 20, 30],
+                hour: [1, 2, 3, 4, 6, 8, 12],
+                day: [1, 2, 3, 5, 7, 10, 14],
+                month: [1, 2, 3, 6]
+            };
+        function correctDate(date, tickInterval, correctionMethod) {
+            var interval = _dateToMilliseconds(tickInterval),
+                timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
+            return new Date(Math[correctionMethod]((date - 0 - timezoneOffset) / interval) * interval + timezoneOffset)
+        }
+        tickManager.datetime = $.extend({}, tickManager.continuous, {
+            _correctInterval: function(step) {
+                var tickIntervalInMs = _dateToMilliseconds(this._tickInterval);
+                this._tickInterval = _convertMillisecondsToDateUnits(tickIntervalInMs * step)
+            },
+            _correctMax: function(tickInterval) {
+                this._max = correctDate(this._max, tickInterval, "ceil")
+            },
+            _correctMin: function(tickInterval) {
+                this._min = correctDate(this._min, tickInterval, "floor");
+                if (this._options.setTicksAtUnitBeginning)
+                    _correctDateWithUnitBeginning(this._min, tickInterval)
+            },
+            _findTickIntervalForCustomTicks: function() {
+                return _convertMillisecondsToDateUnits(_abs(this._customTicks[1] - this._customTicks[0]))
+            },
+            _getBoundInterval: function() {
+                var that = this,
+                    interval = that._tickInterval,
+                    intervalInMs = _dateToMilliseconds(interval),
+                    boundCoef = that._options.boundCoef,
+                    boundIntervalInMs = _isDefined(boundCoef) && isFinite(boundCoef) ? intervalInMs * _abs(boundCoef) : intervalInMs / 2;
+                return _convertMillisecondsToDateUnits(boundIntervalInMs)
+            },
+            _getInterval: function(deltaCoef) {
+                var interval = deltaCoef || this._getDeltaCoef(this._screenDelta, this._businessDelta, this._options.gridSpacingFactor),
+                    multipliers = this._options.numberMultipliers,
+                    result = {},
+                    factor,
+                    i,
+                    key,
+                    specificMultipliers,
+                    yearsCount;
+                if (interval > 0 && interval < 1.0)
+                    return {milliseconds: 1};
+                if (interval === 0)
+                    return 0;
+                for (key in DEFAULT_DATETIME_MULTIPLIERS)
+                    if (DEFAULT_DATETIME_MULTIPLIERS.hasOwnProperty(key)) {
+                        specificMultipliers = DEFAULT_DATETIME_MULTIPLIERS[key];
+                        for (i = 0; i < specificMultipliers.length; i++)
+                            if (interval <= _convertDateUnitToMilliseconds(key, specificMultipliers[i])) {
+                                result[key + 's'] = specificMultipliers[i];
+                                return result
+                            }
+                    }
+                for (factor = 1; ; factor *= 10)
+                    for (i = 0; i < multipliers.length; i++) {
+                        yearsCount = factor * multipliers[i];
+                        if (interval <= _convertDateUnitToMilliseconds('year', yearsCount))
+                            return {years: yearsCount}
+                    }
+                return 0
+            },
+            _getMarginValue: function(min, max, margin) {
+                return _convertMillisecondsToDateUnits(_round(_abs(max - min) * margin))
+            },
+            _getMinorInterval: function(screenDelta, businessDelta) {
+                var that = this,
+                    options = that._options,
+                    interval,
+                    intervalInMs,
+                    intervalsCount,
+                    count;
+                if (_isDefined(options.minorTickInterval) && that._isTickIntervalCorrect(options.minorTickInterval, MINOR_TICKS_COUNT_LIMIT, businessDelta)) {
+                    interval = options.minorTickInterval;
+                    intervalInMs = _dateToMilliseconds(interval);
+                    count = intervalInMs < businessDelta ? _ceil(businessDelta / intervalInMs) - 1 : 0
+                }
+                else {
+                    intervalsCount = _isDefined(options.minorTickCount) ? options.minorTickCount + 1 : _floor(screenDelta / options.minorGridSpacingFactor);
+                    count = intervalsCount - 1;
+                    interval = count > 0 ? _convertMillisecondsToDateUnits(businessDelta / intervalsCount) : 0
+                }
+                that._minorTickInterval = interval;
+                that._minorTickCount = count
+            },
+            _getNextTickValue: function(value, tickInterval, isTickIntervalNegative, isTickIntervalWithPow, withCorrection) {
+                var newValue = utils.addInterval(value, tickInterval, isTickIntervalNegative);
+                if (this._options.setTicksAtUnitBeginning && withCorrection !== false) {
+                    _correctDateWithUnitBeginning(newValue, tickInterval, true);
+                    this._correctDateWithUnitBeginningCalled = true
+                }
+                return newValue
+            },
+            _getUnitBeginningMinorTicks: function(minorTicks) {
+                var that = this,
+                    ticks = that._ticks,
+                    tickInterval = that._findMinorTickInterval(ticks[1], ticks[2]),
+                    isTickIntervalNegative = true,
+                    isTickIntervalWithPow = false,
+                    needCorrectTick = false,
+                    startTick = that._getNextTickValue(ticks[1], tickInterval, isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
+                if (that._isTickIntervalValid(tickInterval))
+                    minorTicks = that._createTicks(minorTicks, tickInterval, startTick, ticks[0], isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
+                return minorTicks
+            },
+            _hasUnitBeginningTickCorrection: function() {
+                var ticks = this._ticks;
+                if (ticks.length < 3)
+                    return false;
+                return ticks[1] - ticks[0] !== ticks[2] - ticks[1] && this._options.setTicksAtUnitBeginning && this._options.minorTickCount
+            },
+            _isTickIntervalValid: function(tickInterval) {
+                return _isDefined(tickInterval) && _dateToMilliseconds(tickInterval) !== 0
+            },
+            _removeBoundedOverlappingDates: function() {
+                var dates = this._ticks;
+                if (dates.length > 2 && this.getOverlappingBehavior().mode !== "stagger" && !this._areDisplayValuesValid(dates[0], dates[1]))
+                    dates.splice(1, 1)
+            }
+        })
+    })(jQuery, DevExpress);
+    /*! Module viz-core, file logarithmicTickManager.js */
+    (function($, DX, undefined) {
+        var viz = DX.viz,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
+            _addInterval = utils.addInterval,
+            _adjustValue = utils.adjustValue,
+            tickManager = viz.tickManager,
+            tickManagerContinuous = tickManager.continuous,
+            _getLog = utils.getLog,
+            _raiseTo = utils.raiseTo,
+            _math = Math,
+            _abs = _math.abs,
+            _ceil = _math.ceil,
+            _floor = _math.floor,
+            _round = _math.round;
+        tickManager.logarithmic = $.extend({}, tickManagerContinuous, {
+            _correctMax: function() {
+                var base = this._options.base;
+                this._max = _adjustValue(_raiseTo(_ceil(_adjustValue(_getLog(this._max, base))), base))
+            },
+            _correctMin: function() {
+                var base = this._options.base;
+                this._min = _adjustValue(_raiseTo(_floor(_adjustValue(_getLog(this._min, base))), base))
+            },
+            _findBusinessDelta: function(min, max, isTickIntervalWithPow) {
+                var delta;
+                if (min <= 0 || max <= 0)
+                    return 0;
+                if (isTickIntervalWithPow === false)
+                    delta = tickManagerContinuous._findBusinessDelta(min, max);
+                else
+                    delta = _round(_abs(_getLog(min, this._options.base) - _getLog(max, this._options.base)));
+                return delta
+            },
+            _findTickIntervalForCustomTicks: function() {
+                return _adjustValue(_getLog(this._customTicks[1] / this._customTicks[0], this._options.base))
+            },
+            _getInterval: function(deltaCoef) {
+                var interval = deltaCoef || this._getDeltaCoef(this._screenDelta, this._businessDelta, this._options.gridSpacingFactor),
+                    multipliers = this._options.numberMultipliers,
+                    factor,
+                    result = 0,
+                    hasResult = false,
+                    i;
+                if (interval !== 0)
+                    for (factor = 1; !hasResult; factor *= 10)
+                        for (i = 0; i < multipliers.length; i++) {
+                            result = multipliers[i] * factor;
+                            if (interval <= result) {
+                                hasResult = true;
+                                break
+                            }
+                        }
+                return _adjustValue(result)
+            },
+            _getMinorInterval: function(screenDelta, businessDelta) {
+                var that = this,
+                    options = that._options,
+                    minorTickCount = options.minorTickCount,
+                    intervalsCount = _isDefined(minorTickCount) ? minorTickCount + 1 : _floor(screenDelta / options.minorGridSpacingFactor),
+                    count = intervalsCount - 1,
+                    interval = count > 0 ? businessDelta / intervalsCount : 0;
+                that._minorTickInterval = interval;
+                that._minorTickCount = count
+            },
+            _getMarginValue: function() {
+                return null
+            },
+            _getNextTickValue: function(value, tickInterval, isTickIntervalNegative, isTickIntervalWithPow) {
+                var that = this,
+                    pow,
+                    nextTickValue;
+                tickInterval = _isDefined(isTickIntervalNegative) && isTickIntervalNegative ? -tickInterval : tickInterval;
+                if (isTickIntervalWithPow === false)
+                    nextTickValue = value + tickInterval;
+                else {
+                    pow = _addInterval(_getLog(value, that._options.base), tickInterval, that._min > that._max);
+                    nextTickValue = _adjustValue(_raiseTo(pow, that._options.base))
+                }
+                return nextTickValue
+            }
+        })
+    })(jQuery, DevExpress);
+    /*! Module viz-core, file tickOverlappingManager.js */
+    (function($, DX, undefined) {
+        var viz = DX.viz,
+            tickManagerNS = viz.tickManager,
+            overlappingMethods,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
+            _isNumber = utils.isNumber,
+            _math = Math,
+            _abs = _math.abs,
+            _ceil = _math.ceil,
+            _floor = _math.floor,
+            _atan = _math.atan,
+            _max = _math.max,
+            _each = $.each,
+            _noop = $.noop,
+            _isFunction = $.isFunction,
+            _extend = $.extend,
+            SCREEN_DELTA_KOEF = 4,
+            AXIS_STAGGER_OVERLAPPING_KOEF = 2,
+            STAGGER = "stagger",
+            ROTATE = "rotate",
+            MIN_ARRANGEMENT_TICKS_COUNT = 2;
+        function nextState(state) {
+            switch (state) {
+                case"overlap":
+                    return STAGGER;
+                case STAGGER:
+                    return ROTATE;
+                default:
+                    return "end"
+            }
+        }
+        function defaultGetTextFunc(value) {
+            return value.toString()
+        }
+        overlappingMethods = tickManagerNS.overlappingMethods = {};
+        overlappingMethods.base = {
+            _applyOverlappingBehavior: function() {
+                var that = this,
+                    options = that._options,
+                    overlappingBehavior = options && options.overlappingBehavior;
+                if (overlappingBehavior && overlappingBehavior.mode !== "ignore") {
+                    that._useAutoArrangement = true;
+                    that._correctTicks();
+                    if (overlappingBehavior.mode === "auto") {
+                        that._applyAutoOverlappingBehavior();
+                        that._useAutoArrangement = options.overlappingBehavior.isOverlapped
+                    }
+                    if (that._useAutoArrangement) {
+                        if (overlappingBehavior.mode === STAGGER)
+                            that._screenDelta *= AXIS_STAGGER_OVERLAPPING_KOEF;
+                        that._applyAutoArrangement()
+                    }
+                }
+            },
+            _checkBoundedTicksOverlapping: function() {
+                this._removeBoundedOverlappingDates();
+                this._applyStartEndTicksCorrection()
+            },
+            getMaxLabelParams: function(ticks) {
+                var that = this,
+                    getText = that._options.getText || defaultGetTextFunc,
+                    tickWithMaxLength,
+                    tickTextWithMaxLength,
+                    maxLength = 0,
+                    bbox;
+                ticks = ticks || that._getMajorTicks();
+                if (!ticks.length)
+                    return {
+                            width: 0,
+                            height: 0,
+                            length: 0,
+                            y: 0
+                        };
+                _each(ticks, function(_, item) {
+                    var text = getText(item, that._options.labelOptions),
+                        length = text.length;
+                    if (maxLength < length) {
+                        maxLength = length;
+                        tickWithMaxLength = item;
+                        tickTextWithMaxLength = text
+                    }
+                });
+                bbox = that._getTextElementBbox(tickWithMaxLength, tickTextWithMaxLength);
+                return {
+                        width: bbox.width,
+                        height: bbox.height,
+                        y: bbox.y,
+                        length: maxLength
+                    }
+            },
+            _applyAutoArrangement: function() {
+                var that = this,
+                    options = that._options,
+                    arrangementStep,
+                    maxDisplayValueSize;
+                if (that._useAutoArrangement) {
+                    maxDisplayValueSize = that._getTicksSize();
+                    arrangementStep = that._getAutoArrangementStep(maxDisplayValueSize);
+                    if (arrangementStep > 1)
+                        if (_isDefined(that._tickInterval) || _isDefined(that._customTicks))
+                            that._ticks = that._getAutoArrangementTicks(arrangementStep);
+                        else {
+                            options.gridSpacingFactor = maxDisplayValueSize;
+                            that._ticks = that._createTicks([], that._findTickInterval(), that._min, that._max)
+                        }
+                }
+            },
+            _getAutoArrangementTicks: function(step) {
+                var that = this,
+                    ticks = that._ticks,
+                    ticksLength = ticks.length,
+                    resultTicks = ticks,
+                    decimatedTicks = that._decimatedTicks || [],
+                    i;
+                if (step > 1) {
+                    resultTicks = [];
+                    for (i = 0; i < ticksLength; i++)
+                        if (i % step === 0)
+                            resultTicks.push(ticks[i]);
+                        else
+                            decimatedTicks.push(ticks[i]);
+                    that._correctInterval(step)
+                }
+                return resultTicks
+            },
+            _isOverlappedTicks: function(screenDelta) {
+                return this._getAutoArrangementStep(this._getTicksSize(), screenDelta, -1) > 1
+            },
+            _areDisplayValuesValid: function(value1, value2) {
+                var that = this,
+                    options = that._options,
+                    getText = options.getText || defaultGetTextFunc,
+                    rotationAngle = options.overlappingBehavior && _isNumber(options.overlappingBehavior.rotationAngle) ? options.overlappingBehavior.rotationAngle : 0,
+                    bBox1 = that._getTextElementBbox(value1, getText(value1, options.labelOptions)),
+                    bBox2 = that._getTextElementBbox(value2, getText(value2, options.labelOptions)),
+                    horizontalInverted = bBox1.x > bBox2.x,
+                    verticalInverted = bBox1.y > bBox2.y,
+                    hasHorizontalOverlapping,
+                    hasVerticalOverlapping,
+                    result;
+                if (rotationAngle !== 0)
+                    result = that._getDistanceByAngle(bBox1.height, rotationAngle) <= _abs(bBox2.x - bBox1.x);
+                else {
+                    hasHorizontalOverlapping = !horizontalInverted ? bBox1.x + bBox1.width > bBox2.x : bBox2.x + bBox2.width > bBox1.x;
+                    hasVerticalOverlapping = !verticalInverted ? bBox1.y + bBox1.height > bBox2.y : bBox2.y + bBox2.height > bBox1.y;
+                    result = !(hasHorizontalOverlapping && hasVerticalOverlapping)
+                }
+                return result
+            }
+        };
+        overlappingMethods.circular = _extend({}, overlappingMethods.base, {
+            _correctTicks: _noop,
+            _applyAutoOverlappingBehavior: function() {
+                this._options.overlappingBehavior.isOverlapped = true
+            },
+            _getTextElementBbox: function(value, text) {
+                var textOptions = _extend({}, this._options.textOptions, {rotate: 0}),
+                    delta = _isFunction(this._options.translate) ? this._options.translate(value) : {
+                        x: 0,
+                        y: 0
+                    },
+                    bbox;
+                text = this._options.renderText(text, delta.x, delta.y).css(this._options.textFontStyles).attr(textOptions);
+                bbox = text.getBBox();
+                text.remove();
+                return bbox
+            },
+            _getTicksSize: function() {
+                return this.getMaxLabelParams(this._ticks)
+            },
+            _applyStartEndTicksCorrection: function() {
+                var ticks = this._ticks,
+                    lastTick = ticks[ticks.length - 1];
+                if (ticks.length > 1 && !this._areDisplayValuesValid(ticks[0], lastTick))
+                    ticks.pop()
+            },
+            _getAutoArrangementStep: function(maxDisplayValueSize) {
+                var that = this,
+                    options = that._options,
+                    radius = options.circularRadius,
+                    startAngle = options.circularStartAngle,
+                    endAngle = options.circularEndAngle,
+                    circleDelta = startAngle === endAngle ? 360 : _abs(startAngle - endAngle),
+                    businessDelta = that._businessDelta || that._ticks.length,
+                    degreesPerTick = that._tickInterval * circleDelta / businessDelta,
+                    width = maxDisplayValueSize.width,
+                    height = maxDisplayValueSize.height,
+                    angle1 = _abs(2 * _atan(height / (2 * radius - width)) * 180 / _math.PI),
+                    angle2 = _abs(2 * _atan(width / (2 * radius - height)) * 180 / _math.PI),
+                    minAngleForTick = _max(angle1, angle2),
+                    step = 1;
+                if (degreesPerTick < minAngleForTick)
+                    step = _ceil(minAngleForTick / degreesPerTick);
+                return _max(1, step)
+            }
+        });
+        overlappingMethods.linear = _extend({}, overlappingMethods.base, {
+            _correctTicks: function() {
+                var getIntervalFunc = tickManagerNS.continuous._getInterval,
+                    arrangementStep;
+                if (this._testingGetIntervalFunc)
+                    getIntervalFunc = this._testingGetIntervalFunc;
+                arrangementStep = _ceil(getIntervalFunc.call(this, this._getDeltaCoef(this._screenDelta * SCREEN_DELTA_KOEF, this._ticks.length))) || this._ticks.length;
+                this._appliedArrangementStep = arrangementStep;
+                this._ticks = this._getAutoArrangementTicks(arrangementStep)
+            },
+            _getTextElementBbox: function(value, text) {
+                var textOptions = _extend({}, this._options.textOptions, {rotate: 0}),
+                    x = 0,
+                    y = 0,
+                    delta = _isFunction(this._options.translate) ? this._options.translate(value) : 0,
+                    bbox;
+                if (this._options.isHorizontal)
+                    x += delta;
+                else
+                    y += delta;
+                text = this._options.renderText(text, x, y).css(this._options.textFontStyles).attr(textOptions);
+                bbox = text.getBBox();
+                text.remove();
+                return bbox
+            },
+            _applyStartEndTicksCorrection: _noop,
+            _getAutoArrangementStep: function(maxDisplayValueSize, screenDelta, minArrangementTicksStep) {
+                var that = this,
+                    options = that._options,
+                    requiredValuesCount,
+                    textSpacing = options.textSpacing || 0,
+                    addedSpacing = options.isHorizontal ? textSpacing : 0;
+                screenDelta = screenDelta || that._screenDelta;
+                minArrangementTicksStep = _isDefined(minArrangementTicksStep) ? minArrangementTicksStep : 1;
+                if (options.getCustomAutoArrangementStep)
+                    return options.getCustomAutoArrangementStep(that._ticks, options);
+                if (maxDisplayValueSize > 0) {
+                    requiredValuesCount = _floor((screenDelta + textSpacing) / (maxDisplayValueSize + addedSpacing));
+                    requiredValuesCount = requiredValuesCount <= minArrangementTicksStep ? MIN_ARRANGEMENT_TICKS_COUNT : requiredValuesCount;
+                    return _ceil((options.ticksCount || that._ticks.length) / requiredValuesCount)
+                }
+                return 1
+            },
+            _getOptimalRotationAngle: function() {
+                var that = this,
+                    options = that._options,
+                    tick1 = that._ticks[0],
+                    tick2 = that._ticks[1],
+                    outOfScreen = viz.outOfScreen,
+                    textOptions = that._textOptions,
+                    getText = options.getText || defaultGetTextFunc,
+                    textFontStyles = options.textFontStyles,
+                    svgElement1 = options.renderText(getText(tick1, options.labelOptions), outOfScreen.x + options.translate(tick1, !options.isHorizontal), outOfScreen.y).css(textFontStyles).attr(textOptions),
+                    svgElement2 = options.renderText(getText(tick2, options.labelOptions), outOfScreen.x + options.translate(tick2, !options.isHorizontal), outOfScreen.y).css(textFontStyles).attr(textOptions),
+                    bBox1 = svgElement1.getBBox(),
+                    bBox2 = svgElement2.getBBox(),
+                    angle = _math.asin((bBox1.height + options.textSpacing) / (bBox2.x - bBox1.x)) * 180 / Math.PI;
+                svgElement1.remove();
+                svgElement2.remove();
+                return isNaN(angle) ? 90 : _ceil(angle)
+            },
+            _applyAutoOverlappingBehavior: function() {
+                var that = this,
+                    overlappingBehavior = that._options.overlappingBehavior,
+                    screenDelta = that._screenDelta,
+                    isOverlapped = false,
+                    rotationAngle = null,
+                    mode = null,
+                    state = "overlap";
+                while (state !== "end") {
+                    isOverlapped = rotationAngle && rotationAngle !== 90 ? false : that._isOverlappedTicks(screenDelta);
+                    state = nextState(isOverlapped ? state : null);
+                    switch (state) {
+                        case STAGGER:
+                            screenDelta *= AXIS_STAGGER_OVERLAPPING_KOEF;
+                            mode = state;
+                            break;
+                        case ROTATE:
+                            rotationAngle = that._getOptimalRotationAngle();
+                            screenDelta = that._screenDelta;
+                            mode = state;
+                            break
+                    }
+                }
+                overlappingBehavior.isOverlapped = isOverlapped;
+                overlappingBehavior.mode = mode;
+                overlappingBehavior.rotationAngle = rotationAngle
+            },
+            _getDistanceByAngle: function(elementHeight, rotationAngle) {
+                return elementHeight / _abs(_math.sin(rotationAngle * (_math.PI / 180)))
+            },
+            _getTicksSize: function() {
+                var that = this,
+                    options = that._options,
+                    ticks = that._ticks,
+                    ticksString,
+                    rotationAngle = options.overlappingBehavior ? options.overlappingBehavior.rotationAngle : 0,
+                    bBox,
+                    result,
+                    getText = options.getText || defaultGetTextFunc,
+                    isRotate = _isNumber(rotationAngle) && rotationAngle !== 0,
+                    joinNeeded = !isRotate && options.isHorizontal;
+                if (ticks.length === 0)
+                    return 0;
+                ticksString = joinNeeded ? viz.utils.map(ticks, function(tick) {
+                    return getText(tick, options.labelOptions)
+                }).join("\n") : getText(ticks[0], options.labelOptions);
+                bBox = that._getTextElementBbox(ticksString, ticksString);
+                result = isRotate ? that._getDistanceByAngle(bBox.height, rotationAngle) : options.isHorizontal ? bBox.width : bBox.height;
+                return _ceil(result)
+            }
+        })
+    })(jQuery, DevExpress);
+    /*! Module viz-core, file baseTickManager.js */
+    (function($, DX, undefined) {
+        var viz = DX.viz,
+            coreTickManager = viz.tickManager,
+            TickManager,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
+            _isNumber = utils.isNumber,
+            _addInterval = utils.addInterval,
+            _map = viz.utils.map,
+            _each = $.each,
+            _inArray = $.inArray,
+            _noop = $.noop,
+            DEFAULT_GRID_SPACING_FACTOR = 30,
+            DEFAULT_MINOR_GRID_SPACING_FACTOR = 15,
+            DEFAULT_NUMBER_MULTIPLIERS = [1, 2, 3, 5],
+            TICKS_COUNT_LIMIT = 2000,
+            MIN_ARRANGEMENT_TICKS_COUNT = 2;
+        function concatAndSort(array1, array2) {
+            var array = array1.concat(array2).sort(function(x, y) {
+                    return _isDefined(x) && _isDefined(y) && x.valueOf() - y.valueOf()
+                }),
+                length = array.length,
+                i;
+            for (i = length - 1; i > 0; i--)
+                if (_isDefined(array[i]) && _isDefined(array[i - 1]) && array[i].valueOf() === array[i - 1].valueOf())
+                    array.splice(i, 1);
+            return array
+        }
+        function checkBoundedTickInArray(value, array) {
+            var arrayValues = _map(array || [], function(item) {
+                    return item.valueOf()
+                }),
+                minorTicksIndex = _inArray(value.valueOf(), arrayValues);
+            if (minorTicksIndex !== -1)
+                array.splice(minorTicksIndex, 1)
+        }
+        function getDataType(value) {
+            return utils.isDate(value) ? 'datetime' : 'numeric'
+        }
+        function validateAxisType(type) {
+            var defaultType = "continuous",
+                allowedTypes = {
+                    continuous: true,
+                    discrete: true,
+                    logarithmic: true
+                };
+            return allowedTypes[type] ? type : defaultType
+        }
+        coreTickManager.discrete = $.extend({}, coreTickManager.continuous, {
+            _getMinorTicks: _noop,
+            _findTickInterval: _noop,
+            _createTicks: function() {
+                return []
+            },
+            _getMarginValue: _noop,
+            _generateBounds: _noop,
+            _correctMin: _noop,
+            _correctMax: _noop,
+            _findBusinessDelta: _noop,
+            _addBoundedTicks: _noop,
+            getFullTicks: function() {
+                return this._customTicks
+            },
+            getMinorTicks: function() {
+                return this._decimatedTicks || []
+            },
+            _findTickIntervalForCustomTicks: function() {
+                return 1
+            }
+        });
+        TickManager = coreTickManager.TickManager = function(types, data, options) {
+            options = options || {};
+            this.update(types || {}, data || {}, options);
+            this._initOverlappingMethods(options.overlappingBehaviorType)
+        };
+        TickManager.prototype = {
+            constructor: TickManager,
+            dispose: function() {
+                var that = this;
+                that._ticks = that._minorTicks = that._decimatedTicks = that._boundaryTicks = that._options = null
+            },
+            update: function(types, data, options) {
+                this._updateOptions(options || {});
+                this._min = data.min;
+                this._updateTypes(types || {});
+                this._updateData(data || {})
+            },
+            _updateMinMax: function(data) {
+                var min = data.min || 0,
+                    max = data.max || 0,
+                    newMinMax = this._applyMinMaxMargins(min, max);
+                this._min = this._originalMin = newMinMax.min;
+                this._max = this._originalMax = newMinMax.max;
+                this._updateBusinessDelta()
+            },
+            _updateBusinessDelta: function() {
+                this._businessDelta = this._findBusinessDelta && this._findBusinessDelta(this._min, this._max)
+            },
+            _updateTypes: function(types) {
+                var that = this,
+                    axisType = validateAxisType(types.axisType),
+                    dataType = that._validateDataType(types.dataType);
+                that._resetMethods();
+                this._axisType = axisType;
+                this._dataType = dataType;
+                this._initMethods()
+            },
+            _updateData: function(data) {
+                data = $.extend({}, data);
+                data.min = _isDefined(data.min) ? data.min : this._originalMin;
+                data.max = _isDefined(data.max) ? data.max : this._originalMax;
+                this._updateMinMax(data);
+                this._customTicks = data.customTicks && data.customTicks.slice();
+                this._customMinorTicks = data.customMinorTicks;
+                this._screenDelta = data.screenDelta || 0
+            },
+            _updateOptions: function(options) {
+                var opt;
+                this._options = opt = options;
+                this._useAutoArrangement = !!this._options.useTicksAutoArrangement;
+                opt.gridSpacingFactor = opt.gridSpacingFactor || DEFAULT_GRID_SPACING_FACTOR;
+                opt.minorGridSpacingFactor = opt.minorGridSpacingFactor || DEFAULT_MINOR_GRID_SPACING_FACTOR;
+                opt.numberMultipliers = opt.numberMultipliers || DEFAULT_NUMBER_MULTIPLIERS
+            },
+            getTickBounds: function() {
+                return {
+                        minVisible: this._minBound,
+                        maxVisible: this._maxBound
+                    }
+            },
+            getTicks: function(withoutOverlappingBehavior) {
+                var that = this,
+                    options = that._options;
+                that._ticks = that._getMajorTicks();
+                that._checkLabelFormat();
+                that._decimatedTicks = [];
+                that._applyAutoArrangement();
+                !withoutOverlappingBehavior && that._applyOverlappingBehavior();
+                that._generateBounds();
+                if (options.showMinorTicks)
+                    that._minorTicks = that._customMinorTicks || that._getMinorTicks();
+                that._addBoundedTicks();
+                !withoutOverlappingBehavior && that._checkBoundedTicksOverlapping();
+                return that._ticks
+            },
+            getMinorTicks: function() {
+                var that = this,
+                    decimatedTicks = that._decimatedTicks || [],
+                    options = that._options || {},
+                    hasDecimatedTicks = decimatedTicks.length,
+                    hasMinorTickOptions = _isDefined(options.minorTickInterval) || _isDefined(options.minorTickCount),
+                    hasCustomMinorTicks = that._customMinorTicks && that._customMinorTicks.length,
+                    hasMinorTicks = options.showMinorTicks && (hasMinorTickOptions || hasCustomMinorTicks),
+                    ticks = hasDecimatedTicks && !hasMinorTicks ? decimatedTicks : that._minorTicks || [];
+                return concatAndSort(ticks, [])
+            },
+            getDecimatedTicks: function() {
+                return concatAndSort(this._decimatedTicks || [], [])
+            },
+            getFullTicks: function() {
+                return concatAndSort(this._ticks || [], this.getMinorTicks(), this._axisType)
+            },
+            getBoundaryTicks: function() {
+                return concatAndSort(this._boundaryTicks || [], [])
+            },
+            getTickInterval: function() {
+                return this._tickInterval
+            },
+            getMinorTickInterval: function() {
+                return this._minorTickInterval
+            },
+            getOverlappingBehavior: function() {
+                return this._options.overlappingBehavior
+            },
+            getOptions: function() {
+                return this._options
+            },
+            _getMajorTicks: function() {
+                var ticks;
+                if (this._customTicks) {
+                    ticks = this._customTicks.slice();
+                    this._tickInterval = ticks.length > 1 ? this._findTickIntervalForCustomTicks() : 0
+                }
+                else
+                    ticks = this._createTicks([], this._findTickInterval(), this._min, this._max);
+                return ticks
+            },
+            _applyMargin: function(margin, min, max, isNegative) {
+                var coef,
+                    value = min;
+                if (isFinite(margin)) {
+                    coef = this._getMarginValue(min, max, margin);
+                    if (coef)
+                        value = this._getNextTickValue(min, coef, isNegative, false)
+                }
+                return value
+            },
+            _applyMinMaxMargins: function(min, max) {
+                var options = this._options,
+                    newMin = min > max ? max : min,
+                    newMax = max > min ? max : min;
+                this._minCorrectionEnabled = this._getCorrectionEnabled(min, "min");
+                this._maxCorrectionEnabled = this._getCorrectionEnabled(max, "max");
+                if (options && !options.stick) {
+                    newMin = this._applyMargin(options.minValueMargin, min, max, true);
+                    newMax = this._applyMargin(options.maxValueMargin, max, min, false)
+                }
+                return {
+                        min: newMin,
+                        max: newMax
+                    }
+            },
+            _checkLabelFormat: function() {
+                var options = this._options;
+                if (this._dataType === "datetime" && !options.hasLabelFormat && this._ticks.length)
+                    options.labelOptions.format = DX.formatHelper.getDateFormatByTicks(this._ticks)
+            },
+            _generateBounds: function() {
+                var that = this,
+                    interval = that._getBoundInterval(),
+                    stick = that._options.stick,
+                    minStickValue = that._options.minStickValue,
+                    maxStickValue = that._options.maxStickValue,
+                    minBound = that._minCorrectionEnabled && !stick ? that._getNextTickValue(that._min, interval, true) : that._originalMin,
+                    maxBound = that._maxCorrectionEnabled && !stick ? that._getNextTickValue(that._max, interval) : that._originalMax;
+                that._minBound = minBound < minStickValue ? minStickValue : minBound;
+                that._maxBound = maxBound > maxStickValue ? maxStickValue : maxBound
+            },
+            _initOverlappingMethods: function(type) {
+                this._initMethods(coreTickManager.overlappingMethods[type || "linear"])
+            },
+            _addBoundedTicks: function() {
+                var that = this,
+                    tickValues = _map(that._ticks, function(tick) {
+                        return tick.valueOf()
+                    }),
+                    min = that._originalMin,
+                    max = that._originalMax,
+                    addMinMax = that._options.addMinMax || {};
+                that._boundaryTicks = [];
+                if (addMinMax.min && _inArray(min.valueOf(), tickValues) === -1) {
+                    that._ticks.splice(0, 0, min);
+                    that._boundaryTicks.push(min);
+                    checkBoundedTickInArray(min, that._minorTicks);
+                    checkBoundedTickInArray(min, that._decimatedTicks)
+                }
+                if (addMinMax.max && _inArray(max.valueOf(), tickValues) === -1) {
+                    that._ticks.push(max);
+                    that._boundaryTicks.push(max);
+                    checkBoundedTickInArray(max, that._minorTicks);
+                    checkBoundedTickInArray(max, that._decimatedTicks)
+                }
+            },
+            _getCorrectionEnabled: function(value, marginSelector) {
+                var options = this._options || {},
+                    hasPercentStick = options.percentStick && value === 1,
+                    hasValueMargin = options[marginSelector + "ValueMargin"];
+                return !hasPercentStick && !hasValueMargin
+            },
+            _validateDataType: function(type) {
+                var allowedTypes = {
+                        numeric: true,
+                        datetime: true,
+                        string: true
+                    };
+                if (!allowedTypes[type])
+                    type = _isDefined(this._min) ? getDataType(this._min) : "numeric";
+                return type
+            },
+            _getMethods: function() {
+                var methods;
+                if (this._axisType === "continuous")
+                    methods = this._dataType === "datetime" ? coreTickManager.datetime : coreTickManager.continuous;
+                else
+                    methods = coreTickManager[this._axisType] || coreTickManager.continuous;
+                return methods
+            },
+            _resetMethods: function() {
+                var that = this,
+                    methods = that._getMethods();
+                _each(methods, function(name) {
+                    if (that[name])
+                        delete that[name]
+                })
+            },
+            _initMethods: function(methods) {
+                var that = this;
+                methods = methods || that._getMethods();
+                _each(methods, function(name, func) {
+                    that[name] = func
+                })
+            },
+            _getDeltaCoef: function(screenDelta, businessDelta, gridSpacingFactor) {
+                var count;
+                gridSpacingFactor = gridSpacingFactor || this._options.gridSpacingFactor;
+                screenDelta = screenDelta || this._screenDelta;
+                businessDelta = businessDelta || this._businessDelta;
+                count = screenDelta / gridSpacingFactor;
+                count = count <= 1 ? MIN_ARRANGEMENT_TICKS_COUNT : count;
+                return businessDelta / count
+            },
+            _isTickIntervalCorrect: function(tickInterval, tickCountLimit, businessDelta) {
+                var date;
+                businessDelta = businessDelta || this._businessDelta;
+                if (!_isNumber(tickInterval)) {
+                    date = new Date;
+                    tickInterval = _addInterval(date, tickInterval) - date;
+                    if (!tickInterval)
+                        return false
+                }
+                if (_isNumber(tickInterval))
+                    if (tickInterval > 0 && businessDelta / tickInterval > tickCountLimit) {
+                        if (this._options.incidentOccured)
+                            this._options.incidentOccured('W2003')
+                    }
+                    else
+                        return true;
+                return false
+            },
+            _correctValue: function(valueTypeSelector, tickInterval, correctionMethod) {
+                var that = this,
+                    correctionEnabledSelector = "_" + valueTypeSelector + "CorrectionEnabled",
+                    spaceCorrectionSelector = valueTypeSelector + "SpaceCorrection",
+                    valueSelector = "_" + valueTypeSelector,
+                    minStickValue = that._options.minStickValue,
+                    maxStickValue = that._options.maxStickValue;
+                if (that[correctionEnabledSelector]) {
+                    if (that._options[spaceCorrectionSelector])
+                        that[valueSelector] = that._getNextTickValue(that[valueSelector], tickInterval, valueTypeSelector === "min");
+                    correctionMethod.call(this, tickInterval)
+                }
+                if (valueTypeSelector === "min")
+                    that[valueSelector] = that[valueSelector] < minStickValue ? minStickValue : that[valueSelector];
+                if (valueTypeSelector === "max")
+                    that[valueSelector] = that[valueSelector] > maxStickValue ? maxStickValue : that[valueSelector]
+            },
+            _findTickInterval: function() {
+                var that = this,
+                    options = that._options,
+                    tickInterval;
+                tickInterval = that._isTickIntervalValid(options.tickInterval) && that._isTickIntervalCorrect(options.tickInterval, TICKS_COUNT_LIMIT) ? options.tickInterval : that._getInterval();
+                if (that._isTickIntervalValid(tickInterval)) {
+                    that._correctValue("min", tickInterval, that._correctMin);
+                    that._correctValue("max", tickInterval, that._correctMax);
+                    that._updateBusinessDelta()
+                }
+                that._tickInterval = tickInterval;
+                return tickInterval
+            },
+            _findMinorTickInterval: function(firstTick, secondTick) {
+                var that = this,
+                    ticks = that._ticks,
+                    intervals = that._options.stick ? ticks.length - 1 : ticks.length;
+                if (intervals < 1)
+                    intervals = 1;
+                that._getMinorInterval(that._screenDelta / intervals, that._findBusinessDelta(firstTick, secondTick, false));
+                return that._minorTickInterval
+            },
+            _createMinorTicks: function(ticks, firstTick, secondTick) {
+                var that = this,
+                    tickInterval = that._findMinorTickInterval(firstTick, secondTick),
+                    isTickIntervalNegative = false,
+                    isTickIntervalWithPow = false,
+                    needCorrectTick = false,
+                    startTick = that._getNextTickValue(firstTick, tickInterval, isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
+                if (that._isTickIntervalValid(tickInterval))
+                    ticks = that._createCountedTicks(ticks, tickInterval, startTick, secondTick, that._minorTickCount, isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
+                return ticks
+            },
+            _getMinorTicks: function() {
+                var that = this,
+                    minorTicks = [],
+                    ticks = that._ticks,
+                    ticksLength = ticks.length,
+                    hasUnitBeginningTick = that._hasUnitBeginningTickCorrection(),
+                    i = hasUnitBeginningTick ? 1 : 0;
+                if (ticks.length) {
+                    minorTicks = that._getBoundedMinorTicks(minorTicks, that._minBound, ticks[0], true);
+                    if (hasUnitBeginningTick)
+                        minorTicks = that._getUnitBeginningMinorTicks(minorTicks);
+                    for (i; i < ticksLength - 1; i++)
+                        minorTicks = that._createMinorTicks(minorTicks, ticks[i], ticks[i + 1]);
+                    minorTicks = that._getBoundedMinorTicks(minorTicks, that._maxBound, ticks[ticksLength - 1])
+                }
+                else
+                    minorTicks = that._createMinorTicks(minorTicks, that._minBound, that._maxBound);
+                return minorTicks
+            },
+            _createCountedTicks: function(ticks, tickInterval, min, max, count, isTickIntervalWithPow, needMax) {
+                var value = min,
+                    i;
+                for (i = 0; i < count; i++) {
+                    if (!(needMax === false && value.valueOf() === max.valueOf()))
+                        ticks.push(value);
+                    value = this._getNextTickValue(value, tickInterval, false, isTickIntervalWithPow, false)
+                }
+                return ticks
+            },
+            _createTicks: function(ticks, tickInterval, min, max, isTickIntervalNegative, isTickIntervalWithPow, withCorrection) {
+                var that = this,
+                    value = min,
+                    newValue = min,
+                    leftBound,
+                    rightBound,
+                    boundedRule;
+                if (that._isTickIntervalValid(tickInterval)) {
+                    boundedRule = min - max < 0;
+                    do {
+                        value = newValue;
+                        if (that._options.stick) {
+                            if (value >= that._originalMin && value <= that._originalMax)
+                                ticks.push(value)
+                        }
+                        else
+                            ticks.push(value);
+                        newValue = that._getNextTickValue(value, tickInterval, isTickIntervalNegative, isTickIntervalWithPow, withCorrection);
+                        if (value.valueOf() === newValue.valueOf())
+                            break;
+                        leftBound = newValue - min >= 0;
+                        rightBound = max - newValue >= 0
+                    } while (boundedRule === leftBound && boundedRule === rightBound)
+                }
+                else
+                    ticks.push(value);
+                return ticks
+            },
+            _getBoundedMinorTicks: function(minorTicks, boundedTick, tick, isNegative) {
+                var that = this,
+                    needCorrectTick = false,
+                    nextTick = that._tickInterval ? this._getNextTickValue(tick, that._tickInterval, isNegative, true, needCorrectTick) : boundedTick,
+                    tickInterval = that._findMinorTickInterval(tick, nextTick),
+                    isTickIntervalCorrect = that._isTickIntervalCorrect(tickInterval, TICKS_COUNT_LIMIT, that._findBusinessDelta(tick, boundedTick, false)),
+                    startTick,
+                    endTick,
+                    boundedTickValue = boundedTick.valueOf();
+                if (isTickIntervalCorrect && that._isTickIntervalValid(tickInterval) && that._minorTickCount > 0) {
+                    if (isNegative) {
+                        if (tick.valueOf() <= boundedTickValue)
+                            return minorTicks;
+                        while (nextTick.valueOf() < boundedTickValue)
+                            nextTick = this._getNextTickValue(nextTick, tickInterval, false, false, needCorrectTick);
+                        startTick = nextTick;
+                        endTick = that._getNextTickValue(tick, tickInterval, true, false, false)
+                    }
+                    else {
+                        startTick = that._getNextTickValue(tick, tickInterval, false, false, false);
+                        endTick = boundedTick
+                    }
+                    minorTicks = that._createTicks(minorTicks, tickInterval, startTick, endTick, false, false, needCorrectTick)
+                }
+                return minorTicks
+            },
+            getTypes: function() {
+                return {
+                        axisType: this._axisType,
+                        dataType: this._dataType
+                    }
+            },
+            getData: function() {
+                return {
+                        min: this._min,
+                        max: this._max,
+                        customTicks: this._customTicks,
+                        customMinorTicks: this._customMinorTicks,
+                        screenDelta: this._screenDelta
+                    }
+            }
+        }
+    })(jQuery, DevExpress);
     /*! Module viz-core, file numericTranslator.js */
     (function($, DX, undefined) {
-        var commonUtils = DX.require("/utils/utils.common"),
-            isDefined = commonUtils.isDefined,
+        var utils = DX.utils,
+            isDefined = utils.isDefined,
             round = Math.round;
         DX.viz.numericTranslatorFunctions = {
             translate: function(bp) {
@@ -343,8 +1668,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(jQuery, DevExpress);
     /*! Module viz-core, file categoryTranslator.js */
     (function($, DX, undefined) {
-        var commonUtils = DX.require("/utils/utils.common"),
-            isDefined = commonUtils.isDefined,
+        var isDefined = DX.utils.isDefined,
             round = Math.round;
         DX.viz.categoryTranslatorFunctions = {
             translate: function(category, directionOffset) {
@@ -446,15 +1770,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
     (function($, DX, undefined) {
         var viz = DX.viz,
             numericTranslator = viz.numericTranslatorFunctions,
-            mathUtils = DX.require("/utils/utils.math"),
-            commonUtils = DX.require("/utils/utils.common"),
-            raiseTo = mathUtils.raiseTo,
-            getLog = mathUtils.getLog;
+            utils = DX.utils,
+            raiseTo = utils.raiseTo,
+            getLog = utils.getLog;
         viz.logarithmicTranslatorFunctions = {
             translate: function(bp) {
                 var that = this,
                     specialValue = that.translateSpecialCase(bp);
-                if (commonUtils.isDefined(specialValue))
+                if (utils.isDefined(specialValue))
                     return specialValue;
                 return numericTranslator.translate.call(that, getLog(bp, that._businessRange.base))
             },
@@ -470,8 +1793,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             getMinScale: numericTranslator.getMinScale,
             getScale: function(val1, val2) {
                 var base = this._businessRange.base;
-                val1 = commonUtils.isDefined(val1) ? getLog(val1, base) : undefined;
-                val2 = commonUtils.isDefined(val2) ? getLog(val2, base) : undefined;
+                val1 = utils.isDefined(val1) ? getLog(val1, base) : undefined;
+                val2 = utils.isDefined(val2) ? getLog(val2, base) : undefined;
                 return numericTranslator.getScale.call(this, val1, val2)
             }
         }
@@ -543,11 +1866,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file translator2D.js */
     (function($, DX, undefined) {
         var viz = DX.viz,
-            mathUtils = DX.require("/utils/utils.math"),
-            commonUtils = DX.require("/utils/utils.common"),
-            getLog = mathUtils.getLog,
-            getPower = mathUtils.getPower,
-            isDefined = commonUtils.isDefined,
+            utils = DX.utils,
+            getLog = utils.getLog,
+            getPower = utils.getPower,
+            isDefined = utils.isDefined,
             _abs = Math.abs,
             CANVAS_PROP = ["width", "height", "left", "top", "bottom", "right"],
             NUMBER_EQUALITY_CORRECTION = 1,
@@ -641,7 +1963,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     newMin,
                     newMax,
                     base = range.base,
-                    isDateTime = commonUtils.isDate(max) || commonUtils.isDate(min),
+                    isDateTime = utils.isDate(max) || utils.isDate(min),
                     correction = isDateTime ? DATETIME_EQUALITY_CORRECTION : NUMBER_EQUALITY_CORRECTION;
                 if (range.axisType === 'logarithmic') {
                     maxVisible = getLog(maxVisible, base);
@@ -688,7 +2010,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     canvasOptions = that._canvasOptions = that._getCanvasBounds(businessRange),
                     length,
                     canvas = that._canvas;
-                if (that._options.isHorizontal) {
+                if (that._options.direction === "horizontal") {
                     canvasOptions.startPoint = canvas.left;
                     length = canvas.width;
                     canvasOptions.endPoint = canvas.width - canvas.right;
@@ -704,10 +2026,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 canvasOptions.rangeDoubleError = Math.pow(10, getPower(canvasOptions.rangeMax - canvasOptions.rangeMin) - getPower(length) - 2);
                 canvasOptions.ratioOfCanvasRange = canvasOptions.canvasLength / (canvasOptions.rangeMaxVisible - canvasOptions.rangeMinVisible);
                 return canvasOptions
-            },
-            updateCanvas: function(canvas) {
-                this._canvas = validateCanvas(canvas);
-                this.reinit()
             },
             updateBusinessRange: function(businessRange) {
                 this._businessRange = validateBusinessRange(businessRange);
@@ -744,7 +2062,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             result = that.translate(0);
                         else {
                             invert = range.invert ^ (minVisible <= 0 && maxVisible <= 0);
-                            if (that._options.isHorizontal)
+                            if (that._options.direction === "horizontal")
                                 result = invert ? endPoint : startPoint;
                             else
                                 result = invert ? startPoint : endPoint
@@ -797,14 +2115,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file polarTranslator.js */
     (function($, DX, undefined) {
         var viz = DX.viz,
-            mathUtils = DX.require("/utils/utils.math"),
-            commonUtils = DX.require("/utils/utils.common"),
+            utils = DX.utils,
             SHIFT_ANGLE = 90,
             _round = Math.round;
         function PolarTranslator(businessRange, canvas, options) {
             var that = this;
-            that._startAngle = options.startAngle;
-            that._endAngle = options.endAngle;
             that._argCanvas = {
                 left: 0,
                 right: 0,
@@ -814,14 +2129,15 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 left: 0,
                 right: 0
             };
-            that.canvas = $.extend({}, canvas);
+            that.canvas = canvas;
             that._init();
             that._arg = new viz.Translator2D(businessRange.arg, that._argCanvas, {
-                isHorizontal: true,
+                direction: "horizontal",
                 conversionValue: true
             });
-            that._val = new viz.Translator2D(businessRange.val, that._valCanvas, {isHorizontal: true});
-            that._businessRange = businessRange
+            that._val = new viz.Translator2D(businessRange.val, that._valCanvas, {direction: "horizontal"});
+            that._businessRange = businessRange;
+            that.startAngle = utils.isNumber(options.startAngle) ? options.startAngle : 0
         }
         PolarTranslator.prototype = {
             constructor: PolarTranslator,
@@ -851,8 +2167,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this,
                     argTranslate = that._arg.translate(arg, offsets && offsets[0]),
                     radius = that._val.translate(val, offsets && offsets[1]),
-                    angle = commonUtils.isDefined(argTranslate) ? argTranslate + that._startAngle - SHIFT_ANGLE : null,
-                    cossin = mathUtils.getCosAndSin(angle),
+                    angle = utils.isDefined(argTranslate) ? argTranslate + that.startAngle - SHIFT_ANGLE : null,
+                    cossin = utils.getCosAndSin(angle),
                     x,
                     y;
                 y = _round(that._y0 + radius * cossin.sin);
@@ -864,20 +2180,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         radius: radius
                     }
             },
-            setCanvasDimension: function(dimension) {
-                this.canvas.width = this.canvas.height = dimension;
-                this.reinit()
-            },
-            setAngles: function(startAngle, endAngle) {
-                var that = this;
-                that._startAngle = startAngle;
-                that._endAngle = endAngle;
-                that._argCanvas.width = that._getAngle();
-                that._arg.update(that._arg.getBusinessRange(), that._argCanvas)
-            },
-            getAngles: function() {
-                return [this._startAngle, this._endAngle]
-            },
             getValLength: function() {
                 return this._rad
             },
@@ -888,7 +2190,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     }
             },
             getBaseAngle: function() {
-                return this._startAngle - SHIFT_ANGLE
+                return this.startAngle - SHIFT_ANGLE
             },
             getInterval: function() {
                 return this._arg.getInterval()
@@ -897,7 +2199,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return this._val.getInterval()
             },
             _getAngle: function() {
-                return Math.abs(this._endAngle - this._startAngle)
+                return 360
+            },
+            getStartAngle: function() {
+                return this.startAngle
             },
             getComponent: function(type) {
                 var that = this,
@@ -908,13 +2213,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 translator.getCenter = function() {
                     return that.getCenter()
                 };
-                translator.getAngles = function() {
-                    return that.getAngles()
+                translator.getStartAngle = function() {
+                    return that.getStartAngle()
                 };
                 return translator
             },
             _untranslate: function(x, y) {
-                var radius = mathUtils.getDistance(this._x0, this._y0, x, y),
+                var radius = utils.getDistance(this._x0, this._y0, x, y),
                     angle = Math.atan2(y - this._y0, x - this._x0);
                 return {
                         r: radius,
@@ -923,7 +2228,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             untranslate: function(x, y) {
                 var pos = this._untranslate(x, y);
-                pos.phi = _round(mathUtils.normalizeAngle(pos.phi * 180 / Math.PI));
+                pos.phi = _round(utils.normalizeAngle(pos.phi * 180 / Math.PI));
                 pos.r = _round(pos.r);
                 return pos
             },
@@ -939,9 +2244,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(jQuery, DevExpress);
     /*! Module viz-core, file rectangle.js */
     (function(DX, undefined) {
-        var isFinite = window.isFinite,
-            Class = DevExpress.require("/class");
-        DX.viz.Rectangle = Class.inherit({
+        var isFinite = window.isFinite;
+        DX.viz.Rectangle = DX.Class.inherit({
             ctor: function(options) {
                 var that = this;
                 options = options || {};
@@ -1005,7 +2309,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file layoutElement.js */
     (function($, DX, undefined) {
         var _round = Math.round,
-            objectUtils = DX.require("/utils/utils.object"),
             defaultOffset = {
                 horizontal: 0,
                 vertical: 0
@@ -1033,39 +2336,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     shiftY = -alignFactors[my.vertical] * myBBox.height + ofBBox.y + alignFactors[at.vertical] * ofBBox.height + parseInt(offset.vertical);
                 that.shift(_round(shiftX), _round(shiftY))
             },
-            getLayoutOptions: $.noop,
-            getVerticalCuttedSize: function(canvas) {
-                var that = this,
-                    height = canvas.height,
-                    top = canvas.top,
-                    bottom = canvas.bottom,
-                    layoutOptions = that.getLayoutOptions();
-                if (layoutOptions) {
-                    that.draw(canvas.width, canvas.height);
-                    layoutOptions = that.getLayoutOptions();
-                    if (layoutOptions) {
-                        height -= layoutOptions.height;
-                        if (layoutOptions.position.vertical === "bottom")
-                            bottom += layoutOptions.height;
-                        else
-                            top += layoutOptions.height
-                    }
-                }
-                return {
-                        left: canvas.left,
-                        right: canvas.right,
-                        top: top,
-                        bottom: bottom,
-                        width: canvas.width,
-                        height: height
-                    }
-            }
+            getLayoutOptions: $.noop
         };
         function WrapperLayoutElement(renderElement, bbox) {
             this._renderElement = renderElement;
             this._cacheBBox = bbox
         }
-        var wrapperLayoutElementPrototype = WrapperLayoutElement.prototype = objectUtils.clone(LayoutElement.prototype);
+        var wrapperLayoutElementPrototype = WrapperLayoutElement.prototype = DX.utils.clone(LayoutElement.prototype);
         wrapperLayoutElementPrototype.constructor = WrapperLayoutElement;
         wrapperLayoutElementPrototype.getLayoutOptions = function() {
             return this._cacheBBox || this._renderElement.getBBox()
@@ -1080,14 +2357,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file themes.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
-            vizUtils = viz.utils,
-            wrapDeprecate = vizUtils.wrapDeprecate,
             themes = {},
             themesMapping = {},
             themesSchemeMapping = {},
             _extend = $.extend,
             _each = $.each,
-            _normalizeEnum = vizUtils.normalizeEnum,
+            _normalizeEnum = viz.utils.normalizeEnum,
             currentThemeName = null,
             nextCacheUid = 0,
             widgetsCache = {};
@@ -1171,7 +2446,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 pie: {},
                 polar: {},
                 gauge: {scale: {
-                        tick: {},
+                        majorTick: {},
                         minorTick: {},
                         label: {font: {}}
                     }},
@@ -1188,7 +2463,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
             mergeScalar(theme.chart.commonSeriesSettings.candlestick, "innerColor", null, theme.backgroundColor);
             mergeScalar(theme.map.background, "color", null, theme.backgroundColor);
             mergeScalar(theme.title.font, "color", null, theme.primaryTitleColor);
-            mergeObject(theme.title, "subtitle", null, theme.title);
             mergeScalar(theme.legend.font, "color", null, theme.secondaryTitleColor);
             mergeScalar(theme.legend.border, "color", null, theme.axisColor);
             patchAxes(theme);
@@ -1199,8 +2473,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
             });
             _each(["chart", "pie", "polar", "gauge", "barGauge", "map", "rangeSelector"], function(_, section) {
                 mergeObject(theme[section], "loadingIndicator", theme);
-                mergeObject(theme[section], "legend", theme);
+                mergeObject(theme[section], "legend", theme)
+            });
+            _each(["chart", "pie", "polar", "gauge", "barGauge"], function(_, section) {
                 mergeObject(theme[section], "title", theme)
+            });
+            _each(["gauge", "barGauge"], function(_, section) {
+                mergeObject(theme[section], "subtitle", null, theme.title)
             });
             _each(["chart", "pie", "polar"], function(_, section) {
                 mergeObject(theme, section, null, theme["chart:common"])
@@ -1212,7 +2491,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
             mergeObject(theme.rangeSelector.chart, "commonSeriesSettings", theme.chart);
             mergeObject(theme.rangeSelector.chart, "dataPrepareSettings", theme.chart);
             mergeScalar(theme.map.legend, "backgroundColor", theme);
-            patchMapLayers(theme);
             return theme
         }
         function patchAxes(theme) {
@@ -1224,18 +2502,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
             mergeScalar(commonAxisSettings.title.font, colorFieldName, null, theme.secondaryTitleColor);
             mergeScalar(commonAxisSettings.label.font, colorFieldName, null, theme.axisLabelColor);
             mergeScalar(theme.gauge.scale.label.font, colorFieldName, null, theme.axisLabelColor);
-            mergeScalar(theme.gauge.scale.tick, colorFieldName, null, theme.backgroundColor);
+            mergeScalar(theme.gauge.scale.majorTick, colorFieldName, null, theme.backgroundColor);
             mergeScalar(theme.gauge.scale.minorTick, colorFieldName, null, theme.backgroundColor);
             mergeScalar(theme.rangeSelector.scale.label.font, colorFieldName, null, theme.axisLabelColor)
-        }
-        function patchMapLayers(theme) {
-            var map = theme.map;
-            _each(["area", "line", "marker"], function(_, section) {
-                mergeObject(map, "layer:" + section, null, map.layer)
-            });
-            _each(["dot", "bubble", "pie", "image"], function(_, section) {
-                mergeObject(map, "layer:marker:" + section, null, map["layer:marker"])
-            })
         }
         function addCacheItem(target) {
             var cacheUid = ++nextCacheUid;
@@ -1251,8 +2520,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             });
             return this
         }
-        wrapDeprecate("currentTheme", currentTheme);
-        wrapDeprecate("registerTheme", registerTheme);
+        viz.core.currentTheme = currentTheme;
+        viz.core.registerTheme = registerTheme;
         _extend(viz, {
             currentTheme: currentTheme,
             registerTheme: registerTheme,
@@ -1276,16 +2545,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file palette.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
-            vizUtils = viz.utils,
-            wrapDeprecate = vizUtils.wrapDeprecate,
+            core = viz.core,
             _floor = Math.floor,
             _ceil = Math.ceil,
-            _Color = DX.require("/color"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isArray = commonUtils.isArray,
-            _isString = commonUtils.isString,
+            _Color = DX.Color,
+            _isArray = DX.utils.isArray,
+            _isString = DX.utils.isString,
             _extend = $.extend,
-            _normalizeEnum = vizUtils.normalizeEnum,
+            _normalizeEnum = DX.viz.utils.normalizeEnum,
             HIGHLIGHTING_STEP = 50,
             DEFAULT = "default",
             currentPaletteName = DEFAULT;
@@ -1464,9 +2731,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 addColor(0.5);
             return gradient
         }
-        wrapDeprecate("registerPalette", registerPalette);
-        wrapDeprecate("getPalette", getPalette);
-        wrapDeprecate("currentPalette", currentPalette);
+        core.registerPalette = registerPalette;
+        core.getPalette = getPalette;
+        core.currentPalette = currentPalette;
         _extend(viz, {
             Palette: Palette,
             GradientPalette: GradientPalette,
@@ -1478,9 +2745,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(DevExpress, jQuery);
     /*! Module viz-core, file baseThemeManager.js */
     (function(DX, $, undefined) {
-        var Class = DevExpress.require("/class"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isString = commonUtils.isString,
+        var _isString = DX.utils.isString,
             viz = DX.viz,
             _parseScalar = viz.utils.parseScalar,
             _findTheme = viz.findTheme,
@@ -1495,7 +2760,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             });
             return _theme
         }
-        viz.BaseThemeManager = Class.inherit({
+        viz.BaseThemeManager = DX.Class.inherit({
             ctor: function() {
                 _addCacheItem(this)
             },
@@ -1556,8 +2821,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(DevExpress, jQuery);
     /*! Module viz-core, file parseUtils.js */
     (function($, DX) {
-        var commonUtils = DX.require("/utils/utils.common"),
-            isDefined = commonUtils.isDefined,
+        var isDefined = DX.utils.isDefined,
             parsers = {
                 string: function(val) {
                     return isDefined(val) ? '' + val : val
@@ -1686,16 +2950,15 @@ if (!DevExpress.MOD_VIZ_CORE) {
         DX.viz.LoadingIndicator = LoadingIndicator
     })(DevExpress);
     /*! Module viz-core, file tooltip.js */
-    (function(DX, $, doc, win, undefined) {
+    (function(DX, $, doc, undefined) {
         var viz = DX.viz,
-            commonUtils = DX.require("/utils/utils.common"),
             HALF_ARROW_WIDTH = 10,
             FORMAT_PRECISION = {
                 argument: ["argumentFormat", "argumentPrecision"],
                 percent: ["percent", "percentPrecision"],
                 value: ["format", "precision"]
             },
-            formatHelper = DX.require("/utils/utils.formatHelper"),
+            formatHelper = DX.formatHelper,
             mathCeil = Math.ceil;
         function hideElement($element) {
             $element.css({left: "-9999px"}).detach()
@@ -1712,12 +2975,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 height: 0,
                 "pointer-events": "none"
             }).addClass(params.cssClass);
-            that._renderer = renderer = new viz.renderers.Renderer({
-                pathModified: params.pathModified,
-                container: that._wrapper[0]
-            });
+            that._renderer = renderer = new viz.renderers.Renderer({pathModified: params.pathModified});
             root = renderer.root;
             root.attr({"pointer-events": "none"});
+            renderer.draw(that._wrapper.get(0));
             that._cloud = renderer.path([], "area").sharp().append(root);
             that._shadow = renderer.shadowFilter();
             that._textGroup = renderer.g().attr({align: "center"}).append(root);
@@ -1802,9 +3063,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     customize = this._customizeTooltip.call(formatObject, formatObject);
                     customize = $.isPlainObject(customize) ? customize : {};
                     if ("text" in customize)
-                        state.text = commonUtils.isDefined(customize.text) ? String(customize.text) : "";
+                        state.text = DX.utils.isDefined(customize.text) ? String(customize.text) : "";
                     if ("html" in customize)
-                        state.html = commonUtils.isDefined(customize.html) ? String(customize.html) : ""
+                        state.html = DX.utils.isDefined(customize.html) ? String(customize.html) : ""
                 }
                 if (!("text" in state) && !("html" in state))
                     state.text = formatObject.valueText || "";
@@ -1826,8 +3087,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     ss = that._shadowSettigns,
                     xOff = ss.offsetX,
                     yOff = ss.offsetY,
-                    blur = ss.blur * 2 + 1,
-                    getComputedStyle = win.getComputedStyle;
+                    blur = ss.blur * 2 + 1;
                 if (!that._prepare(formatObject, state))
                     return false;
                 that._state = state;
@@ -1844,24 +3104,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         width: that._getCanvas().width
                     });
                     textHtml.html(state.html);
-                    if (getComputedStyle) {
-                        bBox = getComputedStyle(textHtml.get(0));
-                        bBox = {
-                            x: 0,
-                            y: 0,
-                            width: mathCeil(parseFloat(bBox.width)),
-                            height: mathCeil(parseFloat(bBox.height))
-                        }
-                    }
-                    else {
-                        bBox = textHtml.get(0).getBoundingClientRect();
-                        bBox = {
-                            x: 0,
-                            y: 0,
-                            width: mathCeil(bBox.width ? bBox.width : bBox.right - bBox.left),
-                            height: mathCeil(bBox.height ? bBox.height : bBox.bottom - bBox.top)
-                        }
-                    }
+                    bBox = textHtml.get(0).getBoundingClientRect();
+                    bBox = {
+                        x: 0,
+                        y: 0,
+                        width: bBox.width ? mathCeil(bBox.width) : mathCeil(bBox.right - bBox.left),
+                        height: bBox.height ? mathCeil(bBox.height) : mathCeil(bBox.bottom - bBox.top)
+                    };
                     textGroupHtml.width(bBox.width);
                     textGroupHtml.height(bBox.height)
                 }
@@ -2049,7 +3298,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             _getCanvas: function() {
                 var html = doc.documentElement,
-                    body = doc.body;
+                    body = doc.body,
+                    win = window;
                 return {
                         left: win.pageXOffset || html.scrollLeft || 0,
                         top: win.pageYOffset || html.scrollTop || 0,
@@ -2061,7 +3311,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             }
         };
         viz.Tooltip = Tooltip
-    })(DevExpress, jQuery, document, window);
+    })(DevExpress, jQuery, document);
     /*! Module viz-core, file legend.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
@@ -2073,10 +3323,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _max = _math.max,
             _min = _math.min,
             _ceil = _math.ceil,
-            objectUtils = DX.require("/utils/utils.object"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            _isFunction = commonUtils.isFunction,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
+            _isFunction = utils.isFunction,
             _enumParser = vizUtils.enumParser,
             _normalizeEnum = vizUtils.normalizeEnum,
             _extend = $.extend,
@@ -2175,16 +3424,15 @@ if (!DevExpress.MOD_VIZ_CORE) {
         function parseOptions(options, textField) {
             if (!options)
                 return null;
-            var debug = DX.require("/utils/utils.console").debug;
-            debug.assertParam(options.visible, "Visibility was not passed");
-            debug.assertParam(options.markerSize, "markerSize was not passed");
-            debug.assertParam(options.font.color, "fontColor was not passed");
-            debug.assertParam(options.font.family, "fontFamily was not passed");
-            debug.assertParam(options.font.size, "fontSize was not passed");
-            debug.assertParam(options.paddingLeftRight, "paddingLeftRight was not passed");
-            debug.assertParam(options.paddingTopBottom, "paddingTopBottom was not passed");
-            debug.assertParam(options.columnItemSpacing, "columnItemSpacing was not passed");
-            debug.assertParam(options.rowItemSpacing, "rowItemSpacing was not passed");
+            DX.utils.debug.assertParam(options.visible, "Visibility was not passed");
+            DX.utils.debug.assertParam(options.markerSize, "markerSize was not passed");
+            DX.utils.debug.assertParam(options.font.color, "fontColor was not passed");
+            DX.utils.debug.assertParam(options.font.family, "fontFamily was not passed");
+            DX.utils.debug.assertParam(options.font.size, "fontSize was not passed");
+            DX.utils.debug.assertParam(options.paddingLeftRight, "paddingLeftRight was not passed");
+            DX.utils.debug.assertParam(options.paddingTopBottom, "paddingTopBottom was not passed");
+            DX.utils.debug.assertParam(options.columnItemSpacing, "columnItemSpacing was not passed");
+            DX.utils.debug.assertParam(options.rowItemSpacing, "rowItemSpacing was not passed");
             parseMargins(options);
             options.horizontalAlignment = parseHorizontalAlignment(options.horizontalAlignment, RIGHT);
             options.verticalAlignment = parseVerticalAlignment(options.verticalAlignment, options.horizontalAlignment === CENTER ? BOTTOM : TOP);
@@ -2222,9 +3470,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 },
                 maxMeasureLength = 0,
                 maxOrtMeasureLength = 0;
-            _each(lines, function(i, line) {
+            $.each(lines, function(i, line) {
                 var firstItem = line[0];
-                _each(line, function(_, item) {
+                $.each(line, function(_, item) {
                     var offset = item.offset || layoutOptions.spacing;
                     position[layoutOptions.direction] += item[layoutOptions.measure] + offset;
                     maxMeasureLength = _max(maxMeasureLength, position[layoutOptions.direction])
@@ -2244,7 +3492,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
         }
         function getLineLength(line, layoutOptions) {
             var lineLength = 0;
-            _each(line, function(_, item) {
+            $.each(line, function(_, item) {
                 var offset = item.offset || layoutOptions.spacing;
                 lineLength += item[layoutOptions.measure] + offset
             });
@@ -2252,7 +3500,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
         }
         function getMaxLineLength(lines, layoutOptions) {
             var maxLineLength = 0;
-            _each(lines, function(_, line) {
+            $.each(lines, function(_, line) {
                 maxLineLength = _max(maxLineLength, getLineLength(line, layoutOptions))
             });
             return maxLineLength
@@ -2313,12 +3561,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
         }
         function setMaxInLine(line, mesuare) {
             var maxLineSize = 0;
-            _each(line, function(_, item) {
+            $.each(line, function(_, item) {
                 if (!item)
                     return;
                 maxLineSize = _max(maxLineSize, item[mesuare])
             });
-            _each(line, function(_, item) {
+            $.each(line, function(_, item) {
                 if (!item)
                     return;
                 item[mesuare] = maxLineSize
@@ -2358,7 +3606,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that._getCustomizeObject = settings.getFormatObject;
                 that._patterns = []
             };
-        var legendPrototype = _Legend.prototype = objectUtils.clone(DX.viz.LayoutElement.prototype);
+        var legendPrototype = _Legend.prototype = utils.clone(DX.viz.LayoutElement.prototype);
         $.extend(legendPrototype, {
             constructor: _Legend,
             update: function(data, options) {
@@ -2404,10 +3652,16 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     options = that._options,
                     initMarkerSize = options.markerSize,
                     renderer = that._renderer,
+                    markersOptions = [],
+                    maxMarkerSize = 0,
                     i = 0,
                     bbox,
+                    maxBboxWidth = 0,
                     maxBboxHeight = 0,
                     createMarker = getMarkerCreator(options.markerType);
+                _each(items, function(_i, item) {
+                    maxMarkerSize = _max(maxMarkerSize, _Number(item.size > 0 ? item.size : initMarkerSize))
+                });
                 that._markersId = {};
                 for (; i < that._patterns.length; i++)
                     that._patterns[i].dispose();
@@ -2438,7 +3692,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     if (dataItem.id !== undefined)
                         that._markersId[dataItem.id] = i;
                     bbox = getSizeItem(options, markerSize, labelBBox);
+                    maxBboxWidth = _max(maxBboxWidth, bbox.width);
                     maxBboxHeight = _max(maxBboxHeight, bbox.height);
+                    markersOptions.push({
+                        size: markerSize,
+                        marker: marker
+                    });
                     that._createHint(dataItem, label);
                     return {
                             label: label,
@@ -2447,10 +3706,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             bbox: bbox,
                             marker: marker,
                             markerSize: markerSize,
-                            tracker: {
-                                id: dataItem.id,
-                                argument: dataItem.argument
-                            },
+                            tracker: {id: dataItem.id},
                             states: states,
                             itemTextPosition: options.itemTextPosition,
                             markerOffset: 0,
@@ -2458,7 +3714,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         }
                 });
                 if (options.equalRowHeight)
-                    _each(that._items, function(_, item) {
+                    $.each(that._items, function(_, item) {
                         item.bbox.height = maxBboxHeight
                     })
             },
@@ -2544,7 +3800,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that._applyItemPosition(lines, layoutOptions)
             },
             _createLines: function(lines, layoutOptions) {
-                _each(this._items, function(i, item) {
+                $.each(this._items, function(i, item) {
                     var tableLine = getLines(lines, layoutOptions, i),
                         labelBox = {
                             width: item.labelBBox.width,
@@ -2610,11 +3866,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     },
                     maxLineLength = getMaxLineLength(lines, layoutOptions),
                     itemIndex = 0;
-                _each(lines, function(i, line) {
+                $.each(lines, function(i, line) {
                     var firstItem = line[0],
                         ortOffset = firstItem.ortOffset || layoutOptions.ortSpacing;
                     position[layoutOptions.direction] = getInitPositionForDirection(line, layoutOptions, maxLineLength);
-                    _each(line, function(_, item) {
+                    $.each(line, function(_, item) {
                         var offset = item.offset || layoutOptions.spacing,
                             wrap = new WrapperLayoutElement(item.element, item.bbox),
                             itemBBox = new WrapperLayoutElement(null, {
@@ -2635,7 +3891,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     });
                     position[layoutOptions.ortDirection] += firstItem[layoutOptions.ortMeasure] + ortOffset
                 });
-                _each(this._items, function(_, item) {
+                $.each(this._items, function(_, item) {
                     var itemBBox = calculateBboxLabelAndMarker(item.bboxs[0].getLayoutOptions(), item.bboxs[1].getLayoutOptions()),
                         horizontal = that._options.columnItemSpacing / 2,
                         vertical = that._options.rowItemSpacing / 2;
@@ -2828,9 +4084,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file range.js */
     (function($, DX, undefined) {
         var viz = DX.viz,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            _isDate = commonUtils.isDate,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
+            _isDate = utils.isDate,
             NUMBER_EQUALITY_CORRECTION = 1,
             DATETIME_EQUALITY_CORRECTION = 60000,
             minSelector = "min",
@@ -2906,7 +4162,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var checkField = function(field) {
                         that[field] = that[field] || otherRange[field]
                     };
-                if (commonUtils.isDefined(otherRange.stick))
+                if (utils.isDefined(otherRange.stick))
                     that.stick = otherRange.stick;
                 checkField("addSpiderCategory");
                 checkField("percentStick");
@@ -2979,3520 +4235,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
             }
         }
     })(jQuery, DevExpress);
-    /*! Module viz-core, file title.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            vizUtils = viz.utils,
-            objectUtils = DX.require("/utils/utils.object"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            DEFAULT_MARGIN = 10,
-            DEFAULT_GAP = 3,
-            CENTER = "center";
-        function hasText(text) {
-            return _isDefined(text) && text.length > 0
-        }
-        function processTitleLength(elem, text, width) {
-            var hasEllipsis = elem.attr({text: text}).applyEllipsis(width);
-            hasEllipsis && elem.setTitle(text)
-        }
-        function validateMargins(options) {
-            if (options.margin >= 0)
-                options.margin = {
-                    top: options.margin,
-                    bottom: options.margin,
-                    left: options.margin,
-                    right: options.margin
-                };
-            else {
-                options.margin = options.margin || {};
-                options.margin = {
-                    top: options.margin.top >= 0 ? options.margin.top : DEFAULT_MARGIN,
-                    bottom: options.margin.bottom >= 0 ? options.margin.bottom : DEFAULT_MARGIN,
-                    left: options.margin.left >= 0 ? options.margin.left : DEFAULT_MARGIN,
-                    right: options.margin.right >= 0 ? options.margin.right : DEFAULT_MARGIN
-                }
-            }
-        }
-        function validateAlignments(options) {
-            if (options.verticalAlignment !== "bottom")
-                options.verticalAlignment = "top";
-            if (options.horizontalAlignment !== "left" && options.horizontalAlignment !== "right")
-                options.horizontalAlignment = CENTER
-        }
-        function Title(params) {
-            this._renderer = params.renderer;
-            this._incidentOccured = params.incidentOccured;
-            this._group = params.renderer.g().attr({"class": params.cssClass}).linkOn(params.renderer.root, {
-                name: "title",
-                after: "peripheral"
-            })
-        }
-        viz.Title = Title;
-        var titlePrototype = Title.prototype = objectUtils.clone(DX.viz.LayoutElement.prototype);
-        $.extend(titlePrototype, {
-            constructor: Title,
-            dispose: function() {
-                var that = this;
-                that._group.linkOff();
-                that._renderer = that._group = null;
-                that._disposeInnerElements();
-                that._options = null
-            },
-            _updateOptions: function(options) {
-                validateAlignments(options);
-                validateMargins(options);
-                this._options = options
-            },
-            _updateStructure: function() {
-                var that = this,
-                    renderer = that._renderer,
-                    group = that._group,
-                    alignObj = {align: CENTER};
-                if (!that._titleElement) {
-                    that._titleElement = renderer.text().attr(alignObj).append(group);
-                    that._subtitleElement = renderer.text().attr(alignObj);
-                    that._clipRect = renderer.clipRect();
-                    group.attr({clipId: that._clipRect.id})
-                }
-                group.linkAppend();
-                hasText(that._options.subtitle.text) ? that._subtitleElement.append(group) : that._subtitleElement.remove()
-            },
-            _updateTexts: function() {
-                var that = this,
-                    options = that._options,
-                    subtitleOptions = options.subtitle,
-                    titleElement = that._titleElement,
-                    subtitleElement = that._subtitleElement,
-                    testText = "A",
-                    titleBox,
-                    y;
-                titleElement.attr({
-                    text: testText,
-                    y: 0
-                }).css(vizUtils.patchFontOptions(options.font));
-                titleBox = titleElement.getBBox();
-                that._titleTextY = titleBox.height + titleBox.y;
-                titleElement.attr({text: options.text});
-                titleBox = titleElement.getBBox();
-                y = -titleBox.y;
-                titleElement.attr({y: y});
-                if (hasText(subtitleOptions.text)) {
-                    y += titleBox.height + titleBox.y;
-                    subtitleElement.attr({
-                        text: subtitleOptions.text,
-                        y: 0
-                    }).css(vizUtils.patchFontOptions(subtitleOptions.font));
-                    y += -subtitleElement.getBBox().y - that._titleTextY + DEFAULT_GAP;
-                    subtitleElement.attr({y: y})
-                }
-            },
-            _updateBoundingRectAlignment: function() {
-                var boundingRect = this._boundingRect,
-                    options = this._options;
-                boundingRect.verticalAlignment = options.verticalAlignment;
-                boundingRect.horizontalAlignment = options.horizontalAlignment;
-                boundingRect.cutLayoutSide = options.verticalAlignment;
-                boundingRect.cutSide = "vertical";
-                boundingRect.position = {
-                    horizontal: options.horizontalAlignment,
-                    vertical: options.verticalAlignment
-                }
-            },
-            update: function(options) {
-                if (hasText(options.text)) {
-                    this._updateOptions(options);
-                    this._updateStructure();
-                    this._updateTexts();
-                    this._boundingRect = {};
-                    this._updateBoundingRect();
-                    this._updateBoundingRectAlignment()
-                }
-                else {
-                    this._group.linkRemove();
-                    this._boundingRect = null
-                }
-                return this
-            },
-            draw: function(width, height) {
-                var that = this,
-                    layoutOptions;
-                that._group.linkAppend();
-                that._correctTitleLength(width);
-                layoutOptions = that.getLayoutOptions();
-                if (layoutOptions.width > width || layoutOptions.height > height) {
-                    that._incidentOccured("W2103");
-                    that._group.linkRemove();
-                    that._boundingRect.width = that._boundingRect.height = 0
-                }
-                return that
-            },
-            probeDraw: function(width, height) {
-                this.draw(width, height);
-                return this
-            },
-            _correctTitleLength: function(width) {
-                var that = this,
-                    options = that._options,
-                    margin = options.margin,
-                    maxWidth = width - margin.left - margin.right;
-                processTitleLength(that._titleElement, options.text, maxWidth);
-                that._subtitleElement && processTitleLength(that._subtitleElement, options.subtitle.text, maxWidth);
-                that._updateBoundingRect()
-            },
-            _disposeInnerElements: function() {
-                if (this._titleElement) {
-                    this._titleElement.dispose();
-                    this._subtitleElement.dispose();
-                    this._clipRect.dispose();
-                    this._titleElement = this._subtitleElement = this._clipRect = null
-                }
-            },
-            getLayoutOptions: function() {
-                return this._boundingRect || null
-            },
-            shift: function(x, y) {
-                var that = this,
-                    box = that.getLayoutOptions();
-                that._group.move(x - box.x, y - box.y);
-                that._setClipRectSettings();
-                return that
-            },
-            _setClipRectSettings: function() {
-                var bbox = this.getLayoutOptions();
-                this._clipRect.attr({
-                    x: bbox.x,
-                    y: bbox.y,
-                    width: bbox.width,
-                    height: bbox.height
-                })
-            },
-            _updateBoundingRect: function() {
-                var that = this,
-                    options = that._options,
-                    margin = options.margin,
-                    boundingRect = that._boundingRect,
-                    box;
-                box = that._group.getBBox();
-                box.height += margin.top + margin.bottom - that._titleTextY;
-                box.width += margin.left + margin.right;
-                box.x -= margin.left;
-                box.y += that._titleTextY - margin.top;
-                if (options.placeholderSize > 0)
-                    box.height = options.placeholderSize;
-                boundingRect.height = box.height;
-                boundingRect.width = box.width;
-                boundingRect.x = box.x;
-                boundingRect.y = box.y
-            }
-        });
-        DX.viz.Title.prototype.DEBUG_getOptions = function() {
-            return this._options
-        }
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file dataSource.js */
-    (function($, DX, undefined) {
-        var NONE_TYPE = 0,
-            ARRAY_TYPE = 1,
-            DX_DATA_SOURCE_TYPE = 2,
-            CUSTOM_TYPE = 3,
-            dxData = DX.data,
-            commonUtils = DX.require("/utils/utils.common");
-        function DataSource(dataSourceOnLoadCallback) {
-            this._type = NONE_TYPE;
-            this._changedCallback = dataSourceOnLoadCallback
-        }
-        DataSource.prototype = {
-            constructor: DataSource,
-            isLoaded: function() {
-                var isLoaded = false;
-                switch (this._type) {
-                    case NONE_TYPE:
-                        isLoaded = false;
-                        break;
-                    case ARRAY_TYPE:
-                        isLoaded = true;
-                        break;
-                    case CUSTOM_TYPE:
-                    case DX_DATA_SOURCE_TYPE:
-                        isLoaded = this._dxDataSource.isLoaded();
-                        break
-                }
-                return isLoaded
-            },
-            items: function() {
-                var type = this._type;
-                return type === DX_DATA_SOURCE_TYPE || type === CUSTOM_TYPE ? this._dxDataSource.items() : this._items
-            },
-            update: function(data) {
-                var that = this,
-                    dataSource,
-                    changedCallback = that._changedCallback;
-                that._clean();
-                if (commonUtils.isDefined(data))
-                    if (commonUtils.isArray(data)) {
-                        that._items = data;
-                        that._type = ARRAY_TYPE;
-                        changedCallback()
-                    }
-                    else {
-                        if (data instanceof dxData.DataSource) {
-                            that._type = DX_DATA_SOURCE_TYPE;
-                            dataSource = data
-                        }
-                        else {
-                            that._type = CUSTOM_TYPE;
-                            dataSource = new dxData.DataSource($.extend({paginate: false}, dxData.utils.normalizeDataSourceOptions(data)))
-                        }
-                        that._dxDataSource = dataSource;
-                        dataSource.on("changed", changedCallback);
-                        if (dataSource.isLoaded())
-                            changedCallback();
-                        else
-                            dataSource.load()
-                    }
-            },
-            dispose: function() {
-                this._clean();
-                this._changedCallback = null
-            },
-            _clean: function() {
-                var that = this,
-                    dxDataSource = that._dxDataSource;
-                if (that._type === DX_DATA_SOURCE_TYPE)
-                    dxDataSource.off("changed", that._changedCallback);
-                else if (that._type === CUSTOM_TYPE)
-                    dxDataSource.dispose();
-                that._dxDataSource = that._items = that._type = null
-            }
-        };
-        DX.viz.DataSource = DataSource
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file numericTickManager.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            mathUtils = DX.require("/utils/utils.math"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            _adjustValue = mathUtils.adjustValue,
-            _math = Math,
-            _abs = _math.abs,
-            _ceil = _math.ceil,
-            _floor = _math.floor,
-            _noop = $.noop,
-            MINOR_TICKS_COUNT_LIMIT = 200,
-            DEFAULT_MINOR_NUMBER_MULTIPLIERS = [2, 4, 5, 8, 10];
-        viz.outOfScreen = {
-            x: -1000,
-            y: -1000
-        };
-        viz.tickManager = {continuous: {
-                _hasUnitBeginningTickCorrection: _noop,
-                _checkBoundedDatesOverlapping: _noop,
-                _correctInterval: function(step) {
-                    this._tickInterval *= step
-                },
-                _correctMax: function(tickInterval) {
-                    this._max = this._adjustNumericTickValue(_ceil(this._max / tickInterval) * tickInterval, tickInterval, this._min)
-                },
-                _correctMin: function(tickInterval) {
-                    this._min = this._adjustNumericTickValue(_floor(this._min / tickInterval) * tickInterval, tickInterval, this._min)
-                },
-                _findBusinessDelta: function(min, max) {
-                    return _adjustValue(_abs(min - max))
-                },
-                _findTickIntervalForCustomTicks: function() {
-                    return _abs(this._customTicks[1] - this._customTicks[0])
-                },
-                _getBoundInterval: function() {
-                    var that = this,
-                        boundCoef = that._options.boundCoef;
-                    return _isDefined(boundCoef) && isFinite(boundCoef) ? that._tickInterval * _abs(boundCoef) : that._tickInterval / 2
-                },
-                _getInterval: function(deltaCoef, numberMultipliers) {
-                    var interval = deltaCoef || this._getDeltaCoef(this._screenDelta, this._businessDelta, this._options.gridSpacingFactor),
-                        multipliers = numberMultipliers || this._options.numberMultipliers,
-                        factor,
-                        result = 0,
-                        newResult,
-                        hasResult = false,
-                        i;
-                    if (interval > 1.0)
-                        for (factor = 1; !hasResult; factor *= 10)
-                            for (i = 0; i < multipliers.length; i++) {
-                                result = multipliers[i] * factor;
-                                if (interval <= result) {
-                                    hasResult = true;
-                                    break
-                                }
-                            }
-                    else if (interval > 0) {
-                        result = 1;
-                        for (factor = 0.1; !hasResult; factor /= 10)
-                            for (i = multipliers.length - 1; i >= 0; i--) {
-                                newResult = multipliers[i] * factor;
-                                if (interval > newResult) {
-                                    hasResult = true;
-                                    break
-                                }
-                                result = newResult
-                            }
-                    }
-                    return _adjustValue(result)
-                },
-                _getMarginValue: function(min, max, margin) {
-                    return mathUtils.applyPrecisionByMinDelta(min, margin, _abs(max - min) * margin)
-                },
-                _getDefaultMinorInterval: function(screenDelta, businessDelta) {
-                    var deltaCoef = this._getDeltaCoef(screenDelta, businessDelta, this._options.minorGridSpacingFactor),
-                        multipliers = DEFAULT_MINOR_NUMBER_MULTIPLIERS,
-                        i = multipliers.length - 1,
-                        result;
-                    for (i; i >= 0; i--) {
-                        result = businessDelta / multipliers[i];
-                        if (deltaCoef <= result)
-                            return _adjustValue(result)
-                    }
-                    return 0
-                },
-                _getMinorInterval: function(screenDelta, businessDelta) {
-                    var that = this,
-                        options = that._options,
-                        minorTickInterval = options.minorTickInterval,
-                        minorTickCount = options.minorTickCount,
-                        interval,
-                        intervalsCount,
-                        count;
-                    if (isFinite(minorTickInterval) && that._isTickIntervalCorrect(minorTickInterval, MINOR_TICKS_COUNT_LIMIT, businessDelta)) {
-                        interval = minorTickInterval;
-                        count = interval < businessDelta ? _ceil(businessDelta / interval) - 1 : 0
-                    }
-                    else if (_isDefined(minorTickCount)) {
-                        intervalsCount = _isDefined(minorTickCount) ? minorTickCount + 1 : _floor(screenDelta / options.minorGridSpacingFactor);
-                        count = intervalsCount - 1;
-                        interval = count > 0 ? businessDelta / intervalsCount : 0
-                    }
-                    else {
-                        interval = that._getDefaultMinorInterval(screenDelta, businessDelta);
-                        count = interval < businessDelta ? _floor(businessDelta / interval) - 1 : 0
-                    }
-                    that._minorTickInterval = interval;
-                    that._minorTickCount = count
-                },
-                _getNextTickValue: function(value, tickInterval, isTickIntervalNegative) {
-                    tickInterval = _isDefined(isTickIntervalNegative) && isTickIntervalNegative ? -tickInterval : tickInterval;
-                    value += tickInterval;
-                    return this._adjustNumericTickValue(value, tickInterval, this._min)
-                },
-                _isTickIntervalValid: function(tickInterval) {
-                    return _isDefined(tickInterval) && isFinite(tickInterval) && tickInterval !== 0
-                }
-            }}
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file datetimeTickManager.js */
-    (function($, DX, undefined) {
-        var dateUtils = DX.require("/utils/utils.date"),
-            commonUtils = DX.require("/utils/utils.common"),
-            tickManager = DX.viz.tickManager,
-            _isDefined = commonUtils.isDefined,
-            _convertDateUnitToMilliseconds = dateUtils.convertDateUnitToMilliseconds,
-            _correctDateWithUnitBeginning = dateUtils.correctDateWithUnitBeginning,
-            _dateToMilliseconds = dateUtils.dateToMilliseconds,
-            _convertMillisecondsToDateUnits = dateUtils.convertMillisecondsToDateUnits,
-            _math = Math,
-            _abs = _math.abs,
-            _ceil = _math.ceil,
-            _floor = _math.floor,
-            _round = _math.round,
-            MINOR_TICKS_COUNT_LIMIT = 50,
-            DEFAULT_DATETIME_MULTIPLIERS = {
-                millisecond: [1, 2, 5, 10, 25, 100, 250, 300, 500],
-                second: [1, 2, 3, 5, 10, 15, 20, 30],
-                minute: [1, 2, 3, 5, 10, 15, 20, 30],
-                hour: [1, 2, 3, 4, 6, 8, 12],
-                day: [1, 2, 3, 5, 7, 10, 14],
-                month: [1, 2, 3, 6]
-            };
-        function correctDate(date, tickInterval, correctionMethod) {
-            var interval = _dateToMilliseconds(tickInterval),
-                timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
-            return new Date(Math[correctionMethod]((date - 0 - timezoneOffset) / interval) * interval + timezoneOffset)
-        }
-        tickManager.datetime = $.extend({}, tickManager.continuous, {
-            _correctInterval: function(step) {
-                var tickIntervalInMs = _dateToMilliseconds(this._tickInterval);
-                this._tickInterval = _convertMillisecondsToDateUnits(tickIntervalInMs * step)
-            },
-            _correctMax: function(tickInterval) {
-                this._max = correctDate(this._max, tickInterval, "ceil")
-            },
-            _correctMin: function(tickInterval) {
-                this._min = correctDate(this._min, tickInterval, "floor");
-                if (this._options.setTicksAtUnitBeginning)
-                    _correctDateWithUnitBeginning(this._min, tickInterval)
-            },
-            _findTickIntervalForCustomTicks: function() {
-                return _convertMillisecondsToDateUnits(_abs(this._customTicks[1] - this._customTicks[0]))
-            },
-            _getBoundInterval: function() {
-                var that = this,
-                    interval = that._tickInterval,
-                    intervalInMs = _dateToMilliseconds(interval),
-                    boundCoef = that._options.boundCoef,
-                    boundIntervalInMs = _isDefined(boundCoef) && isFinite(boundCoef) ? intervalInMs * _abs(boundCoef) : intervalInMs / 2;
-                return _convertMillisecondsToDateUnits(boundIntervalInMs)
-            },
-            _getInterval: function(deltaCoef) {
-                var interval = deltaCoef || this._getDeltaCoef(this._screenDelta, this._businessDelta, this._options.gridSpacingFactor),
-                    multipliers = this._options.numberMultipliers,
-                    result = {},
-                    factor,
-                    i,
-                    key,
-                    specificMultipliers,
-                    yearsCount;
-                if (interval > 0 && interval < 1.0)
-                    return {milliseconds: 1};
-                if (interval === 0)
-                    return 0;
-                for (key in DEFAULT_DATETIME_MULTIPLIERS)
-                    if (DEFAULT_DATETIME_MULTIPLIERS.hasOwnProperty(key)) {
-                        specificMultipliers = DEFAULT_DATETIME_MULTIPLIERS[key];
-                        for (i = 0; i < specificMultipliers.length; i++)
-                            if (interval <= _convertDateUnitToMilliseconds(key, specificMultipliers[i])) {
-                                result[key + 's'] = specificMultipliers[i];
-                                return result
-                            }
-                    }
-                for (factor = 1; ; factor *= 10)
-                    for (i = 0; i < multipliers.length; i++) {
-                        yearsCount = factor * multipliers[i];
-                        if (interval <= _convertDateUnitToMilliseconds('year', yearsCount))
-                            return {years: yearsCount}
-                    }
-                return 0
-            },
-            _getMarginValue: function(min, max, margin) {
-                return _convertMillisecondsToDateUnits(_round(_abs(max - min) * margin))
-            },
-            _getMinorInterval: function(screenDelta, businessDelta) {
-                var that = this,
-                    options = that._options,
-                    interval,
-                    intervalInMs,
-                    intervalsCount,
-                    count;
-                if (_isDefined(options.minorTickInterval) && that._isTickIntervalCorrect(options.minorTickInterval, MINOR_TICKS_COUNT_LIMIT, businessDelta)) {
-                    interval = options.minorTickInterval;
-                    intervalInMs = _dateToMilliseconds(interval);
-                    count = intervalInMs < businessDelta ? _ceil(businessDelta / intervalInMs) - 1 : 0
-                }
-                else {
-                    intervalsCount = _isDefined(options.minorTickCount) ? options.minorTickCount + 1 : _floor(screenDelta / options.minorGridSpacingFactor);
-                    count = intervalsCount - 1;
-                    interval = count > 0 ? _convertMillisecondsToDateUnits(businessDelta / intervalsCount) : 0
-                }
-                that._minorTickInterval = interval;
-                that._minorTickCount = count
-            },
-            _getNextTickValue: function(value, tickInterval, isTickIntervalNegative, isTickIntervalWithPow, withCorrection) {
-                var newValue = dateUtils.addInterval(value, tickInterval, isTickIntervalNegative);
-                if (this._options.setTicksAtUnitBeginning && withCorrection !== false) {
-                    _correctDateWithUnitBeginning(newValue, tickInterval, true);
-                    this._correctDateWithUnitBeginningCalled = true
-                }
-                return newValue
-            },
-            _getUnitBeginningMinorTicks: function(minorTicks) {
-                var that = this,
-                    ticks = that._ticks,
-                    tickInterval = that._findMinorTickInterval(ticks[1], ticks[2]),
-                    isTickIntervalNegative = true,
-                    isTickIntervalWithPow = false,
-                    needCorrectTick = false,
-                    startTick = that._getNextTickValue(ticks[1], tickInterval, isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
-                if (that._isTickIntervalValid(tickInterval))
-                    minorTicks = that._createTicks(minorTicks, tickInterval, startTick, ticks[0], isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
-                return minorTicks
-            },
-            _hasUnitBeginningTickCorrection: function() {
-                var ticks = this._ticks;
-                if (ticks.length < 3)
-                    return false;
-                return ticks[1] - ticks[0] !== ticks[2] - ticks[1] && this._options.setTicksAtUnitBeginning && this._options.minorTickCount
-            },
-            _isTickIntervalValid: function(tickInterval) {
-                return _isDefined(tickInterval) && _dateToMilliseconds(tickInterval) !== 0
-            },
-            _checkBoundedDatesOverlapping: function() {
-                var dates = this._ticks,
-                    overlappingBehavior = this.getOverlappingBehavior();
-                return dates.length > 2 && overlappingBehavior.mode !== "stagger" && overlappingBehavior.mode !== "ignore" && !this._areDisplayValuesValid(dates[0], dates[1])
-            }
-        })
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file logarithmicTickManager.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            mathUtils = DX.require("/utils/utils.math"),
-            dateUtils = DX.require("/utils/utils.date"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            _addInterval = dateUtils.addInterval,
-            _adjustValue = mathUtils.adjustValue,
-            tickManager = viz.tickManager,
-            tickManagerContinuous = tickManager.continuous,
-            _getLog = mathUtils.getLog,
-            _raiseTo = mathUtils.raiseTo,
-            _math = Math,
-            _abs = _math.abs,
-            _ceil = _math.ceil,
-            _floor = _math.floor,
-            _round = _math.round;
-        tickManager.logarithmic = $.extend({}, tickManagerContinuous, {
-            _correctMax: function() {
-                var base = this._options.base;
-                this._max = _adjustValue(_raiseTo(_ceil(_adjustValue(_getLog(this._max, base))), base))
-            },
-            _correctMin: function() {
-                var base = this._options.base;
-                this._min = _adjustValue(_raiseTo(_floor(_adjustValue(_getLog(this._min, base))), base))
-            },
-            _findBusinessDelta: function(min, max, isTickIntervalWithPow) {
-                var delta;
-                if (min <= 0 || max <= 0)
-                    return 0;
-                if (isTickIntervalWithPow === false)
-                    delta = tickManagerContinuous._findBusinessDelta(min, max);
-                else
-                    delta = _round(_abs(_getLog(min, this._options.base) - _getLog(max, this._options.base)));
-                return delta
-            },
-            _findTickIntervalForCustomTicks: function() {
-                return _adjustValue(_getLog(this._customTicks[1] / this._customTicks[0], this._options.base))
-            },
-            _getInterval: function(deltaCoef) {
-                var interval = deltaCoef || this._getDeltaCoef(this._screenDelta, this._businessDelta, this._options.gridSpacingFactor),
-                    multipliers = this._options.numberMultipliers,
-                    factor,
-                    result = 0,
-                    hasResult = false,
-                    i;
-                if (interval !== 0)
-                    for (factor = 1; !hasResult; factor *= 10)
-                        for (i = 0; i < multipliers.length; i++) {
-                            result = multipliers[i] * factor;
-                            if (interval <= result) {
-                                hasResult = true;
-                                break
-                            }
-                        }
-                return _adjustValue(result)
-            },
-            _getMinorInterval: function(screenDelta, businessDelta) {
-                var that = this,
-                    options = that._options,
-                    minorTickCount = options.minorTickCount,
-                    intervalsCount = _isDefined(minorTickCount) ? minorTickCount + 1 : _floor(screenDelta / options.minorGridSpacingFactor),
-                    count = intervalsCount - 1,
-                    interval = count > 0 ? businessDelta / intervalsCount : 0;
-                that._minorTickInterval = interval;
-                that._minorTickCount = count
-            },
-            _getMarginValue: function() {
-                return null
-            },
-            _getNextTickValue: function(value, tickInterval, isTickIntervalNegative, isTickIntervalWithPow) {
-                var that = this,
-                    pow,
-                    nextTickValue;
-                tickInterval = _isDefined(isTickIntervalNegative) && isTickIntervalNegative ? -tickInterval : tickInterval;
-                if (isTickIntervalWithPow === false)
-                    nextTickValue = value + tickInterval;
-                else {
-                    pow = _addInterval(_getLog(value, that._options.base), tickInterval, that._min > that._max);
-                    nextTickValue = _adjustValue(_raiseTo(pow, that._options.base))
-                }
-                return nextTickValue
-            }
-        })
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file tickOverlappingManager.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            tickManagerNS = viz.tickManager,
-            overlappingMethods,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            _isNumber = commonUtils.isNumber,
-            _math = Math,
-            _abs = _math.abs,
-            _ceil = _math.ceil,
-            _floor = _math.floor,
-            _atan = _math.atan,
-            _max = _math.max,
-            _each = $.each,
-            _noop = $.noop,
-            _isFunction = $.isFunction,
-            _extend = $.extend,
-            SCREEN_DELTA_KOEF = 4,
-            AXIS_STAGGER_OVERLAPPING_KOEF = 2,
-            STAGGER = "stagger",
-            MIN_ARRANGEMENT_TICKS_COUNT = 2;
-        function defaultGetTextFunc(value) {
-            return value.toString()
-        }
-        overlappingMethods = tickManagerNS.overlappingMethods = {};
-        overlappingMethods.base = {
-            _applyOverlappingBehavior: function() {
-                var that = this,
-                    options = that._options,
-                    overlappingBehavior = options.overlappingBehavior;
-                if (overlappingBehavior.mode !== "ignore") {
-                    that._useAutoArrangement = true;
-                    that._correctTicks();
-                    if (overlappingBehavior.mode === STAGGER)
-                        that._screenDelta *= AXIS_STAGGER_OVERLAPPING_KOEF;
-                    that._applyAutoArrangement()
-                }
-            },
-            checkBoundedTicksOverlapping: function() {
-                return {
-                        overlappedDates: this._checkBoundedDatesOverlapping(),
-                        overlappedStartEnd: this._checkStartEndOverlapping()
-                    }
-            },
-            getMaxLabelParams: function(ticks) {
-                var that = this,
-                    getText = that._options.getText || defaultGetTextFunc,
-                    tickWithMaxLength,
-                    tickTextWithMaxLength,
-                    maxLength = 0,
-                    bbox;
-                ticks = ticks || that._calculateMajorTicks();
-                if (!ticks.length)
-                    return {
-                            width: 0,
-                            height: 0,
-                            length: 0,
-                            y: 0
-                        };
-                _each(ticks, function(_, item) {
-                    var text = getText(item, that._options.labelOptions),
-                        length = text !== null ? text.length : -1;
-                    if (maxLength < length) {
-                        maxLength = length;
-                        tickWithMaxLength = item;
-                        tickTextWithMaxLength = text
-                    }
-                });
-                bbox = that._getTextElementBbox(tickWithMaxLength, tickTextWithMaxLength);
-                return {
-                        width: bbox.width,
-                        height: bbox.height,
-                        y: bbox.y,
-                        length: maxLength
-                    }
-            },
-            _applyAutoArrangement: function() {
-                var that = this,
-                    options = that._options,
-                    arrangementStep,
-                    maxDisplayValueSize;
-                if (that._useAutoArrangement) {
-                    maxDisplayValueSize = that._getTicksSize();
-                    arrangementStep = that._getAutoArrangementStep(maxDisplayValueSize);
-                    if (arrangementStep > 1)
-                        if (_isDefined(that._tickInterval) || _isDefined(that._customTicks))
-                            that._ticks = that._getAutoArrangementTicks(arrangementStep);
-                        else {
-                            options.gridSpacingFactor = maxDisplayValueSize;
-                            that._ticks = that._createTicks([], that._findTickInterval(), that._min, that._max)
-                        }
-                }
-            },
-            _getAutoArrangementTicks: function(step) {
-                var that = this,
-                    ticks = that._ticks,
-                    ticksLength = ticks.length,
-                    resultTicks = ticks,
-                    decimatedTicks = that._decimatedTicks || [],
-                    i;
-                if (step > 1) {
-                    resultTicks = [];
-                    for (i = 0; i < ticksLength; i++)
-                        if (i % step === 0)
-                            resultTicks.push(ticks[i]);
-                        else
-                            decimatedTicks.push(ticks[i]);
-                    that._correctInterval(step)
-                }
-                return resultTicks
-            },
-            _isOverlappedTicks: function(screenDelta) {
-                return this._getAutoArrangementStep(this._getTicksSize(), screenDelta, -1) > 1
-            },
-            _areDisplayValuesValid: function(value1, value2) {
-                var that = this,
-                    options = that._options,
-                    getText = options.getText || defaultGetTextFunc,
-                    rotationAngle = options.overlappingBehavior && _isNumber(options.overlappingBehavior.rotationAngle) ? options.overlappingBehavior.rotationAngle : 0,
-                    bBox1 = that._getTextElementBbox(value1, getText(value1, options.labelOptions)),
-                    bBox2 = that._getTextElementBbox(value2, getText(value2, options.labelOptions)),
-                    horizontalInverted = bBox1.x > bBox2.x,
-                    verticalInverted = bBox1.y > bBox2.y,
-                    hasHorizontalOverlapping,
-                    hasVerticalOverlapping,
-                    result;
-                if (rotationAngle !== 0)
-                    result = that._getDistanceByAngle(bBox1.height, rotationAngle) <= _abs(bBox2.x - bBox1.x);
-                else {
-                    hasHorizontalOverlapping = !horizontalInverted ? bBox1.x + bBox1.width > bBox2.x : bBox2.x + bBox2.width > bBox1.x;
-                    hasVerticalOverlapping = !verticalInverted ? bBox1.y + bBox1.height > bBox2.y : bBox2.y + bBox2.height > bBox1.y;
-                    result = !(hasHorizontalOverlapping && hasVerticalOverlapping)
-                }
-                return result
-            }
-        };
-        overlappingMethods.circular = _extend({}, overlappingMethods.base, {
-            _correctTicks: _noop,
-            _getTextElementBbox: function(value, text) {
-                var textOptions = _extend({}, this._options.textOptions, {rotate: 0}),
-                    delta = _isFunction(this._options.translate) ? this._options.translate(value) : {
-                        x: 0,
-                        y: 0
-                    },
-                    bbox;
-                text = this._options.renderText(text, delta.x, delta.y).css(this._options.textFontStyles).attr(textOptions);
-                bbox = text.getBBox();
-                text.remove();
-                return bbox
-            },
-            _getTicksSize: function() {
-                return this.getMaxLabelParams(this._ticks)
-            },
-            _checkStartEndOverlapping: function() {
-                var ticks = this._ticks,
-                    lastTick = ticks[ticks.length - 1];
-                return ticks.length > 1 && !this._areDisplayValuesValid(ticks[0], lastTick)
-            },
-            _getAutoArrangementStep: function(maxDisplayValueSize) {
-                var that = this,
-                    options = that._options,
-                    radius = options.circularRadius,
-                    startAngle = options.circularStartAngle,
-                    endAngle = options.circularEndAngle,
-                    circleDelta = startAngle === endAngle ? 360 : _abs(startAngle - endAngle),
-                    businessDelta = that._businessDelta || that._ticks.length,
-                    degreesPerTick = that._tickInterval * circleDelta / businessDelta,
-                    width = maxDisplayValueSize.width,
-                    height = maxDisplayValueSize.height,
-                    angle1 = _abs(2 * _atan(height / (2 * radius - width)) * 180 / _math.PI),
-                    angle2 = _abs(2 * _atan(width / (2 * radius - height)) * 180 / _math.PI),
-                    minAngleForTick = _max(angle1, angle2),
-                    step = 1;
-                if (degreesPerTick < minAngleForTick)
-                    step = _ceil(minAngleForTick / degreesPerTick);
-                return _max(1, step)
-            }
-        });
-        overlappingMethods.linear = _extend({}, overlappingMethods.base, {
-            _correctTicks: function() {
-                var getIntervalFunc = tickManagerNS.continuous._getInterval,
-                    arrangementStep;
-                if (this._testingGetIntervalFunc)
-                    getIntervalFunc = this._testingGetIntervalFunc;
-                arrangementStep = _ceil(getIntervalFunc.call(this, this._getDeltaCoef(this._screenDelta * SCREEN_DELTA_KOEF, this._ticks.length))) || this._ticks.length;
-                this._appliedArrangementStep = arrangementStep;
-                this._ticks = this._getAutoArrangementTicks(arrangementStep)
-            },
-            _getTextElementBbox: function(value, text) {
-                var textOptions = _extend({}, this._options.textOptions, {rotate: 0}),
-                    x = 0,
-                    y = 0,
-                    delta = _isFunction(this._options.translate) ? this._options.translate(value) : 0,
-                    bbox;
-                if (this._options.isHorizontal)
-                    x += delta;
-                else
-                    y += delta;
-                text = this._options.renderText(text, x, y).css(this._options.textFontStyles).attr(textOptions);
-                bbox = text.getBBox();
-                text.remove();
-                return bbox
-            },
-            _checkStartEndOverlapping: _noop,
-            _getAutoArrangementStep: function(maxDisplayValueSize, screenDelta, minArrangementTicksStep) {
-                var that = this,
-                    options = that._options,
-                    requiredValuesCount,
-                    textSpacing = options.textSpacing || 0,
-                    addedSpacing = options.isHorizontal ? textSpacing : 0;
-                screenDelta = screenDelta || that._screenDelta;
-                minArrangementTicksStep = _isDefined(minArrangementTicksStep) ? minArrangementTicksStep : 1;
-                if (options.getCustomAutoArrangementStep)
-                    return options.getCustomAutoArrangementStep(that._ticks, options);
-                if (maxDisplayValueSize > 0) {
-                    requiredValuesCount = _floor((screenDelta + textSpacing) / (maxDisplayValueSize + addedSpacing));
-                    requiredValuesCount = requiredValuesCount <= minArrangementTicksStep ? MIN_ARRANGEMENT_TICKS_COUNT : requiredValuesCount;
-                    return _ceil((options.ticksCount || that._ticks.length) / requiredValuesCount)
-                }
-                return 1
-            },
-            _getOptimalRotationAngle: function() {
-                var that = this,
-                    options = that._options,
-                    tick1 = that._ticks[0],
-                    tick2 = that._ticks[1],
-                    outOfScreen = viz.outOfScreen,
-                    textOptions = that._textOptions,
-                    getText = options.getText || defaultGetTextFunc,
-                    textFontStyles = options.textFontStyles,
-                    svgElement1 = options.renderText(getText(tick1, options.labelOptions), outOfScreen.x + options.translate(tick1, !options.isHorizontal), outOfScreen.y).css(textFontStyles).attr(textOptions),
-                    svgElement2 = options.renderText(getText(tick2, options.labelOptions), outOfScreen.x + options.translate(tick2, !options.isHorizontal), outOfScreen.y).css(textFontStyles).attr(textOptions),
-                    bBox1 = svgElement1.getBBox(),
-                    bBox2 = svgElement2.getBBox(),
-                    angle = _math.asin((bBox1.height + options.textSpacing) / (bBox2.x - bBox1.x)) * 180 / Math.PI;
-                svgElement1.remove();
-                svgElement2.remove();
-                return isNaN(angle) ? 90 : _ceil(angle)
-            },
-            _getDistanceByAngle: function(elementHeight, rotationAngle) {
-                return elementHeight / _abs(_math.sin(rotationAngle * (_math.PI / 180)))
-            },
-            _getTicksSize: function() {
-                var bBox = this.getMaxLabelParams(this._ticks),
-                    options = this._options,
-                    rotationAngle = options.overlappingBehavior ? options.overlappingBehavior.rotationAngle : 0,
-                    isRotate = _isNumber(rotationAngle) && rotationAngle !== 0;
-                return _ceil(isRotate ? this._getDistanceByAngle(bBox.height, rotationAngle) : options.isHorizontal ? bBox.width : bBox.height)
-            }
-        })
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file baseTickManager.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            coreTickManager = viz.tickManager,
-            TickManager,
-            dateUtils = DX.require("/utils/utils.date"),
-            commonUtils = DX.require("/utils/utils.common"),
-            formatHelper = DX.require("/utils/utils.formatHelper"),
-            _isDefined = commonUtils.isDefined,
-            _isNumber = commonUtils.isNumber,
-            _addInterval = dateUtils.addInterval,
-            mathUtils = DX.require("/utils/utils.math"),
-            _adjustValue = mathUtils.adjustValue,
-            _map = viz.utils.map,
-            _each = $.each,
-            _inArray = $.inArray,
-            _noop = $.noop,
-            DEFAULT_GRID_SPACING_FACTOR = 30,
-            DEFAULT_MINOR_GRID_SPACING_FACTOR = 15,
-            DEFAULT_NUMBER_MULTIPLIERS = [1, 2, 3, 5],
-            TICKS_COUNT_LIMIT = 2000,
-            MIN_ARRANGEMENT_TICKS_COUNT = 2;
-        function getUniqueValues(array) {
-            var lastValue = array[0],
-                currentValue,
-                result = [lastValue.obj],
-                length = array.length,
-                i = 1;
-            for (i; i < length; i++) {
-                currentValue = array[i];
-                if (lastValue.value !== currentValue.value) {
-                    result.push(currentValue.obj);
-                    lastValue = currentValue
-                }
-            }
-            return result
-        }
-        function concatAndSort(array1, array2) {
-            if (!array1.length && !array2.length)
-                return [];
-            var array = array1.concat(array2),
-                values = [],
-                length = array.length,
-                hasNull = false,
-                i = 0;
-            for (i; i < length; i++)
-                if (array[i] !== null)
-                    values.push({
-                        obj: array[i],
-                        value: array[i].valueOf()
-                    });
-                else
-                    hasNull = true;
-            values.sort(function(x, y) {
-                return x.value - y.value
-            });
-            values = getUniqueValues(values);
-            hasNull && values.push(null);
-            return values
-        }
-        coreTickManager.discrete = $.extend({}, coreTickManager.continuous, {
-            _calculateMinorTicks: _noop,
-            _findTickInterval: _noop,
-            _createTicks: function() {
-                return []
-            },
-            _getMarginValue: _noop,
-            _generateBounds: _noop,
-            _correctMin: _noop,
-            _correctMax: _noop,
-            _findBusinessDelta: _noop,
-            _addBoundedTicks: _noop,
-            getFullTicks: function() {
-                return this._customTicks
-            },
-            getMinorTicks: function() {
-                return this._decimatedTicks || []
-            },
-            _findTickIntervalForCustomTicks: function() {
-                return 1
-            }
-        });
-        TickManager = coreTickManager.TickManager = function(types, data, options) {
-            options = options || {};
-            this.update(types || {}, data || {}, options);
-            this._initOverlappingMethods(options.overlappingBehaviorType)
-        };
-        TickManager.prototype = {
-            constructor: TickManager,
-            dispose: function() {
-                this._ticks = null;
-                this._minorTicks = null;
-                this._decimatedTicks = null;
-                this._boundaryTicks = null;
-                this._options = null
-            },
-            update: function(types, data, options) {
-                this._updateOptions(options || {});
-                this._min = data.min;
-                this._updateTypes(types || {});
-                this._updateData(data || {})
-            },
-            _updateMinMax: function(data) {
-                var min = data.min || 0,
-                    max = data.max || 0,
-                    newMinMax = this._applyMinMaxMargins(min, max);
-                this._min = this._originalMin = newMinMax.min;
-                this._max = this._originalMax = newMinMax.max;
-                this._updateBusinessDelta()
-            },
-            _updateBusinessDelta: function() {
-                this._businessDelta = this._findBusinessDelta && this._findBusinessDelta(this._min, this._max)
-            },
-            _updateTypes: function(types) {
-                var that = this,
-                    axisType = that._validateAxisType(types.axisType),
-                    dataType = that._validateDataType(types.dataType);
-                that._resetMethods();
-                this._axisType = axisType;
-                this._dataType = dataType;
-                this._initMethods()
-            },
-            _updateData: function(data) {
-                data = $.extend({}, data);
-                data.min = _isDefined(data.min) ? data.min : this._originalMin;
-                data.max = _isDefined(data.max) ? data.max : this._originalMax;
-                this._updateMinMax(data);
-                this._customTicks = data.customTicks && data.customTicks.slice();
-                this._customMinorTicks = data.customMinorTicks;
-                this._screenDelta = data.screenDelta || 0
-            },
-            _updateOptions: function(options) {
-                var opt;
-                this._options = opt = options;
-                this._useAutoArrangement = !!this._options.useTicksAutoArrangement;
-                opt.gridSpacingFactor = opt.gridSpacingFactor || DEFAULT_GRID_SPACING_FACTOR;
-                opt.minorGridSpacingFactor = opt.minorGridSpacingFactor || DEFAULT_MINOR_GRID_SPACING_FACTOR;
-                opt.numberMultipliers = opt.numberMultipliers || DEFAULT_NUMBER_MULTIPLIERS
-            },
-            getTickBounds: function() {
-                return {
-                        minVisible: this._minBound,
-                        maxVisible: this._maxBound
-                    }
-            },
-            getTicks: function(withoutOverlappingBehavior) {
-                var that = this,
-                    options = that._options;
-                that._ticks = that._calculateMajorTicks();
-                that._checkLabelFormat();
-                that._decimatedTicks = [];
-                that._applyAutoArrangement();
-                !withoutOverlappingBehavior && that._applyOverlappingBehavior();
-                that._generateBounds();
-                if (options.showMinorTicks)
-                    that._minorTicks = that._calculateMinorTicks();
-                that._addBoundedTicks();
-                return that._ticks
-            },
-            getMinorTicks: function() {
-                var that = this,
-                    decimatedTicks = that.getDecimatedTicks(),
-                    options = that._options || {},
-                    hasDecimatedTicks = decimatedTicks.length,
-                    hasMinorTickOptions = _isDefined(options.minorTickInterval) || _isDefined(options.minorTickCount),
-                    hasCustomMinorTicks = that._customMinorTicks && that._customMinorTicks.length,
-                    hasMinorTicks = options.showMinorTicks && (hasMinorTickOptions || hasCustomMinorTicks),
-                    ticks = hasDecimatedTicks && !hasMinorTicks ? decimatedTicks : that._minorTicks || [];
-                return concatAndSort(ticks, [])
-            },
-            getDecimatedTicks: function() {
-                return this._decimatedTicks || []
-            },
-            getFullTicks: function() {
-                var that = this,
-                    needCalculateMinorTicks = that._ticks && !that._minorTicks,
-                    minorTicks = needCalculateMinorTicks ? that._calculateMinorTicks() : that._minorTicks || [];
-                return concatAndSort(that._ticks || [], minorTicks.concat(that.getBoundaryTicks()))
-            },
-            getBoundaryTicks: function() {
-                return this._boundaryTicks || []
-            },
-            getTickInterval: function() {
-                return this._tickInterval
-            },
-            getMinorTickInterval: function() {
-                return this._minorTickInterval
-            },
-            getOverlappingBehavior: function() {
-                return this._options.overlappingBehavior
-            },
-            getOptions: function() {
-                return this._options
-            },
-            _calculateMajorTicks: function() {
-                var that = this,
-                    ticks;
-                if (that._options.showCalculatedTicks || !that._customTicks)
-                    ticks = that._createTicks(that._options.showCalculatedTicks ? that._customTicks || [] : [], that._findTickInterval(), that._min, that._max);
-                else {
-                    ticks = that._customTicks.slice();
-                    that._tickInterval = ticks.length > 1 ? that._findTickIntervalForCustomTicks() : 0
-                }
-                return ticks
-            },
-            _applyMargin: function(margin, min, max, isNegative) {
-                var coef,
-                    value = min;
-                if (isFinite(margin)) {
-                    coef = this._getMarginValue(min, max, margin);
-                    if (coef)
-                        value = this._getNextTickValue(min, coef, isNegative, false)
-                }
-                return value
-            },
-            _applyMinMaxMargins: function(min, max) {
-                var options = this._options,
-                    newMin = min > max ? max : min,
-                    newMax = max > min ? max : min;
-                this._minCorrectionEnabled = this._getCorrectionEnabled(min, "min");
-                this._maxCorrectionEnabled = this._getCorrectionEnabled(max, "max");
-                if (options && !options.stick) {
-                    newMin = this._applyMargin(options.minValueMargin, min, max, true);
-                    newMax = this._applyMargin(options.maxValueMargin, max, min, false)
-                }
-                return {
-                        min: newMin,
-                        max: newMax
-                    }
-            },
-            _checkBoundedTickInArray: function(value, array) {
-                var arrayValues = _map(array || [], function(item) {
-                        return item.valueOf()
-                    }),
-                    minorTicksIndex = _inArray(value.valueOf(), arrayValues);
-                if (minorTicksIndex !== -1)
-                    array.splice(minorTicksIndex, 1)
-            },
-            _checkLabelFormat: function() {
-                var options = this._options;
-                if (this._dataType === "datetime" && !options.hasLabelFormat && this._ticks.length)
-                    options.labelOptions.format = options.isMarkersVisible ? dateUtils.getDateUnitInterval(this._tickInterval) : formatHelper.getDateFormatByTicks(this._ticks)
-            },
-            _generateBounds: function() {
-                var that = this,
-                    interval = that._getBoundInterval(),
-                    stick = that._options.stick,
-                    minStickValue = that._options.minStickValue,
-                    maxStickValue = that._options.maxStickValue,
-                    minBound = that._minCorrectionEnabled && !stick ? that._getNextTickValue(that._min, interval, true) : that._originalMin,
-                    maxBound = that._maxCorrectionEnabled && !stick ? that._getNextTickValue(that._max, interval) : that._originalMax;
-                that._minBound = minBound < minStickValue ? minStickValue : minBound;
-                that._maxBound = maxBound > maxStickValue ? maxStickValue : maxBound
-            },
-            _initOverlappingMethods: function(type) {
-                this._initMethods(coreTickManager.overlappingMethods[type || "linear"])
-            },
-            _addBoundedTicks: function() {
-                var that = this,
-                    tickValues = _map(that._ticks, function(tick) {
-                        return tick.valueOf()
-                    }),
-                    min = that._originalMin,
-                    max = that._originalMax,
-                    addMinMax = that._options.addMinMax || {};
-                that._boundaryTicks = [];
-                if (addMinMax.min && _inArray(min.valueOf(), tickValues) === -1) {
-                    that._boundaryTicks.push(min);
-                    that._checkBoundedTickInArray(min, that._minorTicks);
-                    that._checkBoundedTickInArray(min, that._decimatedTicks)
-                }
-                if (addMinMax.max && _inArray(max.valueOf(), tickValues) === -1) {
-                    that._boundaryTicks.push(max);
-                    that._checkBoundedTickInArray(max, that._minorTicks);
-                    that._checkBoundedTickInArray(max, that._decimatedTicks)
-                }
-            },
-            _getCorrectionEnabled: function(value, marginSelector) {
-                var options = this._options || {},
-                    hasPercentStick = options.percentStick && Math.abs(value) === 1,
-                    hasValueMargin = options[marginSelector + "ValueMargin"];
-                return !hasPercentStick && !hasValueMargin
-            },
-            _validateAxisType: function(type) {
-                var defaultType = "continuous",
-                    allowedTypes = {
-                        continuous: true,
-                        discrete: true,
-                        logarithmic: true
-                    };
-                return allowedTypes[type] ? type : defaultType
-            },
-            _validateDataType: function(type) {
-                var allowedTypes = {
-                        numeric: true,
-                        datetime: true,
-                        string: true
-                    };
-                if (!allowedTypes[type])
-                    type = _isDefined(this._min) ? this._getDataType(this._min) : "numeric";
-                return type
-            },
-            _getDataType: function(value) {
-                return commonUtils.isDate(value) ? "datetime" : "numeric"
-            },
-            _getMethods: function() {
-                var methods;
-                if (this._axisType === "continuous")
-                    methods = this._dataType === "datetime" ? coreTickManager.datetime : coreTickManager.continuous;
-                else
-                    methods = coreTickManager[this._axisType] || coreTickManager.continuous;
-                return methods
-            },
-            _resetMethods: function() {
-                var that = this,
-                    methods = that._getMethods();
-                _each(methods, function(name) {
-                    if (that[name])
-                        delete that[name]
-                })
-            },
-            _initMethods: function(methods) {
-                var that = this;
-                methods = methods || that._getMethods();
-                _each(methods, function(name, func) {
-                    that[name] = func
-                })
-            },
-            _getDeltaCoef: function(screenDelta, businessDelta, gridSpacingFactor) {
-                var count;
-                gridSpacingFactor = gridSpacingFactor || this._options.gridSpacingFactor;
-                screenDelta = screenDelta || this._screenDelta;
-                businessDelta = businessDelta || this._businessDelta;
-                count = screenDelta / gridSpacingFactor;
-                count = count <= 1 ? MIN_ARRANGEMENT_TICKS_COUNT : count;
-                return businessDelta / count
-            },
-            _adjustNumericTickValue: function(value, interval, min) {
-                return commonUtils.isExponential(value) ? _adjustValue(value) : mathUtils.applyPrecisionByMinDelta(min, interval, value)
-            },
-            _isTickIntervalCorrect: function(tickInterval, tickCountLimit, businessDelta) {
-                var date;
-                businessDelta = businessDelta || this._businessDelta;
-                if (!_isNumber(tickInterval)) {
-                    date = new Date;
-                    tickInterval = _addInterval(date, tickInterval) - date;
-                    if (!tickInterval)
-                        return false
-                }
-                if (_isNumber(tickInterval))
-                    if (tickInterval > 0 && businessDelta / tickInterval > tickCountLimit) {
-                        if (this._options.incidentOccured)
-                            this._options.incidentOccured("W2003")
-                    }
-                    else
-                        return true;
-                return false
-            },
-            _correctValue: function(valueTypeSelector, tickInterval, correctionMethod) {
-                var that = this,
-                    correctionEnabledSelector = "_" + valueTypeSelector + "CorrectionEnabled",
-                    spaceCorrectionSelector = valueTypeSelector + "SpaceCorrection",
-                    valueSelector = "_" + valueTypeSelector,
-                    minStickValue = that._options.minStickValue,
-                    maxStickValue = that._options.maxStickValue;
-                if (that[correctionEnabledSelector]) {
-                    if (that._options[spaceCorrectionSelector])
-                        that[valueSelector] = that._getNextTickValue(that[valueSelector], tickInterval, valueTypeSelector === "min");
-                    correctionMethod.call(this, tickInterval)
-                }
-                if (valueTypeSelector === "min")
-                    that[valueSelector] = that[valueSelector] < minStickValue ? minStickValue : that[valueSelector];
-                if (valueTypeSelector === "max")
-                    that[valueSelector] = that[valueSelector] > maxStickValue ? maxStickValue : that[valueSelector]
-            },
-            _findTickInterval: function() {
-                var that = this,
-                    options = that._options,
-                    tickInterval;
-                tickInterval = that._isTickIntervalValid(options.tickInterval) && that._isTickIntervalCorrect(options.tickInterval, TICKS_COUNT_LIMIT) ? options.tickInterval : that._getInterval();
-                if (that._isTickIntervalValid(tickInterval)) {
-                    that._correctValue("min", tickInterval, that._correctMin);
-                    that._correctValue("max", tickInterval, that._correctMax);
-                    that._updateBusinessDelta()
-                }
-                that._tickInterval = tickInterval;
-                return tickInterval
-            },
-            _findMinorTickInterval: function(firstTick, secondTick) {
-                var that = this,
-                    ticks = that._ticks,
-                    intervals = that._options.stick ? ticks.length - 1 : ticks.length;
-                if (intervals < 1)
-                    intervals = 1;
-                that._getMinorInterval(that._screenDelta / intervals, that._findBusinessDelta(firstTick, secondTick, false));
-                return that._minorTickInterval
-            },
-            _createMinorTicks: function(ticks, firstTick, secondTick) {
-                var that = this,
-                    tickInterval = that._findMinorTickInterval(firstTick, secondTick),
-                    isTickIntervalNegative = false,
-                    isTickIntervalWithPow = false,
-                    needCorrectTick = false,
-                    startTick = that._getNextTickValue(firstTick, tickInterval, isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
-                if (that._isTickIntervalValid(tickInterval))
-                    ticks = that._createCountedTicks(ticks, tickInterval, startTick, secondTick, that._minorTickCount, isTickIntervalNegative, isTickIntervalWithPow, needCorrectTick);
-                return ticks
-            },
-            _calculateMinorTicks: function() {
-                var that = this,
-                    options = that._options,
-                    minorTicks = [],
-                    ticks = that._ticks,
-                    ticksLength = ticks.length,
-                    hasUnitBeginningTick = that._hasUnitBeginningTickCorrection(),
-                    i = hasUnitBeginningTick ? 1 : 0;
-                if (options.showMinorCalculatedTicks || !that._customMinorTicks) {
-                    if (ticks.length) {
-                        minorTicks = that._getBoundedMinorTicks(minorTicks, that._minBound, ticks[0], true);
-                        if (hasUnitBeginningTick)
-                            minorTicks = that._getUnitBeginningMinorTicks(minorTicks);
-                        for (i; i < ticksLength - 1; i++)
-                            minorTicks = that._createMinorTicks(minorTicks, ticks[i], ticks[i + 1]);
-                        minorTicks = that._getBoundedMinorTicks(minorTicks, that._maxBound, ticks[ticksLength - 1])
-                    }
-                    else
-                        minorTicks = that._createMinorTicks(minorTicks, that._minBound, that._maxBound);
-                    options.showMinorCalculatedTicks && (minorTicks = minorTicks.concat(that._customMinorTicks || []))
-                }
-                else
-                    minorTicks = that._customMinorTicks;
-                return minorTicks
-            },
-            _createCountedTicks: function(ticks, tickInterval, min, max, count, isTickIntervalWithPow, needMax) {
-                var value = min,
-                    i;
-                for (i = 0; i < count; i++) {
-                    if (!(needMax === false && value.valueOf() === max.valueOf()))
-                        ticks.push(value);
-                    value = this._getNextTickValue(value, tickInterval, false, isTickIntervalWithPow, false)
-                }
-                return ticks
-            },
-            _createTicks: function(ticks, tickInterval, min, max, isTickIntervalNegative, isTickIntervalWithPow, withCorrection) {
-                var that = this,
-                    value = min,
-                    newValue = min,
-                    leftBound,
-                    rightBound,
-                    boundedRule;
-                if (that._isTickIntervalValid(tickInterval)) {
-                    boundedRule = min - max < 0;
-                    do {
-                        value = newValue;
-                        if (that._options.stick) {
-                            if (value >= that._originalMin && value <= that._originalMax)
-                                ticks.push(value)
-                        }
-                        else
-                            ticks.push(value);
-                        newValue = that._getNextTickValue(value, tickInterval, isTickIntervalNegative, isTickIntervalWithPow, withCorrection);
-                        if (value.valueOf() === newValue.valueOf())
-                            break;
-                        leftBound = newValue - min >= 0;
-                        rightBound = max - newValue >= 0
-                    } while (boundedRule === leftBound && boundedRule === rightBound)
-                }
-                else
-                    ticks.push(value);
-                return ticks
-            },
-            _getBoundedMinorTicks: function(minorTicks, boundedTick, tick, isNegative) {
-                var that = this,
-                    needCorrectTick = false,
-                    nextTick = that._tickInterval ? this._getNextTickValue(tick, that._tickInterval, isNegative, true, needCorrectTick) : boundedTick,
-                    tickInterval = that._findMinorTickInterval(tick, nextTick),
-                    isTickIntervalCorrect = that._isTickIntervalCorrect(tickInterval, TICKS_COUNT_LIMIT, that._findBusinessDelta(tick, boundedTick, false)),
-                    startTick,
-                    endTick,
-                    boundedTickValue = boundedTick.valueOf();
-                if (isTickIntervalCorrect && that._isTickIntervalValid(tickInterval) && that._minorTickCount > 0) {
-                    if (isNegative) {
-                        if (tick.valueOf() <= boundedTickValue)
-                            return minorTicks;
-                        while (nextTick.valueOf() < boundedTickValue)
-                            nextTick = this._getNextTickValue(nextTick, tickInterval, false, false, needCorrectTick);
-                        startTick = nextTick;
-                        endTick = that._getNextTickValue(tick, tickInterval, true, false, false)
-                    }
-                    else {
-                        startTick = that._getNextTickValue(tick, tickInterval, false, false, false);
-                        endTick = boundedTick
-                    }
-                    minorTicks = that._createTicks(minorTicks, tickInterval, startTick, endTick, false, false, needCorrectTick)
-                }
-                return minorTicks
-            },
-            getTypes: function() {
-                return {
-                        axisType: this._axisType,
-                        dataType: this._dataType
-                    }
-            },
-            getData: function() {
-                return {
-                        min: this._min,
-                        max: this._max,
-                        customTicks: this._customTicks,
-                        customMinorTicks: this._customMinorTicks,
-                        screenDelta: this._screenDelta
-                    }
-            }
-        }
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file axesConstants.js */
-    (function($, DX, undefined) {
-        var _map = DX.viz.utils.map,
-            formatHelper = DX.require("/utils/utils.formatHelper");
-        function getFormatObject(value, options, axisMinMax) {
-            var formatObject = {
-                    value: value,
-                    valueText: formatHelper.format(value, options.format, options.precision) || ""
-                };
-            if (axisMinMax) {
-                formatObject.min = axisMinMax.min;
-                formatObject.max = axisMinMax.max
-            }
-            return formatObject
-        }
-        DX.viz.axes = {constants: {
-                logarithmic: "logarithmic",
-                discrete: "discrete",
-                numeric: "numeric",
-                left: "left",
-                right: "right",
-                top: "top",
-                bottom: "bottom",
-                center: "center",
-                canvasPositionPrefix: "canvas_position_",
-                canvasPositionTop: "canvas_position_top",
-                canvasPositionBottom: "canvas_position_bottom",
-                canvasPositionLeft: "canvas_position_left",
-                canvasPositionRight: "canvas_position_right",
-                canvasPositionStart: "canvas_position_start",
-                canvasPositionEnd: "canvas_position_end",
-                horizontal: "horizontal",
-                vertical: "vertical",
-                convertTicksToValues: function(ticks) {
-                    return _map(ticks || [], function(item) {
-                            return item.value
-                        })
-                },
-                convertValuesToTicks: function(values) {
-                    return _map(values || [], function(item) {
-                            return {value: item}
-                        })
-                },
-                validateOverlappingMode: function(mode) {
-                    return mode !== "ignore" ? "enlargeTickInterval" : "ignore"
-                },
-                formatLabel: function(value, options, axisMinMax) {
-                    var formatObject = getFormatObject(value, options, axisMinMax);
-                    return $.isFunction(options.customizeText) ? options.customizeText.call(formatObject, formatObject) : formatObject.valueText
-                },
-                formatHint: function(value, options, axisMinMax) {
-                    var formatObject = getFormatObject(value, options, axisMinMax);
-                    return $.isFunction(options.customizeHint) ? options.customizeHint.call(formatObject, formatObject) : undefined
-                }
-            }}
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file xyAxes.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            formatHelper = DX.require("/utils/utils.formatHelper"),
-            dateUtils = DX.require("/utils/utils.date"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            axes = viz.axes,
-            constants = axes.constants,
-            _abs = Math.abs,
-            _extend = $.extend,
-            CANVAS_POSITION_PREFIX = constants.canvasPositionPrefix,
-            TOP = constants.top,
-            BOTTOM = constants.bottom,
-            LEFT = constants.left,
-            RIGHT = constants.right,
-            CENTER = constants.center;
-        var dateSetters = {};
-        dateSetters.millisecond = function(date) {
-            date.setMilliseconds(0)
-        };
-        dateSetters.second = function(date) {
-            date.setSeconds(0, 0)
-        };
-        dateSetters.minute = function(date) {
-            date.setMinutes(0, 0, 0)
-        };
-        dateSetters.hour = function(date) {
-            date.setHours(0, 0, 0, 0)
-        };
-        dateSetters.week = dateSetters.day = function(date) {
-            date.setDate(1);
-            dateSetters.hour(date)
-        };
-        dateSetters.month = function(date) {
-            date.setMonth(0);
-            dateSetters.day(date)
-        };
-        dateSetters.quarter = function(date) {
-            date.setMonth(dateUtils.getFirstQuarterMonth(date.getMonth()));
-            dateSetters.day(date)
-        };
-        function getMarkerDate(date, tickInterval) {
-            var markerDate = new Date(date.getTime()),
-                setter = dateSetters[tickInterval];
-            setter && setter(markerDate);
-            return markerDate
-        }
-        axes.xyAxes = {linear: {
-                measureLabels: function() {
-                    return this._tickManager.getMaxLabelParams()
-                },
-                _prepareDatesDifferences: function(datesDifferences, tickInterval) {
-                    var dateUnitInterval,
-                        i;
-                    if (tickInterval === "week")
-                        tickInterval = "day";
-                    if (tickInterval === "quarter")
-                        tickInterval = "month";
-                    if (datesDifferences[tickInterval])
-                        for (i = 0; i < dateUtils.dateUnitIntervals.length; i++) {
-                            dateUnitInterval = dateUtils.dateUnitIntervals[i];
-                            if (datesDifferences[dateUnitInterval]) {
-                                datesDifferences[dateUnitInterval] = false;
-                                datesDifferences.count--
-                            }
-                            if (dateUnitInterval === tickInterval)
-                                break
-                        }
-                },
-                _getSharpParam: function(oposite) {
-                    return this._isHorizontal ^ oposite ? "h" : "v"
-                },
-                _createAxisElement: function() {
-                    var axisCoord = this._axisPosition,
-                        canvas = this._getCanvasStartEnd(),
-                        points = this._isHorizontal ? [canvas.start, axisCoord, canvas.end, axisCoord] : [axisCoord, canvas.start, axisCoord, canvas.end];
-                    return this._renderer.path(points, "line")
-                },
-                _getTranslatedCoord: function(value, offset) {
-                    return this._translator.translate(value, offset)
-                },
-                _getCanvasStartEnd: function() {
-                    return {
-                            start: this._translator.translateSpecialCase(constants.canvasPositionStart),
-                            end: this._translator.translateSpecialCase(constants.canvasPositionEnd)
-                        }
-                },
-                _getScreenDelta: function() {
-                    return _abs(this._translator.translateSpecialCase(constants.canvasPositionStart) - this._translator.translateSpecialCase(constants.canvasPositionEnd))
-                },
-                _initAxisPositions: function() {
-                    var that = this,
-                        position = that._options.position,
-                        delta = 0;
-                    if (that.delta)
-                        delta = that.delta[position] || 0;
-                    that._axisPosition = that._additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + position) + delta
-                },
-                _getTickCoord: function(tick) {
-                    var coords;
-                    if (_isDefined(tick.posX) && _isDefined(tick.posY))
-                        coords = {
-                            x1: tick.posX,
-                            y1: tick.posY - tick.halfTickLength,
-                            x2: tick.posX,
-                            y2: tick.posY + tick.halfTickLength
-                        };
-                    else
-                        coords = null;
-                    return coords
-                },
-                _drawTitle: function() {
-                    var that = this,
-                        options = that._options,
-                        titleOptions = options.title,
-                        attr = {
-                            opacity: titleOptions.opacity,
-                            align: CENTER
-                        };
-                    if (!titleOptions.text || !that._axisTitleGroup)
-                        return;
-                    that._title = that._renderer.text(titleOptions.text, 0, 0).css(viz.utils.patchFontOptions(titleOptions.font)).attr(attr).append(that._axisTitleGroup)
-                },
-                _drawDateMarker: function(dateMarker, options) {
-                    var that = this,
-                        markerOptions = that._options.marker,
-                        labelPosX,
-                        labelPosY,
-                        textElement,
-                        textSize,
-                        pathElement;
-                    if (options.x === null)
-                        return;
-                    pathElement = that._renderer.path([options.x, options.y, options.x, options.y + markerOptions.separatorHeight], "line").attr({
-                        "stroke-width": markerOptions.width,
-                        stroke: markerOptions.color,
-                        "stroke-opacity": markerOptions.opacity,
-                        sharp: "h"
-                    }).append(that._axisElementsGroup);
-                    textElement = that._renderer.text(String(constants.formatLabel(dateMarker, options.labelFormat)), 0, 0).attr({align: "left"}).css(viz.utils.patchFontOptions(markerOptions.label.font)).append(that._axisElementsGroup);
-                    textSize = textElement.getBBox();
-                    labelPosX = options.x + markerOptions.width + markerOptions.textLeftIndent;
-                    labelPosY = options.y + markerOptions.textTopIndent + textSize.height / 2;
-                    textElement.move(labelPosX, labelPosY);
-                    return {
-                            x1: labelPosX,
-                            x2: labelPosX + textSize.width,
-                            path: pathElement,
-                            text: textElement
-                        }
-                },
-                _deleteDateMarker: function(marker) {
-                    marker.path.dispose();
-                    marker.path = null;
-                    marker.text.dispose();
-                    marker.text = null
-                },
-                _drawDateMarkers: function() {
-                    var that = this,
-                        markerOptions = that._options.marker,
-                        ticks = that._majorTicks,
-                        length = ticks.length,
-                        dateUnitInterval = dateUtils.getDateUnitInterval(that._tickManager.getTickInterval()),
-                        dateMarkers = [],
-                        datesDifferences,
-                        currentDateMarker,
-                        prevDateMarker,
-                        markerDate,
-                        posX,
-                        maxLabelHeight,
-                        i = 1;
-                    if (that._options.argumentType !== "datetime" || length <= 1)
-                        return;
-                    maxLabelHeight = this._axisElementsGroup && this._axisElementsGroup.getBBox().height;
-                    for (i; i < length; i++) {
-                        datesDifferences = dateUtils.getDatesDifferences(ticks[i - 1].value, ticks[i].value);
-                        that._prepareDatesDifferences(datesDifferences, dateUnitInterval);
-                        if (datesDifferences.count > 0) {
-                            markerDate = getMarkerDate(ticks[i].value, dateUnitInterval);
-                            posX = that._translator.translate(markerDate);
-                            currentDateMarker = that._drawDateMarker(markerDate, {
-                                x: posX,
-                                y: that._axisPosition + maxLabelHeight + that._options.label.indentFromAxis + markerOptions.topIndent,
-                                labelFormat: that._getLabelFormatOptions(formatHelper.getDateFormatByDifferences(datesDifferences))
-                            });
-                            if (prevDateMarker === undefined || currentDateMarker.x1 > prevDateMarker.x2 || currentDateMarker.x2 < prevDateMarker.x1) {
-                                posX !== null && dateMarkers.push({
-                                    dateMarker: markerDate,
-                                    posX: posX
-                                });
-                                prevDateMarker = currentDateMarker
-                            }
-                            else
-                                that._deleteDateMarker(currentDateMarker)
-                        }
-                    }
-                    return dateMarkers
-                },
-                _getLabelFormatOptions: function(formatString) {
-                    var markerOptions = this._options.marker;
-                    if (!_isDefined(markerOptions.label.format))
-                        markerOptions.label.format = formatString;
-                    return markerOptions.label
-                },
-                _adjustConstantLineLabels: function() {
-                    var that = this,
-                        options = that._options,
-                        isHorizontal = that._isHorizontal,
-                        lines = that._constantLines,
-                        labels = that._constantLineLabels,
-                        label,
-                        line,
-                        lineBox,
-                        linesOptions,
-                        labelOptions,
-                        box,
-                        x,
-                        y,
-                        i,
-                        padding = isHorizontal ? {
-                            top: 0,
-                            bottom: 0
-                        } : {
-                            left: 0,
-                            right: 0
-                        },
-                        paddingTopBottom,
-                        paddingLeftRight,
-                        labelVerticalAlignment,
-                        labelHorizontalAlignment,
-                        labelIsInside,
-                        labelHeight,
-                        labelWidth,
-                        delta = 0;
-                    if (labels === undefined && lines === undefined)
-                        return;
-                    for (i = 0; i < labels.length; i++) {
-                        x = y = 0;
-                        linesOptions = options.constantLines[i];
-                        paddingTopBottom = linesOptions.paddingTopBottom;
-                        paddingLeftRight = linesOptions.paddingLeftRight;
-                        labelOptions = linesOptions.label;
-                        labelVerticalAlignment = labelOptions.verticalAlignment;
-                        labelHorizontalAlignment = labelOptions.horizontalAlignment;
-                        labelIsInside = labelOptions.position === "inside";
-                        label = labels[i];
-                        if (label !== null) {
-                            line = lines[i];
-                            box = label.getBBox();
-                            lineBox = line.getBBox();
-                            labelHeight = box.height;
-                            labelWidth = box.width;
-                            if (isHorizontal)
-                                if (labelIsInside) {
-                                    if (labelHorizontalAlignment === LEFT)
-                                        x -= paddingLeftRight;
-                                    else
-                                        x += paddingLeftRight;
-                                    switch (labelVerticalAlignment) {
-                                        case CENTER:
-                                            y += lineBox.y + lineBox.height / 2 - box.y - labelHeight / 2;
-                                            break;
-                                        case BOTTOM:
-                                            y += lineBox.y + lineBox.height - box.y - labelHeight - paddingTopBottom;
-                                            break;
-                                        default:
-                                            y += lineBox.y - box.y + paddingTopBottom;
-                                            break
-                                    }
-                                }
-                                else if (labelVerticalAlignment === BOTTOM) {
-                                    delta = that.delta && that.delta[BOTTOM] || 0;
-                                    y += paddingTopBottom - box.y + that._additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + BOTTOM) + delta;
-                                    if (padding[BOTTOM] < labelHeight + paddingTopBottom)
-                                        padding[BOTTOM] = labelHeight + paddingTopBottom
-                                }
-                                else {
-                                    delta = that.delta && that.delta[TOP] || 0;
-                                    y -= paddingTopBottom + box.y + labelHeight - that._additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + TOP) - delta;
-                                    if (padding[TOP] < paddingTopBottom + labelHeight)
-                                        padding[TOP] = paddingTopBottom + labelHeight
-                                }
-                            else if (labelIsInside) {
-                                switch (labelHorizontalAlignment) {
-                                    case CENTER:
-                                        x += lineBox.x + labelWidth / 2 - box.x - labelWidth / 2;
-                                        break;
-                                    case RIGHT:
-                                        x -= paddingLeftRight;
-                                        break;
-                                    default:
-                                        x += paddingLeftRight;
-                                        break
-                                }
-                                if (labelVerticalAlignment === BOTTOM)
-                                    y += lineBox.y - box.y + paddingTopBottom;
-                                else
-                                    y += lineBox.y - box.y - labelHeight - paddingTopBottom
-                            }
-                            else {
-                                y += lineBox.y + lineBox.height / 2 - box.y - labelHeight / 2;
-                                if (labelHorizontalAlignment === RIGHT) {
-                                    x += paddingLeftRight;
-                                    if (padding[RIGHT] < paddingLeftRight + labelWidth)
-                                        padding[RIGHT] = paddingLeftRight + labelWidth
-                                }
-                                else {
-                                    x -= paddingLeftRight;
-                                    if (padding[LEFT] < paddingLeftRight + labelWidth)
-                                        padding[LEFT] = paddingLeftRight + labelWidth
-                                }
-                            }
-                            label.move(x, y)
-                        }
-                    }
-                    that.padding = padding
-                },
-                _checkAlignmentConstantLineLabels: function(labelOptions) {
-                    var position = labelOptions.position,
-                        verticalAlignment = (labelOptions.verticalAlignment || "").toLowerCase(),
-                        horizontalAlignment = (labelOptions.horizontalAlignment || "").toLowerCase();
-                    if (this._isHorizontal)
-                        if (position === "outside") {
-                            verticalAlignment = verticalAlignment === BOTTOM ? BOTTOM : TOP;
-                            horizontalAlignment = CENTER
-                        }
-                        else {
-                            verticalAlignment = verticalAlignment === CENTER ? CENTER : verticalAlignment === BOTTOM ? BOTTOM : TOP;
-                            horizontalAlignment = horizontalAlignment === LEFT ? LEFT : RIGHT
-                        }
-                    else if (position === "outside") {
-                        verticalAlignment = CENTER;
-                        horizontalAlignment = horizontalAlignment === LEFT ? LEFT : RIGHT
-                    }
-                    else {
-                        verticalAlignment = verticalAlignment === BOTTOM ? BOTTOM : TOP;
-                        horizontalAlignment = horizontalAlignment === RIGHT ? RIGHT : horizontalAlignment === CENTER ? CENTER : LEFT
-                    }
-                    labelOptions.verticalAlignment = verticalAlignment;
-                    labelOptions.horizontalAlignment = horizontalAlignment
-                },
-                _getConstantLineLabelsCoords: function(value, lineLabelOptions) {
-                    var that = this,
-                        additionalTranslator = that._additionalTranslator,
-                        align = CENTER,
-                        x = value,
-                        y = value;
-                    if (that._isHorizontal)
-                        y = additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + lineLabelOptions.verticalAlignment);
-                    else
-                        x = additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + lineLabelOptions.horizontalAlignment);
-                    switch (lineLabelOptions.horizontalAlignment) {
-                        case LEFT:
-                            align = !that._isHorizontal && lineLabelOptions.position === "inside" ? LEFT : RIGHT;
-                            break;
-                        case CENTER:
-                            align = CENTER;
-                            break;
-                        case RIGHT:
-                            align = !that._isHorizontal && lineLabelOptions.position === "inside" ? RIGHT : LEFT;
-                            break
-                    }
-                    return {
-                            x: x,
-                            y: y,
-                            align: align
-                        }
-                },
-                _getAdjustedStripLabelCoords: function(stripOptions, label, rect) {
-                    var x = 0,
-                        y = 0,
-                        horizontalAlignment = stripOptions.label.horizontalAlignment,
-                        verticalAlignment = stripOptions.label.verticalAlignment,
-                        box = label.getBBox(),
-                        rectBox = rect.getBBox();
-                    if (horizontalAlignment === LEFT)
-                        x += stripOptions.paddingLeftRight;
-                    else if (horizontalAlignment === RIGHT)
-                        x -= stripOptions.paddingLeftRight;
-                    if (verticalAlignment === TOP)
-                        y += rectBox.y - box.y + stripOptions.paddingTopBottom;
-                    else if (verticalAlignment === CENTER)
-                        y += rectBox.y + rectBox.height / 2 - box.y - box.height / 2;
-                    else if (verticalAlignment === BOTTOM)
-                        y -= stripOptions.paddingTopBottom;
-                    return {
-                            x: x,
-                            y: y
-                        }
-                },
-                _adjustTitle: function() {
-                    var that = this,
-                        options = that._options,
-                        position = options.position,
-                        title = that._title,
-                        margin = options.title.margin,
-                        boxGroup,
-                        boxTitle,
-                        params,
-                        centerPosition = that._translator.translateSpecialCase(CANVAS_POSITION_PREFIX + CENTER),
-                        axisElementsGroup = that._axisElementsGroup,
-                        heightTitle,
-                        axisPosition = that._axisPosition,
-                        noLabels;
-                    if (!title || !axisElementsGroup)
-                        return;
-                    boxTitle = title.getBBox();
-                    boxGroup = axisElementsGroup.getBBox();
-                    noLabels = boxGroup.isEmpty;
-                    heightTitle = boxTitle.height;
-                    if (that._isHorizontal)
-                        if (position === BOTTOM)
-                            params = {
-                                y: (noLabels ? axisPosition : boxGroup.y + boxGroup.height) - boxTitle.y + margin,
-                                x: centerPosition
-                            };
-                        else
-                            params = {
-                                y: (noLabels ? axisPosition : boxGroup.y) - heightTitle - boxTitle.y - margin,
-                                x: centerPosition
-                            };
-                    else {
-                        if (position === LEFT)
-                            params = {
-                                x: (noLabels ? axisPosition : boxGroup.x) - heightTitle - boxTitle.y - margin,
-                                y: centerPosition
-                            };
-                        else
-                            params = {
-                                x: (noLabels ? axisPosition : boxGroup.x + boxGroup.width) + heightTitle + boxTitle.y + margin,
-                                y: centerPosition
-                            };
-                        params.rotate = options.position === LEFT ? 270 : 90
-                    }
-                    title.attr(params)
-                },
-                coordsIn: function(x, y) {
-                    var rect = this.getBoundingRect();
-                    return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
-                },
-                _getOverlappingBehaviorOptions: function() {
-                    var that = this,
-                        options = that._options,
-                        getText = function() {
-                            return ""
-                        },
-                        overlappingBehavior = options.label.overlappingBehavior ? _extend({}, options.label.overlappingBehavior) : null;
-                    if (overlappingBehavior) {
-                        if (!that._isHorizontal)
-                            overlappingBehavior.mode = constants.validateOverlappingMode(overlappingBehavior.mode);
-                        if (overlappingBehavior.mode !== "rotate")
-                            overlappingBehavior.rotationAngle = 0
-                    }
-                    if (!that._translator.getBusinessRange().stubData)
-                        getText = function(value, labelOptions) {
-                            return constants.formatLabel(value, labelOptions, {
-                                    min: options.min,
-                                    max: options.max
-                                })
-                        };
-                    return {
-                            hasLabelFormat: that._hasLabelFormat,
-                            labelOptions: options.label,
-                            isMarkersVisible: options.marker.visible,
-                            overlappingBehavior: overlappingBehavior,
-                            isHorizontal: that._isHorizontal,
-                            textOptions: that._textOptions,
-                            textFontStyles: that._textFontStyles,
-                            textSpacing: options.label.minSpacing,
-                            getText: getText,
-                            renderText: function(text, x, y, options) {
-                                return that._renderer.text(text, x, y, options).append(that._renderer.root)
-                            },
-                            translate: function(value, useAdditionalTranslator) {
-                                return useAdditionalTranslator ? that._additionalTranslator.translate(value) : that._translator.translate(value)
-                            },
-                            isInverted: that._translator.getBusinessRange().invert,
-                            addMinMax: options.showCustomBoundaryTicks ? {
-                                min: true,
-                                max: true
-                            } : undefined
-                        }
-                },
-                _getMinMax: function() {
-                    return {
-                            min: this._options.min,
-                            max: this._options.max
-                        }
-                },
-                _getStick: function() {
-                    return !this._options.valueMarginsEnabled
-                },
-                _getStripLabelCoords: function(stripLabelOptions, stripFrom, stripTo) {
-                    var that = this,
-                        additionalTranslator = that._additionalTranslator,
-                        isHorizontal = that._isHorizontal,
-                        align = isHorizontal ? CENTER : LEFT,
-                        x,
-                        y;
-                    if (isHorizontal) {
-                        if (stripLabelOptions.horizontalAlignment === CENTER) {
-                            x = stripFrom + (stripTo - stripFrom) / 2;
-                            align = CENTER
-                        }
-                        else if (stripLabelOptions.horizontalAlignment === LEFT) {
-                            x = stripFrom;
-                            align = LEFT
-                        }
-                        else if (stripLabelOptions.horizontalAlignment === RIGHT) {
-                            x = stripTo;
-                            align = RIGHT
-                        }
-                        y = additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + stripLabelOptions.verticalAlignment)
-                    }
-                    else {
-                        x = additionalTranslator.translateSpecialCase(CANVAS_POSITION_PREFIX + stripLabelOptions.horizontalAlignment);
-                        align = stripLabelOptions.horizontalAlignment;
-                        if (stripLabelOptions.verticalAlignment === TOP)
-                            y = stripFrom;
-                        else if (stripLabelOptions.verticalAlignment === CENTER)
-                            y = stripTo + (stripFrom - stripTo) / 2;
-                        else if (stripLabelOptions.verticalAlignment === BOTTOM)
-                            y = stripTo
-                    }
-                    return {
-                            x: x,
-                            y: y,
-                            align: align
-                        }
-                },
-                _getTranslatedValue: function(value, y, offset) {
-                    return {
-                            x: this._translator.translate(value, offset),
-                            y: y
-                        }
-                },
-                _getSkippedCategory: function() {
-                    var skippedCategory,
-                        categories = this._translator.getVisibleCategories() || this._translator.getBusinessRange().categories;
-                    if (categories && !!this._tickOffset)
-                        skippedCategory = categories[categories.length - 1];
-                    return skippedCategory
-                },
-                _getSpiderCategoryOption: $.noop
-            }}
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file polarAxes.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            mathUtils = DX.require("/utils/utils.math"),
-            commonUtils = DX.require("/utils/utils.common"),
-            axes = viz.axes,
-            constants = axes.constants,
-            circularAxes,
-            xyAxesLinear = axes.xyAxes.linear,
-            polarAxes,
-            vizUtils = viz.utils,
-            _map = vizUtils.map,
-            _math = Math,
-            _abs = _math.abs,
-            _round = _math.round,
-            convertPolarToXY = vizUtils.convertPolarToXY,
-            _extend = $.extend,
-            _noop = $.noop,
-            HALF_PI_ANGLE = 90;
-        function getPolarQuarter(angle) {
-            var quarter;
-            angle = mathUtils.normalizeAngle(angle);
-            if (angle >= 315 && angle <= 360 || angle < 45 && angle >= 0)
-                quarter = 1;
-            else if (angle >= 45 && angle < 135)
-                quarter = 2;
-            else if (angle >= 135 && angle < 225)
-                quarter = 3;
-            else if (angle >= 225 && angle < 315)
-                quarter = 4;
-            return quarter
-        }
-        polarAxes = axes.polarAxes = {};
-        circularAxes = polarAxes.circular = {
-            _overlappingBehaviorType: "circular",
-            _createAxisElement: function() {
-                var additionalTranslator = this._additionalTranslator;
-                return this._renderer.circle(additionalTranslator.getCenter().x, additionalTranslator.getCenter().y, additionalTranslator.getRadius())
-            },
-            _setBoundingRect: function() {
-                this.boundingRect = {
-                    width: 0,
-                    height: 0
-                }
-            },
-            _getOverlappingBehaviorOptions: function() {
-                var that = this,
-                    additionalTranslator = that._additionalTranslator,
-                    angles = additionalTranslator.getAngles(),
-                    options = xyAxesLinear._getOverlappingBehaviorOptions.call(that),
-                    translator = that._translator,
-                    indentFromAxis = that._options.label.indentFromAxis || 0;
-                if (options.overlappingBehavior)
-                    options.overlappingBehavior = {mode: constants.validateOverlappingMode(options.overlappingBehavior.mode)};
-                options.translate = function(value) {
-                    return convertPolarToXY(additionalTranslator.getCenter(), angles[0], translator.translate(value), additionalTranslator.translate(constants.canvasPositionBottom))
-                };
-                options.addMinMax = {min: true};
-                options.isInverted = translator.getBusinessRange().invert;
-                options.circularRadius = additionalTranslator.getRadius() + indentFromAxis;
-                options.circularStartAngle = angles[0];
-                options.circularEndAngle = angles[1];
-                options.isHorizontal = false;
-                return options
-            },
-            _addBoundaryTick: function(ticks) {
-                var boundaryTicks = this._tickManager.getBoundaryTicks();
-                boundaryTicks.length && ticks.unshift({value: boundaryTicks[0]})
-            },
-            _getSpiderCategoryOption: function() {
-                return this._options.firstPointOnStartAngle
-            },
-            _getMinMax: function() {
-                var options = this._options;
-                return {
-                        min: undefined,
-                        max: commonUtils.isNumber(options.period) && options.argumentType === constants.numeric ? options.period : undefined
-                    }
-            },
-            _getStick: function() {
-                return this._options.firstPointOnStartAngle || this._options.type !== constants.discrete
-            },
-            measureLabels: function(withIndents) {
-                var that = this,
-                    options = that._options,
-                    indentFromAxis = options.label.indentFromAxis || 0,
-                    widthAxis = options.visible ? options.width : 0,
-                    maxLabelParams,
-                    halfTickLength = options.tick.length * 0.5,
-                    indent = withIndents ? indentFromAxis + halfTickLength : 0;
-                if (!that._axisElementsGroup || !that._options.label.visible)
-                    return {
-                            height: widthAxis,
-                            width: widthAxis
-                        };
-                that._updateTickManager();
-                maxLabelParams = that._tickManager.getMaxLabelParams();
-                return {
-                        height: maxLabelParams.height + indent,
-                        width: maxLabelParams.width + indent
-                    }
-            },
-            _getTranslatedCoord: function(value, offset) {
-                return this._translator.translate(value, offset) - HALF_PI_ANGLE
-            },
-            _getCanvasStartEnd: function() {
-                return {
-                        start: 0 - HALF_PI_ANGLE,
-                        end: 360 - HALF_PI_ANGLE
-                    }
-            },
-            _createStrip: function(fromAngle, toAngle, attr) {
-                var center = this._additionalTranslator.getCenter(),
-                    r = this._additionalTranslator.getRadius();
-                return this._renderer.arc(center.x, center.y, 0, r, -toAngle, -fromAngle).attr(attr)
-            },
-            _getStripLabelCoords: function(_, stripFrom, stripTo) {
-                var that = this,
-                    angle = stripFrom + (stripTo - stripFrom) / 2,
-                    cossin = mathUtils.getCosAndSin(-angle),
-                    halfRad = that._additionalTranslator.getRadius() / 2,
-                    center = that._additionalTranslator.getCenter(),
-                    x = _round(center.x + halfRad * cossin.cos),
-                    y = _round(center.y - halfRad * cossin.sin);
-                return {
-                        x: x,
-                        y: y,
-                        align: constants.center
-                    }
-            },
-            _createConstantLine: function(value, attr) {
-                var center = this._additionalTranslator.getCenter(),
-                    r = this._additionalTranslator.getRadius();
-                return this._createPathElement([center.x, center.y, center.x + r, center.y], attr).rotate(value, center.x, center.y)
-            },
-            _getConstantLineLabelsCoords: function(value) {
-                var that = this,
-                    cossin = mathUtils.getCosAndSin(-value),
-                    halfRad = that._additionalTranslator.getRadius() / 2,
-                    center = that._additionalTranslator.getCenter(),
-                    x = _round(center.x + halfRad * cossin.cos),
-                    y = _round(center.y - halfRad * cossin.sin);
-                return {
-                        x: x,
-                        y: y,
-                        align: constants.center
-                    }
-            },
-            _checkAlignmentConstantLineLabels: _noop,
-            _getScreenDelta: function() {
-                return 2 * Math.PI * this._additionalTranslator.getRadius()
-            },
-            _getTickCoord: function(tick) {
-                var center = this._additionalTranslator.getCenter(),
-                    r = this._additionalTranslator.getRadius();
-                return {
-                        x1: center.x + r - tick.halfTickLength,
-                        y1: center.y,
-                        x2: center.x + r + tick.halfTickLength,
-                        y2: center.y,
-                        angle: tick.angle
-                    }
-            },
-            _getLabelAdjustedCoord: function(tick) {
-                var that = this,
-                    pos = tick.labelPos,
-                    cossin = mathUtils.getCosAndSin(pos.angle),
-                    cos = cossin.cos,
-                    sin = cossin.sin,
-                    box = tick.label.getBBox(),
-                    halfWidth = box.width / 2,
-                    halfHeight = box.height / 2,
-                    indentFromAxis = that._options.label.indentFromAxis || 0,
-                    x = pos.x + indentFromAxis * cos,
-                    y = pos.y + (pos.y - box.y - halfHeight) + indentFromAxis * sin;
-                switch (getPolarQuarter(pos.angle)) {
-                    case 1:
-                        x += halfWidth;
-                        y += halfHeight * sin;
-                        break;
-                    case 2:
-                        x += halfWidth * cos;
-                        y += halfHeight;
-                        break;
-                    case 3:
-                        x += -halfWidth;
-                        y += halfHeight * sin;
-                        break;
-                    case 4:
-                        x += halfWidth * cos;
-                        y += -halfHeight;
-                        break
-                }
-                return {
-                        x: x,
-                        y: y
-                    }
-            },
-            _getGridLineDrawer: function() {
-                var that = this,
-                    r = that._additionalTranslator.getRadius(),
-                    center = that._additionalTranslator.getCenter();
-                return function(tick) {
-                        return that._createPathElement([center.x, center.y, center.x + r, center.y], tick.gridStyle).rotate(tick.angle, center.x, center.y)
-                    }
-            },
-            _getTranslatedValue: function(value, _, offset) {
-                var additionalTranslator = this._additionalTranslator,
-                    startAngle = additionalTranslator.getAngles()[0],
-                    angle = this._translator.translate(value, -offset),
-                    coords = convertPolarToXY(additionalTranslator.getCenter(), startAngle, angle, additionalTranslator.translate(constants.canvasPositionBottom));
-                return {
-                        x: coords.x,
-                        y: coords.y,
-                        angle: angle + startAngle - HALF_PI_ANGLE
-                    }
-            },
-            _getAdjustedStripLabelCoords: function(_, label) {
-                var y,
-                    box = label.getBBox();
-                y = label.attr("y") - box.y - box.height / 2;
-                return {
-                        x: 0,
-                        y: y
-                    }
-            },
-            coordsIn: function(x, y) {
-                return vizUtils.convertXYToPolar(this._additionalTranslator.getCenter(), x, y).r > this._additionalTranslator.getRadius()
-            },
-            _rotateTick: function(tick, angle) {
-                var center = this._additionalTranslator.getCenter();
-                tick.graphic.rotate(angle, center.x, center.y)
-            }
-        };
-        polarAxes.circularSpider = _extend({}, circularAxes, {
-            _createAxisElement: function() {
-                var points = _map(this.getSpiderTicks(), function(tick) {
-                        return {
-                                x: tick.posX,
-                                y: tick.posY
-                            }
-                    });
-                return this._renderer.path(points, "area")
-            },
-            _getStick: function() {
-                return true
-            },
-            _getSpiderCategoryOption: function() {
-                return true
-            },
-            getSpiderTicks: function() {
-                var that = this;
-                that._spiderTicks = constants.convertValuesToTicks(that._tickManager.getFullTicks());
-                that._initTicks(that._spiderTicks, {
-                    tickStyle: {},
-                    gridStyle: {}
-                }, false, that._getSkippedCategory(), that._tickOffset);
-                return that._spiderTicks
-            },
-            _createStrip: function(fromAngle, toAngle, attr) {
-                var center = this._additionalTranslator.getCenter(),
-                    spiderTicks = this.getSpiderTicks(),
-                    firstTick,
-                    lastTick,
-                    nextTick,
-                    tick,
-                    points = [],
-                    i = 0,
-                    len = spiderTicks.length;
-                while (i < len) {
-                    tick = spiderTicks[i];
-                    if (tick.angle >= fromAngle && tick.angle <= toAngle) {
-                        if (!firstTick) {
-                            firstTick = spiderTicks[i - 1] || spiderTicks[spiderTicks.length - 1];
-                            points.push((tick.posX + firstTick.posX) / 2, (tick.posY + firstTick.posY) / 2)
-                        }
-                        points.push(tick.posX, tick.posY);
-                        nextTick = spiderTicks[i + 1] || spiderTicks[0];
-                        lastTick = {
-                            x: (tick.posX + nextTick.posX) / 2,
-                            y: (tick.posY + nextTick.posY) / 2
-                        }
-                    }
-                    i++
-                }
-                points.push(lastTick.x, lastTick.y);
-                points.push(center.x, center.y);
-                return this._renderer.path(points, "area").attr(attr)
-            },
-            _getTranslatedCoord: function(value, offset) {
-                return this._translator.translate(value, offset) - HALF_PI_ANGLE
-            },
-            _setTickOffset: function() {
-                this._tickOffset = false
-            }
-        });
-        polarAxes.linear = {
-            _overlappingBehaviorType: "linear",
-            _getMinMax: circularAxes._getMinMax,
-            _getStick: xyAxesLinear._getStick,
-            _getSpiderCategoryOption: $.noop,
-            _createAxisElement: function() {
-                var additionalTranslator = this._additionalTranslator,
-                    centerCoord = additionalTranslator.getCenter(),
-                    points = [centerCoord.x, centerCoord.y, centerCoord.x + additionalTranslator.getRadius(), centerCoord.y];
-                return this._renderer.path(points, "line").rotate(additionalTranslator.getAngles()[0] - HALF_PI_ANGLE, centerCoord.x, centerCoord.y)
-            },
-            _setBoundingRect: circularAxes._setBoundingRect,
-            _getScreenDelta: function() {
-                return this._additionalTranslator.getRadius()
-            },
-            _getTickCoord: function(tick) {
-                return {
-                        x1: tick.posX - tick.halfTickLength,
-                        y1: tick.posY,
-                        x2: tick.posX + tick.halfTickLength,
-                        y2: tick.posY,
-                        angle: tick.angle + HALF_PI_ANGLE
-                    }
-            },
-            _getOverlappingBehaviorOptions: function() {
-                var that = this,
-                    translator = that._translator,
-                    orthTranslator = that._additionalTranslator,
-                    options = xyAxesLinear._getOverlappingBehaviorOptions.call(this),
-                    startAngle = mathUtils.normalizeAngle(that._additionalTranslator.getAngles()[0]);
-                if (options.overlappingBehavior)
-                    options.overlappingBehavior = {mode: constants.validateOverlappingMode(options.overlappingBehavior.mode)};
-                options.isHorizontal = startAngle > 45 && startAngle < 135 || startAngle > 225 && startAngle < 315 ? true : false;
-                options.isInverted = translator.getBusinessRange().invert;
-                options.translate = function(value) {
-                    return convertPolarToXY(orthTranslator.getCenter(), that._options.startAngle, orthTranslator.translate(constants.canvasPositionTop), translator.translate(value)).x
-                };
-                return options
-            },
-            _getLabelAdjustedCoord: function(tick) {
-                var that = this,
-                    pos = tick.labelPos,
-                    cossin = mathUtils.getCosAndSin(pos.angle),
-                    indentFromAxis = that._options.label.indentFromAxis || 0,
-                    box = tick.label.getBBox(),
-                    x,
-                    y;
-                x = pos.x - _abs(indentFromAxis * cossin.sin) + _abs(box.width / 2 * cossin.cos);
-                y = pos.y + (pos.y - box.y) - _abs(box.height / 2 * cossin.sin) + _abs(indentFromAxis * cossin.cos);
-                return {
-                        x: x,
-                        y: y
-                    }
-            },
-            _getGridLineDrawer: function() {
-                var that = this,
-                    pos = that._additionalTranslator.getCenter();
-                return function(tick) {
-                        return that._renderer.circle(pos.x, pos.y, mathUtils.getDistance(pos.x, pos.y, tick.posX, tick.posY)).attr(tick.gridStyle).sharp()
-                    }
-            },
-            _getTranslatedValue: function(value, _, offset) {
-                var additionalTranslator = this._additionalTranslator,
-                    startAngle = additionalTranslator.getAngles()[0],
-                    angle = additionalTranslator.translate(constants.canvasPositionStart),
-                    xy = convertPolarToXY(additionalTranslator.getCenter(), startAngle, angle, this._translator.translate(value, offset));
-                return {
-                        x: xy.x,
-                        y: xy.y,
-                        angle: angle + startAngle - HALF_PI_ANGLE
-                    }
-            },
-            _getTranslatedCoord: function(value, offset) {
-                return this._translator.translate(value, offset)
-            },
-            _getCanvasStartEnd: function() {
-                return {
-                        start: 0,
-                        end: this._additionalTranslator.getRadius()
-                    }
-            },
-            _createStrip: function(fromPoint, toPoint, attr) {
-                var center = this._additionalTranslator.getCenter();
-                return this._renderer.arc(center.x, center.y, fromPoint, toPoint, 0, 360).attr(attr)
-            },
-            _getAdjustedStripLabelCoords: circularAxes._getAdjustedStripLabelCoords,
-            _getStripLabelCoords: function(_, stripFrom, stripTo) {
-                var that = this,
-                    labelPos = stripFrom + (stripTo - stripFrom) / 2,
-                    center = that._additionalTranslator.getCenter(),
-                    y = _round(center.y - labelPos);
-                return {
-                        x: center.x,
-                        y: y,
-                        align: constants.center
-                    }
-            },
-            _createConstantLine: function(value, attr) {
-                var center = this._additionalTranslator.getCenter();
-                return this._renderer.circle(center.x, center.y, value).attr(attr).sharp()
-            },
-            _getConstantLineLabelsCoords: function(value) {
-                var that = this,
-                    center = that._additionalTranslator.getCenter(),
-                    y = _round(center.y - value);
-                return {
-                        x: center.x,
-                        y: y,
-                        align: constants.center
-                    }
-            },
-            _checkAlignmentConstantLineLabels: _noop,
-            _rotateTick: function(tick, angle) {
-                tick.graphic.rotate(angle, tick.posX, tick.posY)
-            }
-        };
-        polarAxes.linearSpider = _extend({}, polarAxes.linear, {
-            _createPathElement: function(points, attr) {
-                return this._renderer.path(points, "area").attr(attr).sharp()
-            },
-            setSpiderTicks: function(ticks) {
-                this._spiderTicks = ticks
-            },
-            _getGridLineDrawer: function() {
-                var that = this,
-                    pos = that._additionalTranslator.getCenter();
-                return function(tick) {
-                        var radius = mathUtils.getDistance(pos.x, pos.y, tick.posX, tick.posY);
-                        return that._createPathElement(that._getGridPoints(pos, radius), tick.gridStyle)
-                    }
-            },
-            _getGridPoints: function(pos, radius) {
-                return _map(this._spiderTicks, function(tick) {
-                        var cossin = mathUtils.getCosAndSin(tick.angle);
-                        return {
-                                x: _round(pos.x + radius * cossin.cos),
-                                y: _round(pos.y + radius * cossin.sin)
-                            }
-                    })
-            },
-            _createStrip: function(fromPoint, toPoint, attr) {
-                var center = this._additionalTranslator.getCenter(),
-                    innerPoints = this._getGridPoints(center, toPoint),
-                    outerPoints = this._getGridPoints(center, fromPoint);
-                return this._renderer.path([outerPoints, innerPoints.reverse()], "area").attr(attr)
-            },
-            _createConstantLine: function(value, attr) {
-                var center = this._additionalTranslator.getCenter(),
-                    points = this._getGridPoints(center, value);
-                return this._createPathElement(points, attr)
-            }
-        })
-    })(jQuery, DevExpress);
-    /*! Module viz-core, file baseAxis.js */
-    (function($, DX, undefined) {
-        var viz = DX.viz,
-            mathUtils = DX.require("/utils/utils.math"),
-            commonUtils = DX.require("/utils/utils.common"),
-            constants = viz.axes.constants,
-            parseUtils = viz.parseUtils,
-            _isDefined = commonUtils.isDefined,
-            _isNumber = commonUtils.isNumber,
-            _isString = commonUtils.isString,
-            _getSignificantDigitPosition = mathUtils.getSignificantDigitPosition,
-            _roundValue = mathUtils.roundValue,
-            patchFontOptions = viz.utils.patchFontOptions,
-            _math = Math,
-            _abs = _math.abs,
-            _round = _math.round,
-            _extend = $.extend,
-            _each = $.each,
-            _noop = $.noop,
-            DEFAULT_AXIS_LABEL_SPACING = 5,
-            MAX_GRID_BORDER_ADHENSION = 4,
-            LABEL_BACKGROUND_PADDING_X = 8,
-            LABEL_BACKGROUND_PADDING_Y = 4,
-            Axis;
-        function validateAxisOptions(options) {
-            var labelOptions = options.label,
-                position = options.position,
-                defaultPosition = options.isHorizontal ? constants.bottom : constants.left,
-                secondaryPosition = options.isHorizontal ? constants.top : constants.right;
-            if (position !== defaultPosition && position !== secondaryPosition)
-                position = defaultPosition;
-            if (position === constants.right && !labelOptions.userAlignment)
-                labelOptions.alignment = constants.left;
-            options.position = position;
-            options.hoverMode = options.hoverMode ? options.hoverMode.toLowerCase() : "none";
-            labelOptions.minSpacing = _isDefined(labelOptions.minSpacing) ? labelOptions.minSpacing : DEFAULT_AXIS_LABEL_SPACING
-        }
-        function findSkippedIndexCategory(ticks, skippedCategory) {
-            var i = ticks.length;
-            if (skippedCategory !== undefined)
-                while (i--)
-                    if (ticks[i].value === skippedCategory)
-                        return i;
-            return -1
-        }
-        Axis = DX.viz.axes.Axis = function(renderSettings) {
-            var that = this;
-            that._renderer = renderSettings.renderer;
-            that._incidentOccured = renderSettings.incidentOccured;
-            that._stripsGroup = renderSettings.stripsGroup;
-            that._labelAxesGroup = renderSettings.labelAxesGroup;
-            that._constantLinesGroup = renderSettings.constantLinesGroup;
-            that._axesContainerGroup = renderSettings.axesContainerGroup;
-            that._gridContainerGroup = renderSettings.gridGroup;
-            that._axisCssPrefix = renderSettings.widgetClass + "-" + renderSettings.axisClass + "-";
-            that._setType(renderSettings.axisType, renderSettings.drawingType);
-            that._createAxisGroups();
-            that._tickManager = that._createTickManager()
-        };
-        Axis.prototype = {
-            constructor: Axis,
-            _updateBusinessRangeInterval: function() {
-                var i,
-                    ticks = this._majorTicks,
-                    length = ticks.length,
-                    businessRange = this._translator.getBusinessRange(),
-                    minInterval;
-                if (length < 2 || businessRange.categories)
-                    return;
-                minInterval = _abs(ticks[0].value - ticks[1].value);
-                for (i = 1; i < length - 1; i++)
-                    minInterval = Math.min(_abs(ticks[i].value - ticks[i + 1].value), minInterval);
-                businessRange.addRange({interval: minInterval})
-            },
-            _createAllTicks: function(businessRange) {
-                var that = this;
-                that._boundaryTicks = that._getBoundaryTicks();
-                that._majorTicks = that.getMajorTicks(that._options.withoutOverlappingBehavior);
-                that._decimatedTicks = businessRange.categories ? that.getDecimatedTicks() : [];
-                that._minorTicks = that.getMinorTicks()
-            },
-            _updateTranslatorInterval: function() {
-                var that = this,
-                    translator = that._translator,
-                    businessRange = translator.getBusinessRange();
-                if (!businessRange.categories && !businessRange.isSynchronized) {
-                    that.getMajorTicks(true);
-                    businessRange.addRange(that._tickManager.getTickBounds());
-                    translator.reinit()
-                }
-            },
-            _drawAxis: function() {
-                var that = this,
-                    options = that._options,
-                    axis = that._createAxis({
-                        "stroke-width": options.width,
-                        stroke: options.color,
-                        "stroke-opacity": options.opacity
-                    });
-                axis.append(that._axisLineGroup)
-            },
-            _correctMinForTicks: function(min, max, screenDelta) {
-                var digitPosition = _getSignificantDigitPosition(_abs(max - min) / screenDelta),
-                    newMin = _roundValue(Number(min), digitPosition),
-                    correctingValue;
-                if (newMin < min) {
-                    correctingValue = _math.pow(10, -digitPosition);
-                    newMin = mathUtils.applyPrecisionByMinDelta(newMin, correctingValue, newMin + correctingValue)
-                }
-                if (newMin > max)
-                    newMin = min;
-                return newMin
-            },
-            _getTickManagerData: function() {
-                var that = this,
-                    options = that._options,
-                    screenDelta = that._getScreenDelta(),
-                    min = that._minBound,
-                    max = that._maxBound,
-                    categories = that._translator.getVisibleCategories() || that._translator.getBusinessRange().categories,
-                    customTicks = options.customTicks || ($.isArray(categories) ? categories : that._majorTicks && constants.convertTicksToValues(that._majorTicks)),
-                    customMinorTicks = options.customMinorTicks || that._minorTicks && constants.convertTicksToValues(that._minorTicks);
-                if (_isNumber(min) && options.type !== constants.logarithmic)
-                    min = that._correctMinForTicks(min, max, screenDelta);
-                return {
-                        min: min,
-                        max: max,
-                        customTicks: customTicks,
-                        customMinorTicks: customMinorTicks,
-                        screenDelta: screenDelta
-                    }
-            },
-            _getTickManagerTypes: function() {
-                return {
-                        axisType: this._options.type,
-                        dataType: this._options.dataType
-                    }
-            },
-            _getTicksOptions: function() {
-                var options = this._options;
-                return {
-                        base: options.type === constants.logarithmic ? options.logarithmBase : undefined,
-                        tickInterval: this._translator.getBusinessRange().stubData ? null : options.tickInterval,
-                        gridSpacingFactor: options.axisDivisionFactor,
-                        minorGridSpacingFactor: options.minorAxisDivisionFactor,
-                        numberMultipliers: options.numberMultipliers,
-                        incidentOccured: options.incidentOccured,
-                        setTicksAtUnitBeginning: options.setTicksAtUnitBeginning,
-                        showMinorTicks: options.minorTick.visible || options.minorGrid.visible,
-                        minorTickInterval: options.minorTickInterval,
-                        minorTickCount: options.minorTickCount,
-                        useTicksAutoArrangement: options.useTicksAutoArrangement,
-                        showCalculatedTicks: options.tick.showCalculatedTicks,
-                        showMinorCalculatedTicks: options.minorTick.showCalculatedTicks
-                    }
-            },
-            _getBoundaryTicks: function() {
-                var categories = this._translator.getVisibleCategories() || this._translator.getBusinessRange().categories;
-                return categories ? constants.convertValuesToTicks([categories[0], categories[categories.length - 1]]) : constants.convertValuesToTicks(this._tickManager.getBoundaryTicks())
-            },
-            _createTickManager: function() {
-                return viz.CoreFactory.createTickManager({}, {}, {overlappingBehaviorType: this._overlappingBehaviorType})
-            },
-            _getMarginsOptions: function() {
-                var range = this._translator.getBusinessRange();
-                return {
-                        stick: range.stick || this._options.stick,
-                        minStickValue: range.minStickValue,
-                        maxStickValue: range.maxStickValue,
-                        percentStick: range.percentStick,
-                        minValueMargin: this._options.minValueMargin,
-                        maxValueMargin: this._options.maxValueMargin,
-                        minSpaceCorrection: range.minSpaceCorrection,
-                        maxSpaceCorrection: range.maxSpaceCorrection
-                    }
-            },
-            _updateTickManager: function() {
-                var overlappingOptions = this._getOverlappingBehaviorOptions(),
-                    options;
-                options = _extend(true, this._getMarginsOptions(), overlappingOptions, this._getTicksOptions());
-                this._tickManager.update(this._getTickManagerTypes(), this._getTickManagerData(), options)
-            },
-            _correctLabelAlignment: function() {
-                var that = this,
-                    labelOptions = that._options.label,
-                    overlappingBehavior = that._tickManager.getOverlappingBehavior();
-                if (overlappingBehavior && overlappingBehavior.mode === "rotate") {
-                    that._textOptions.rotate = overlappingBehavior.rotationAngle;
-                    if (!labelOptions.userAlignment)
-                        that._textOptions.align = constants.left
-                }
-                else if (!labelOptions.userAlignment)
-                    that._textOptions.align = labelOptions.alignment
-            },
-            _correctLabelFormat: function() {
-                this._options.label = this._tickManager.getOptions().labelOptions
-            },
-            _deleteLabels: function() {
-                this._axisElementsGroup && this._axisElementsGroup.clear()
-            },
-            _drawTicks: function(ticks) {
-                var that = this,
-                    group = that._axisLineGroup;
-                _each(ticks || [], function(_, tick) {
-                    var coord = that._getTickCoord(tick),
-                        points;
-                    if (coord) {
-                        points = that._isHorizontal ? [coord.x1, coord.y1, coord.x2, coord.y2] : [coord.y1, coord.x1, coord.y2, coord.x2];
-                        tick.graphic = that._createPathElement(points, tick.tickStyle).append(group);
-                        coord.angle && that._rotateTick(tick, coord.angle)
-                    }
-                })
-            },
-            _createPathElement: function(points, attr) {
-                return this._renderer.path(points, "line").attr(attr).sharp(this._getSharpParam())
-            },
-            _createAxis: function(options) {
-                return this._createAxisElement().attr(options).sharp(this._getSharpParam(true))
-            },
-            _drawLabels: function() {
-                var that = this,
-                    renderer = that._renderer,
-                    group = that._axisElementsGroup,
-                    emptyStrRegExp = /^\s+$/;
-                _each(that._majorTicks, function(_, tick) {
-                    var text = tick.labelText,
-                        xCoord,
-                        yCoord;
-                    if (_isDefined(text) && text !== "" && !emptyStrRegExp.test(text)) {
-                        xCoord = that._isHorizontal ? tick.labelPos.x : tick.labelPos.y;
-                        yCoord = that._isHorizontal ? tick.labelPos.y : tick.labelPos.x;
-                        if (!tick.label)
-                            tick.label = renderer.text(text, xCoord, yCoord).css(tick.labelFontStyle).attr(tick.labelStyle).append(group);
-                        else
-                            tick.label.css(tick.labelFontStyle).attr(tick.labelStyle).attr({
-                                text: text,
-                                x: xCoord,
-                                y: yCoord
-                            });
-                        tick.label.data({"chart-data-argument": tick.value})
-                    }
-                })
-            },
-            _getGridLineDrawer: function(borderOptions) {
-                var that = this,
-                    translator = that._translator,
-                    additionalTranslator = that._additionalTranslator,
-                    isHorizontal = that._isHorizontal,
-                    canvasStart = isHorizontal ? constants.left : constants.top,
-                    canvasEnd = isHorizontal ? constants.right : constants.bottom,
-                    positionFrom = additionalTranslator.translateSpecialCase(constants.canvasPositionStart),
-                    positionTo = additionalTranslator.translateSpecialCase(constants.canvasPositionEnd),
-                    firstBorderLinePosition = borderOptions.visible && borderOptions[canvasStart] ? translator.translateSpecialCase(constants.canvasPositionPrefix + canvasStart) : undefined,
-                    lastBorderLinePosition = borderOptions.visible && borderOptions[canvasEnd] ? translator.translateSpecialCase(constants.canvasPositionPrefix + canvasEnd) : undefined,
-                    getPoints = isHorizontal ? function(tick) {
-                        return tick.posX !== null ? [tick.posX, positionFrom, tick.posX, positionTo] : null
-                    } : function(tick) {
-                        return tick.posX !== null ? [positionFrom, tick.posX, positionTo, tick.posX] : null
-                    },
-                    minDelta = MAX_GRID_BORDER_ADHENSION + firstBorderLinePosition,
-                    maxDelta = lastBorderLinePosition - MAX_GRID_BORDER_ADHENSION;
-                return function(tick) {
-                        if (tick.posX === undefined || tick.posX < minDelta || tick.posX > maxDelta)
-                            return;
-                        var points = getPoints(tick);
-                        return points && that._createPathElement(points, tick.gridStyle)
-                    }
-            },
-            _drawGrids: function(ticks, borderOptions) {
-                var that = this,
-                    group = that._axisGridGroup,
-                    tick,
-                    i = 0,
-                    length = ticks.length,
-                    drawLine = that._getGridLineDrawer(borderOptions || {visible: false});
-                for (i; i < length; i++) {
-                    tick = ticks[i];
-                    tick.grid = drawLine(tick);
-                    tick.grid && tick.grid.append(group)
-                }
-            },
-            _getConstantLinePos: function(lineValue, canvasStart, canvasEnd) {
-                var parsedValue = this._validateUnit(lineValue, "E2105", "constantLine"),
-                    value = this._getTranslatedCoord(parsedValue);
-                if (!_isDefined(value) || value < _math.min(canvasStart, canvasEnd) || value > _math.max(canvasStart, canvasEnd))
-                    return {};
-                return {
-                        value: value,
-                        parsedValue: parsedValue
-                    }
-            },
-            _createConstantLine: function(value, attr) {
-                var that = this,
-                    additionalTranslator = this._additionalTranslator,
-                    positionFrom = additionalTranslator.translateSpecialCase(constants.canvasPositionStart),
-                    positionTo = additionalTranslator.translateSpecialCase(constants.canvasPositionEnd),
-                    points = this._isHorizontal ? [value, positionTo, value, positionFrom] : [positionFrom, value, positionTo, value];
-                return that._createPathElement(points, attr)
-            },
-            _drawConstantLinesAndLabels: function(lineOptions, canvasStart, canvasEnd) {
-                if (!_isDefined(lineOptions.value))
-                    return;
-                var that = this,
-                    pos = that._getConstantLinePos(lineOptions.value, canvasStart, canvasEnd),
-                    labelOptions = lineOptions.label || {},
-                    value = pos.value,
-                    attr = {
-                        stroke: lineOptions.color,
-                        "stroke-width": lineOptions.width,
-                        dashStyle: lineOptions.dashStyle
-                    };
-                if (!_isDefined(value)) {
-                    that._constantLines.push(null);
-                    if (labelOptions.visible)
-                        that._constantLineLabels.push(null);
-                    return
-                }
-                that._constantLines.push(that._createConstantLine(value, attr).append(that._axisConstantLineGroup));
-                that._constantLineLabels.push(labelOptions.visible ? that._drawConstantLineLabels(pos.parsedValue, labelOptions, value) : null)
-            },
-            _drawConstantLine: function() {
-                var that = this,
-                    options = that._options,
-                    data = options.constantLines,
-                    canvas = that._getCanvasStartEnd();
-                if (that._translator.getBusinessRange().stubData)
-                    return;
-                that._constantLines = [];
-                that._constantLineLabels = [];
-                _each(data, function(_, dataItem) {
-                    that._drawConstantLinesAndLabels(dataItem, canvas.start, canvas.end)
-                })
-            },
-            _drawConstantLineLabels: function(parsedValue, lineLabelOptions, value) {
-                var that = this,
-                    text = lineLabelOptions.text,
-                    options = that._options,
-                    labelOptions = options.label,
-                    coords;
-                that._checkAlignmentConstantLineLabels(lineLabelOptions);
-                text = _isDefined(text) ? text : constants.formatLabel(parsedValue, labelOptions);
-                coords = that._getConstantLineLabelsCoords(value, lineLabelOptions);
-                return that._renderer.text(text, coords.x, coords.y).css(patchFontOptions(_extend({}, labelOptions.font, lineLabelOptions.font))).attr({align: coords.align}).append(that._axisConstantLineGroup)
-            },
-            _getStripPos: function(startValue, endValue, canvasStart, canvasEnd, range) {
-                var isContinous = !!(range.minVisible || range.maxVisible),
-                    categories = range.categories || [],
-                    start,
-                    end,
-                    firstValue = startValue,
-                    lastValue = endValue,
-                    startCategoryIndex,
-                    endCategoryIndex,
-                    min = range.minVisible;
-                if (!isContinous) {
-                    startCategoryIndex = $.inArray(startValue, categories);
-                    endCategoryIndex = $.inArray(endValue, categories);
-                    if (startCategoryIndex === -1 || endCategoryIndex === -1)
-                        return {
-                                stripFrom: 0,
-                                stripTo: 0
-                            };
-                    if (startCategoryIndex > endCategoryIndex) {
-                        firstValue = endValue;
-                        lastValue = startValue
-                    }
-                }
-                firstValue = this._validateUnit(firstValue, "E2105", "strip");
-                lastValue = this._validateUnit(lastValue, "E2105", "strip");
-                start = this._getTranslatedCoord(firstValue, -1);
-                end = this._getTranslatedCoord(lastValue, 1);
-                if (!_isDefined(start) && isContinous)
-                    start = firstValue < min ? canvasStart : canvasEnd;
-                if (!_isDefined(end) && isContinous)
-                    end = lastValue < min ? canvasStart : canvasEnd;
-                return start < end ? {
-                        stripFrom: start,
-                        stripTo: end
-                    } : {
-                        stripFrom: end,
-                        stripTo: start
-                    }
-            },
-            _createStrip: function(fromPoint, toPoint, attr) {
-                var x,
-                    y,
-                    width,
-                    height,
-                    additionalTranslator = this._additionalTranslator,
-                    positionFrom = additionalTranslator.translateSpecialCase(constants.canvasPositionStart),
-                    positionTo = additionalTranslator.translateSpecialCase(constants.canvasPositionEnd);
-                if (this._isHorizontal) {
-                    x = fromPoint;
-                    y = _math.min(positionFrom, positionTo);
-                    width = toPoint - fromPoint;
-                    height = _abs(positionFrom - positionTo)
-                }
-                else {
-                    x = _math.min(positionFrom, positionTo);
-                    y = fromPoint;
-                    width = _abs(positionFrom - positionTo);
-                    height = _abs(fromPoint - toPoint)
-                }
-                return this._renderer.rect(x, y, width, height).attr(attr)
-            },
-            _drawStrip: function() {
-                var that = this,
-                    options = that._options,
-                    stripData = options.strips,
-                    canvas = this._getCanvasStartEnd(),
-                    i,
-                    stripOptions,
-                    stripPos,
-                    stripLabelOptions,
-                    attr,
-                    range = that._translator.getBusinessRange();
-                if (range.stubData)
-                    return;
-                that._strips = [];
-                that._stripLabels = [];
-                for (i = 0; i < stripData.length; i++) {
-                    stripOptions = stripData[i];
-                    stripLabelOptions = stripOptions.label || {};
-                    attr = {fill: stripOptions.color};
-                    if (_isDefined(stripOptions.startValue) && _isDefined(stripOptions.endValue) && _isDefined(stripOptions.color)) {
-                        stripPos = that._getStripPos(stripOptions.startValue, stripOptions.endValue, canvas.start, canvas.end, range);
-                        if (stripPos.stripTo - stripPos.stripFrom === 0 || !_isDefined(stripPos.stripTo) || !_isDefined(stripPos.stripFrom)) {
-                            that._strips.push(null);
-                            if (stripLabelOptions.text)
-                                that._stripLabels.push(null);
-                            continue
-                        }
-                        that._strips.push(that._createStrip(stripPos.stripFrom, stripPos.stripTo, attr).append(that._axisStripGroup));
-                        that._stripLabels.push(stripLabelOptions.text ? that._drawStripLabel(stripLabelOptions, stripPos.stripFrom, stripPos.stripTo) : null)
-                    }
-                }
-            },
-            _drawStripLabel: function(stripLabelOptions, stripFrom, stripTo) {
-                var that = this,
-                    options = that._options,
-                    coords = that._getStripLabelCoords(stripLabelOptions, stripFrom, stripTo);
-                return that._renderer.text(stripLabelOptions.text, coords.x, coords.y).css(patchFontOptions(_extend({}, options.label.font, stripLabelOptions.font))).attr({align: coords.align}).append(that._axisLabelGroup)
-            },
-            _adjustStripLabels: function() {
-                var that = this,
-                    labels = that._stripLabels,
-                    rects = that._strips,
-                    i,
-                    coords;
-                if (labels === undefined && rects === undefined)
-                    return;
-                for (i = 0; i < labels.length; i++)
-                    if (labels[i] !== null) {
-                        coords = that._getAdjustedStripLabelCoords(that._options.strips[i], labels[i], rects[i]);
-                        labels[i].move(coords.x, coords.y)
-                    }
-            },
-            _adjustLabels: function() {
-                var that = this,
-                    options = that._options,
-                    majorTicks = that._majorTicks,
-                    majorTicksLength = majorTicks.length,
-                    isHorizontal = that._isHorizontal,
-                    overlappingBehavior = that._tickManager ? that._tickManager.getOverlappingBehavior() : options.label.overlappingBehavior,
-                    position = options.position,
-                    label,
-                    labelHeight,
-                    isNeedLabelAdjustment,
-                    staggeringSpacing,
-                    i,
-                    box,
-                    hasLabels = false,
-                    boxAxis = that._axisElementsGroup && that._axisElementsGroup.getBBox() || {};
-                _each(majorTicks, function(_, tick) {
-                    if (tick.label) {
-                        tick.label.attr(that._getLabelAdjustedCoord(tick, boxAxis));
-                        hasLabels = true
-                    }
-                });
-                isNeedLabelAdjustment = hasLabels && isHorizontal && overlappingBehavior && overlappingBehavior.mode === "stagger";
-                if (isNeedLabelAdjustment) {
-                    labelHeight = 0;
-                    for (i = 0; i < majorTicksLength; i = i + 2) {
-                        label = majorTicks[i].label;
-                        box = label && label.getBBox() || {};
-                        if (box.height > labelHeight)
-                            labelHeight = box.height
-                    }
-                    staggeringSpacing = overlappingBehavior.staggeringSpacing;
-                    labelHeight = _round(labelHeight) + staggeringSpacing;
-                    for (i = 1; i < majorTicksLength; i = i + 2) {
-                        label = majorTicks[i].label;
-                        if (label)
-                            if (position === constants.bottom)
-                                label.move(0, labelHeight);
-                            else if (position === constants.top)
-                                label.move(0, -labelHeight)
-                    }
-                    for (i = 0; i < majorTicksLength; i++)
-                        majorTicks[i].label && majorTicks[i].label.rotate(0)
-                }
-            },
-            _getLabelAdjustedCoord: function(tick, boxAxis) {
-                var that = this,
-                    options = that._options,
-                    box = tick.label.getBBox(),
-                    x,
-                    y,
-                    isHorizontal = that._isHorizontal,
-                    position = options.position,
-                    shift = that.padding && that.padding[position] || 0,
-                    textOptions = that._textOptions,
-                    labelSettingsY = tick.label.attr("y");
-                if (isHorizontal && position === constants.bottom)
-                    y = 2 * labelSettingsY - box.y + shift;
-                else if (!isHorizontal) {
-                    if (position === constants.left)
-                        if (textOptions.align === constants.right)
-                            x = box.x + box.width - shift;
-                        else if (textOptions.align === constants.center)
-                            x = box.x + box.width / 2 - shift - (boxAxis.width / 2 || 0);
-                        else
-                            x = box.x - shift - (boxAxis.width || 0);
-                    else if (textOptions.align === constants.center)
-                        x = box.x + box.width / 2 + (boxAxis.width / 2 || 0) + shift;
-                    else if (textOptions.align === constants.right)
-                        x = box.x + box.width + (boxAxis.width || 0) + shift;
-                    else
-                        x = box.x + shift;
-                    y = labelSettingsY + ~~(labelSettingsY - box.y - box.height / 2)
-                }
-                else if (isHorizontal && position === constants.top)
-                    y = 2 * labelSettingsY - box.y - box.height - shift;
-                return {
-                        x: x,
-                        y: y
-                    }
-            },
-            _createAxisGroups: function() {
-                var that = this,
-                    renderer = that._renderer,
-                    classSelector = that._axisCssPrefix;
-                that._axisGroup = renderer.g().attr({"class": classSelector + "axis"});
-                that._axisStripGroup = renderer.g().attr({"class": classSelector + "strips"});
-                that._axisGridGroup = renderer.g().attr({"class": classSelector + "grid"});
-                that._axisElementsGroup = renderer.g().attr({"class": classSelector + "elements"}).append(that._axisGroup);
-                that._axisLineGroup = renderer.g().attr({"class": classSelector + "line"}).append(that._axisGroup);
-                that._axisTitleGroup = renderer.g().attr({"class": classSelector + "title"}).append(that._axisGroup);
-                that._axisConstantLineGroup = renderer.g().attr({"class": classSelector + "constant-lines"});
-                that._axisLabelGroup = renderer.g().attr({"class": classSelector + "axis-labels"})
-            },
-            _clearAxisGroups: function(adjustAxis) {
-                var that = this,
-                    classSelector = that._axisCssPrefix;
-                that._axisGroup.remove();
-                that._axisStripGroup.remove();
-                that._axisLabelGroup.remove();
-                that._axisConstantLineGroup.remove();
-                that._axisGridGroup.remove();
-                if (that._axisTitleGroup)
-                    that._axisTitleGroup.clear();
-                else if (!adjustAxis)
-                    that._axisTitleGroup = that._renderer.g().attr({"class": classSelector + "title"}).append(that._axisGroup);
-                if (that._axisElementsGroup)
-                    that._axisElementsGroup.clear();
-                else if (!adjustAxis)
-                    that._axisElementsGroup = that._renderer.g().attr({"class": classSelector + "elements"}).append(that._axisGroup);
-                that._axisLineGroup && that._axisLineGroup.clear();
-                that._axisStripGroup && that._axisStripGroup.clear();
-                that._axisGridGroup && that._axisGridGroup.clear();
-                that._axisConstantLineGroup && that._axisConstantLineGroup.clear();
-                that._axisLabelGroup && that._axisLabelGroup.clear();
-                that._labelAxesGroup && that._labelAxesGroup.clear()
-            },
-            _initTickCoord: function(tick, offset) {
-                var coord = this._getTranslatedValue(tick.value, this._axisPosition, offset);
-                tick.posX = coord.x;
-                tick.posY = coord.y;
-                tick.angle = coord.angle
-            },
-            _initTickStyle: function(tick, style) {
-                tick.halfTickLength = style.halfTickLength;
-                tick.tickStyle = tick.withoutPath ? {
-                    stroke: "none",
-                    "stroke-width": 0,
-                    "stroke-opacity": 0
-                } : style.tickStyle;
-                tick.gridStyle = style.gridStyle
-            },
-            _initTickLabel: function(tick, position) {
-                var that = this,
-                    customizeColor = that._options.label.customizeColor;
-                tick.labelText = constants.formatLabel(tick.value, that._options.label, {
-                    min: that._minBound,
-                    max: that._maxBound
-                });
-                tick.labelPos = that._getTranslatedValue(tick.value, position);
-                tick.labelStyle = that._textOptions;
-                tick.labelFontStyle = _extend({}, that._textFontStyles);
-                if (customizeColor && customizeColor.call)
-                    tick.labelFontStyle.fill = customizeColor.call(tick, tick);
-                tick.labelHint = constants.formatHint(tick.value, that._options.label, {
-                    min: that._minBound,
-                    max: that._maxBound
-                })
-            },
-            _getTickStyle: function(tickOptions, gridOptions) {
-                return {
-                        tickStyle: {
-                            stroke: tickOptions.color,
-                            "stroke-width": tickOptions.width,
-                            "stroke-opacity": tickOptions.opacity
-                        },
-                        gridStyle: {
-                            stroke: gridOptions.color,
-                            "stroke-width": gridOptions.width,
-                            "stroke-opacity": gridOptions.opacity
-                        },
-                        halfTickLength: tickOptions.length * 0.5
-                    }
-            },
-            _initTicks: function(ticks, style, withLabels, skippedCategory, offset, labelPosition) {
-                var that = this,
-                    i = 0,
-                    length = ticks.length,
-                    indexSkippedCategory = findSkippedIndexCategory(ticks, skippedCategory),
-                    tick;
-                for (i; i < length; i++) {
-                    tick = ticks[i];
-                    i !== indexSkippedCategory && that._initTickCoord(tick, offset);
-                    that._initTickStyle(tick, style);
-                    withLabels && !tick.withoutLabel && that._initTickLabel(tick, labelPosition)
-                }
-            },
-            _initAllTicks: function() {
-                var that = this,
-                    options = that._options,
-                    majorTickStyle = that._getTickStyle(options.tick, options.grid),
-                    minorTickStyle = that._getTickStyle(options.minorTick, options.minorGrid),
-                    skippedCategory = that._getSkippedCategory(),
-                    boundaryTicks = this._boundaryTicks,
-                    withLabels = options.label.visible && that._axisElementsGroup && !that._translator.getBusinessRange().stubData,
-                    labelPosition = that.getCurrentLabelPos(),
-                    offset = that._tickOffset;
-                that._initTicks(that._majorTicks, majorTickStyle, withLabels, skippedCategory, offset, labelPosition);
-                that._initTicks(that._minorTicks, minorTickStyle, false, undefined, offset);
-                that._initTicks(that._decimatedTicks, majorTickStyle, false, skippedCategory, offset);
-                if (options.showCustomBoundaryTicks && boundaryTicks.length) {
-                    that._initTicks([boundaryTicks[0]], majorTickStyle, false, -1, -1);
-                    boundaryTicks.length > 1 && that._initTicks([boundaryTicks[1]], majorTickStyle, false, -1, 1)
-                }
-            },
-            _buildTicks: function() {
-                var that = this;
-                that._createAllTicks(that._translator.getBusinessRange());
-                that._correctLabelAlignment();
-                that._correctLabelFormat()
-            },
-            _setTickOffset: function() {
-                var options = this._options,
-                    discreteAxisDivisionMode = options.discreteAxisDivisionMode;
-                this._tickOffset = +(discreteAxisDivisionMode !== "crossLabels" || !discreteAxisDivisionMode)
-            },
-            _createHints: function() {
-                var that = this;
-                _each(that._majorTicks || [], function(_, tick) {
-                    var labelHint = tick.labelHint;
-                    if (_isDefined(labelHint) && labelHint !== "")
-                        tick.label.setTitle(labelHint)
-                })
-            },
-            _setBoundingRect: function() {
-                var that = this,
-                    options = that._options,
-                    axisBox = that._axisElementsGroup ? that._axisElementsGroup.getBBox() : {
-                        x: 0,
-                        y: 0,
-                        width: 0,
-                        height: 0,
-                        isEmpty: true
-                    },
-                    lineBox = that._axisLineGroup.getBBox(),
-                    placeholderSize = options.placeholderSize,
-                    start,
-                    isHorizontal = that._isHorizontal,
-                    coord = isHorizontal ? "y" : "x",
-                    side = isHorizontal ? "height" : "width",
-                    shiftCoords = options.crosshairEnabled ? isHorizontal ? LABEL_BACKGROUND_PADDING_Y : LABEL_BACKGROUND_PADDING_X : 0,
-                    axisTitleBox = that._title && that._axisTitleGroup ? that._axisTitleGroup.getBBox() : axisBox;
-                if (axisBox.isEmpty && axisTitleBox.isEmpty && !placeholderSize) {
-                    that.boundingRect = axisBox;
-                    return
-                }
-                start = lineBox[coord] || that._axisPosition;
-                if (options.position === (isHorizontal && constants.bottom || constants.right)) {
-                    axisBox[side] = placeholderSize || axisTitleBox[coord] + axisTitleBox[side] - start + shiftCoords;
-                    axisBox[coord] = start
-                }
-                else {
-                    axisBox[side] = placeholderSize || lineBox[side] + start - axisTitleBox[coord] + shiftCoords;
-                    axisBox[coord] = axisTitleBox.isEmpty ? start : axisTitleBox[coord] - shiftCoords
-                }
-                that.boundingRect = axisBox
-            },
-            _validateUnit: function(unit, idError, parameters) {
-                var that = this;
-                unit = that.parser(unit);
-                if (unit === undefined && idError)
-                    that._incidentOccured(idError, [parameters]);
-                return unit
-            },
-            _setType: function(axisType, drawingType) {
-                var that = this;
-                _each(viz.axes[axisType][drawingType], function(methodName, method) {
-                    that[methodName] = method
-                })
-            },
-            _getSharpParam: function() {
-                return true
-            },
-            dispose: function() {
-                var that = this;
-                that._axisElementsGroup && that._axisElementsGroup.dispose();
-                that._stripLabels = that._strips = null;
-                that._title = null;
-                that._axisStripGroup = that._axisConstantLineGroup = that._axisLabelGroup = null;
-                that._axisLineGroup = that._axisElementsGroup = that._axisGridGroup = null;
-                that._axisGroup = that._axisTitleGroup = null;
-                that._axesContainerGroup = that._stripsGroup = that._constantLinesGroup = null;
-                that._renderer = that._options = that._textOptions = that._textFontStyles = null;
-                that._translator = that._additionalTranslator = null;
-                that._majorTicks = that._minorTicks = null;
-                that._tickManager = null
-            },
-            getOptions: function() {
-                return this._options
-            },
-            setPane: function(pane) {
-                this.pane = pane;
-                this._options.pane = pane
-            },
-            setTypes: function(type, axisType, typeSelector) {
-                this._options.type = type || this._options.type;
-                this._options[typeSelector] = axisType || this._options[typeSelector]
-            },
-            resetTypes: function(typeSelector) {
-                this._options.type = this._initTypes.type;
-                this._options[typeSelector] = this._initTypes[typeSelector]
-            },
-            getTranslator: function() {
-                return this._translator
-            },
-            updateOptions: function(options) {
-                var that = this,
-                    labelOpt = options.label;
-                that._options = options;
-                options.tick = options.tick || {};
-                options.minorTick = options.minorTick || {};
-                options.grid = options.grid || {};
-                options.minorGrid = options.minorGrid || {};
-                options.title = options.title || {};
-                options.marker = options.marker || {};
-                that._initTypes = {
-                    type: options.type,
-                    argumentType: options.argumentType,
-                    valueType: options.valueType
-                };
-                validateAxisOptions(options);
-                that._setTickOffset();
-                that._isHorizontal = options.isHorizontal;
-                that.pane = options.pane;
-                that.name = options.name;
-                that.priority = options.priority;
-                that._hasLabelFormat = labelOpt.format !== "" && _isDefined(labelOpt.format);
-                that._textOptions = {
-                    align: labelOpt.alignment,
-                    opacity: labelOpt.opacity
-                };
-                that._textFontStyles = viz.utils.patchFontOptions(labelOpt.font);
-                if (options.type === constants.logarithmic) {
-                    if (options.logarithmBaseError) {
-                        that._incidentOccured("E2104");
-                        delete options.logarithmBaseError
-                    }
-                    that.calcInterval = function(value, prevValue) {
-                        return mathUtils.getLog(value / prevValue, options.logarithmBase)
-                    }
-                }
-            },
-            updateSize: function(clearAxis) {
-                var that = this,
-                    options = that._options,
-                    direction = that._isHorizontal ? "horizontal" : "vertical";
-                if (options.title.text && that._axisTitleGroup) {
-                    that._incidentOccured("W2105", [direction]);
-                    that._axisTitleGroup.dispose();
-                    that._axisTitleGroup = null
-                }
-                if (clearAxis && that._axisElementsGroup && options.label.visible && !that._translator.getBusinessRange().stubData) {
-                    that._incidentOccured("W2106", [direction]);
-                    that._axisElementsGroup.dispose();
-                    that._axisElementsGroup = null
-                }
-                that._setBoundingRect()
-            },
-            setTranslator: function(translator, additionalTranslator) {
-                var that = this,
-                    range = translator.getBusinessRange();
-                this._minBound = range.minVisible;
-                this._maxBound = range.maxVisible;
-                that._translator = translator;
-                that._additionalTranslator = additionalTranslator;
-                that.resetTicks();
-                that._updateTranslatorInterval();
-                that._buildTicks();
-                that._updateBusinessRangeInterval()
-            },
-            resetTicks: function() {
-                this._deleteLabels();
-                this._majorTicks = this._minorTicks = null
-            },
-            getCurrentLabelPos: function() {
-                var that = this,
-                    options = that._options,
-                    position = options.position,
-                    labelOffset = options.label.indentFromAxis,
-                    axisPosition = that._axisPosition;
-                return position === constants.top || position === constants.left ? axisPosition - labelOffset : axisPosition + labelOffset
-            },
-            getFormattedValue: function(value) {
-                if (_isDefined(value))
-                    return constants.formatLabel(_isNumber(value) && !_isString(value) ? _roundValue(value, _getSignificantDigitPosition(this._translator.getBusinessRange().interval)) : value, this._options.label);
-                return null
-            },
-            getTicksValues: function() {
-                return {
-                        majorTicksValues: constants.convertTicksToValues(this._majorTicks || this.getMajorTicks()),
-                        minorTicksValues: constants.convertTicksToValues(this._minorTicks || this.getMinorTicks())
-                    }
-            },
-            getMajorTicks: function(withoutOverlappingBehavior) {
-                var that = this,
-                    overlappingBehavior = that._options.label.overlappingBehavior,
-                    majorTicks,
-                    boundedOverlappedTicks;
-                that._updateTickManager();
-                that._textOptions.rotate = 0;
-                majorTicks = constants.convertValuesToTicks(that._tickManager.getTicks(withoutOverlappingBehavior));
-                if (majorTicks.length)
-                    if (overlappingBehavior.hideFirstTick || overlappingBehavior.hideLastTick || overlappingBehavior.hideFirstLabel || overlappingBehavior.hideLastLabel) {
-                        overlappingBehavior.hideFirstLabel && (majorTicks[0].withoutLabel = true);
-                        overlappingBehavior.hideLastLabel && (majorTicks[majorTicks.length - 1].withoutLabel = true);
-                        overlappingBehavior.hideFirstTick && (majorTicks[0].withoutPath = true);
-                        overlappingBehavior.hideLastTick && (majorTicks[majorTicks.length - 1].withoutPath = true)
-                    }
-                    else if (!withoutOverlappingBehavior && overlappingBehavior.mode !== "ignore") {
-                        boundedOverlappedTicks = that._tickManager.checkBoundedTicksOverlapping();
-                        boundedOverlappedTicks.overlappedDates && (majorTicks[1].withoutLabel = true);
-                        if (boundedOverlappedTicks.overlappedStartEnd)
-                            overlappingBehavior.hideFirstOrLast === "first" ? majorTicks[0].withoutLabel = true : majorTicks[majorTicks.length - 1].withoutLabel = true
-                    }
-                that._addBoundaryTick(majorTicks);
-                return majorTicks
-            },
-            getMinorTicks: function() {
-                return constants.convertValuesToTicks(this._tickManager.getMinorTicks())
-            },
-            getDecimatedTicks: function() {
-                return constants.convertValuesToTicks(this._tickManager.getDecimatedTicks())
-            },
-            setTicks: function(ticks) {
-                this.resetTicks();
-                this._majorTicks = constants.convertValuesToTicks(ticks.majorTicks);
-                this._minorTicks = constants.convertValuesToTicks(ticks.minorTicks)
-            },
-            setPercentLabelFormat: function() {
-                if (!this._hasLabelFormat)
-                    this._options.label.format = "percent"
-            },
-            resetAutoLabelFormat: function() {
-                if (!this._hasLabelFormat)
-                    delete this._options.label.format
-            },
-            getMultipleAxesSpacing: function() {
-                return this._options.multipleAxesSpacing || 0
-            },
-            drawGrids: function(borderOptions) {
-                var that = this,
-                    options = that._options;
-                borderOptions = borderOptions || {};
-                that._axisGridGroup.append(that._gridContainerGroup);
-                if (options.grid.visible)
-                    that._drawGrids(that._majorTicks.concat(that._decimatedTicks), borderOptions);
-                options.minorGrid.visible && that._drawGrids(that._minorTicks, borderOptions)
-            },
-            draw: function(adjustAxis) {
-                var that = this,
-                    options = that._options,
-                    areLabelsVisible;
-                that._axisGroup && that._clearAxisGroups(adjustAxis);
-                areLabelsVisible = options.label.visible && that._axisElementsGroup && !that._translator.getBusinessRange().stubData;
-                that._updateTranslatorInterval();
-                that._buildTicks();
-                that._updateBusinessRangeInterval();
-                that._initAxisPositions();
-                that._initAllTicks();
-                options.visible && that._drawAxis();
-                if (options.tick.visible) {
-                    that._drawTicks(that._majorTicks);
-                    that._drawTicks(that._decimatedTicks)
-                }
-                options.minorTick.visible && that._drawTicks(that._minorTicks);
-                areLabelsVisible && that._drawLabels();
-                options.showCustomBoundaryTicks && this._drawTicks(that._boundaryTicks);
-                that._drawTitle();
-                options.strips && that._drawStrip();
-                options.constantLines && that._drawConstantLine();
-                that._stripsGroup && that._axisStripGroup.append(that._stripsGroup);
-                that._constantLinesGroup && that._axisConstantLineGroup.append(that._constantLinesGroup);
-                that._axisGroup.append(that._axesContainerGroup);
-                that._labelAxesGroup && that._axisLabelGroup.append(that._labelAxesGroup);
-                that._adjustConstantLineLabels();
-                areLabelsVisible && that._adjustLabels();
-                options.marker.visible && that._drawDateMarkers();
-                that._createHints();
-                that._adjustStripLabels();
-                that._adjustTitle();
-                that._setBoundingRect()
-            },
-            getBoundingRect: function() {
-                return this._axisElementsGroup ? this.boundingRect : {
-                        x: 0,
-                        y: 0,
-                        width: 0,
-                        height: 0
-                    }
-            },
-            shift: function(x, y) {
-                var settings = {};
-                if (x)
-                    settings.translateX = x;
-                if (y)
-                    settings.translateY = y;
-                this._axisGroup.attr(settings)
-            },
-            applyClipRects: function(elementsClipID, canvasClipID) {
-                this._axisGroup.attr({clipId: canvasClipID});
-                this._axisStripGroup.attr({clipId: elementsClipID})
-            },
-            validate: function(isArgumentAxis) {
-                var that = this,
-                    options = that._options,
-                    dataType = isArgumentAxis ? options.argumentType : options.valueType,
-                    parser = dataType ? parseUtils.getParser(dataType) : function(unit) {
-                        return unit
-                    };
-                that.parser = parser;
-                options.dataType = dataType;
-                if (options.min !== undefined)
-                    options.min = that._validateUnit(options.min, "E2106");
-                if (options.max !== undefined)
-                    options.max = that._validateUnit(options.max, "E2106");
-                if (that._minBound !== undefined)
-                    that._minBound = that._validateUnit(that._minBound);
-                if (that._maxBound !== undefined)
-                    that._maxBound = that._validateUnit(that._maxBound)
-            },
-            zoom: function(min, max, skipAdjusting) {
-                var that = this,
-                    minOpt = that._options.min,
-                    maxOpt = that._options.max;
-                skipAdjusting = skipAdjusting || that._options.type === constants.discrete;
-                min = that._validateUnit(min);
-                max = that._validateUnit(max);
-                if (!skipAdjusting) {
-                    if (minOpt !== undefined) {
-                        min = minOpt > min ? minOpt : min;
-                        max = minOpt > max ? minOpt : max
-                    }
-                    if (maxOpt !== undefined) {
-                        max = maxOpt < max ? maxOpt : max;
-                        min = maxOpt < min ? maxOpt : min
-                    }
-                }
-                that._zoomArgs = {
-                    min: min,
-                    max: max
-                };
-                return that._zoomArgs
-            },
-            resetZoom: function() {
-                this._zoomArgs = null
-            },
-            getRangeData: function() {
-                var that = this,
-                    options = that._options,
-                    minMax = that._getMinMax(),
-                    min = minMax.min,
-                    max = minMax.max,
-                    zoomArgs = that._zoomArgs || {},
-                    type = options.type,
-                    rangeMin,
-                    rangeMax,
-                    rangeMinVisible,
-                    rangeMaxVisible;
-                if (type === constants.logarithmic) {
-                    min = min <= 0 ? undefined : min;
-                    max = max <= 0 ? undefined : max
-                }
-                if (type !== constants.discrete) {
-                    rangeMin = min;
-                    rangeMax = max;
-                    if (_isDefined(min) && _isDefined(max)) {
-                        rangeMin = min < max ? min : max;
-                        rangeMax = max > min ? max : min
-                    }
-                    rangeMinVisible = _isDefined(zoomArgs.min) ? zoomArgs.min : rangeMin;
-                    rangeMaxVisible = _isDefined(zoomArgs.max) ? zoomArgs.max : rangeMax
-                }
-                else {
-                    rangeMinVisible = _isDefined(zoomArgs.min) ? zoomArgs.min : min;
-                    rangeMaxVisible = _isDefined(zoomArgs.max) ? zoomArgs.max : max
-                }
-                return {
-                        min: rangeMin,
-                        max: rangeMax,
-                        stick: that._getStick(),
-                        categories: options.categories,
-                        dataType: options.dataType,
-                        axisType: type,
-                        base: options.logarithmBase,
-                        invert: options.inverted,
-                        addSpiderCategory: that._getSpiderCategoryOption(),
-                        minVisible: rangeMinVisible,
-                        maxVisible: rangeMaxVisible
-                    }
-            },
-            getFullTicks: function() {
-                return this._tickManager.getFullTicks()
-            },
-            _addBoundaryTick: _noop,
-            measureLabels: _noop,
-            _drawDateMarkers: _noop,
-            coordsIn: _noop,
-            _getSkippedCategory: _noop,
-            _initAxisPositions: _noop,
-            _drawTitle: _noop,
-            _adjustConstantLineLabels: _noop,
-            _adjustTitle: _noop,
-            getSpiderTicks: _noop,
-            setSpiderTicks: _noop,
-            _getTickCoord: DX.abstract
-        }
-    })(jQuery, DevExpress);
     /*! Module viz-core, file svgRenderer.js */
     (function($, DX, doc, undefined) {
         var rendererNS = DX.viz.renderers = {},
-            commonUtils = DX.require("/utils/utils.common"),
             math = Math,
             mathMin = math.min,
             mathMax = math.max,
@@ -6503,8 +4248,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
             mathCos = math.cos,
             mathAbs = math.abs,
             mathPI = math.PI,
-            _isDefined = commonUtils.isDefined,
+            utils = DX.utils,
+            isArray = utils.isArray,
+            isObject = utils.isObject,
+            isDefined = utils.isDefined,
             _normalizeEnum = DX.viz.utils.normalizeEnum,
+            _each = $.each,
             PI_DIV_180 = mathPI / 180,
             _parseInt = parseInt,
             MAX_PIXEL_COUNT = 1E10,
@@ -6533,38 +4282,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
             KEY_FONT_WEIGHT = "font-weight",
             KEY_TEXT_DECORATION = "text-decoration",
             NONE = "none";
-        var objectCreate = function() {
-                if (!Object.create)
-                    return function(proto) {
-                            var F = function(){};
-                            F.prototype = proto;
-                            return new F
-                        };
-                else
-                    return function(proto) {
-                            return Object.create(proto)
-                        }
-            }();
         var DEFAULTS = {
                 scaleX: 1,
                 scaleY: 1
             };
-        var backupContainer = doc.createElement("div"),
-            backupCounter = 0;
-        backupContainer.style.left = "-9999px";
-        backupContainer.style.position = "absolute";
-        function backupRoot(root) {
-            if (backupCounter === 0)
-                doc.body.appendChild(backupContainer);
-            ++backupCounter;
-            root.append({element: backupContainer})
-        }
-        function restoreRoot(root, container) {
-            root.append({element: container});
-            --backupCounter;
-            if (backupCounter === 0)
-                doc.body.removeChild(backupContainer)
-        }
         var getNextDefsSvgId = function() {
                 var numDefsSvgElements = 1;
                 return function() {
@@ -6572,7 +4293,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     }
             }();
         function isObjectArgument(value) {
-            return value && typeof value !== "string"
+            return typeof value !== "string"
         }
         function createElement(tagName) {
             return doc.createElementNS("http://www.w3.org/2000/svg", tagName)
@@ -6580,11 +4301,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
         function getPatternUrl(id, pathModified) {
             return id !== null ? "url(" + (pathModified ? window.location.href : "") + "#" + id + ")" : ""
         }
-        function extend(target, source) {
-            var key;
-            for (key in source)
-                target[key] = source[key];
-            return target
+        function extend(a, b, skipNonDefined) {
+            var value;
+            for (var key in b) {
+                value = b[key];
+                if (!skipNonDefined || skipNonDefined && value !== undefined && value !== null)
+                    a[key] = value
+            }
+            return a
         }
         function rotateBBox(bbox, center, angle) {
             var cos = Number(mathCos(angle * PI_DIV_180).toFixed(3)),
@@ -6621,18 +4345,20 @@ if (!DevExpress.MOD_VIZ_CORE) {
             result.isEmpty = !result.x && !result.y && !result.width && !result.height;
             return result
         }
-        var preserveAspectRatioMap = {
-                full: NONE,
-                lefttop: "xMinYMin",
-                leftcenter: "xMinYMid",
-                leftbottom: "xMinYMax",
-                centertop: "xMidYMin",
-                center: "xMidYMid",
-                centerbottom: "xMidYMax",
-                righttop: "xMaxYMin",
-                rightcenter: "xMaxYMid",
-                rightbottom: "xMaxYMax"
-            };
+        function getPreserveAspectRatio(location) {
+            return {
+                    full: NONE,
+                    lefttop: "xMinYMin",
+                    leftcenter: "xMinYMid",
+                    leftbottom: "xMinYMax",
+                    centertop: "xMidYMin",
+                    center: "xMidYMid",
+                    centerbottom: "xMidYMax",
+                    righttop: "xMaxYMin",
+                    rightcenter: "xMaxYMid",
+                    rightbottom: "xMaxYMax"
+                }[_normalizeEnum(location)] || NONE
+        }
         rendererNS._normalizeArcParams = function(x, y, innerR, outerR, startAngle, endAngle) {
             var isCircle,
                 noArc = true;
@@ -6684,68 +4410,57 @@ if (!DevExpress.MOD_VIZ_CORE) {
             return buildSegments(points, buildSimpleCurveSegment, close)
         }
         function buildSegments(points, buildSimpleSegment, close) {
-            var i,
-                ii,
+            var i = 0,
+                ii = (points || []).length,
                 list = [];
-            if (points[0] && points[0].length)
-                for (i = 0, ii = points.length; i < ii; ++i)
-                    buildSimpleSegment(points[i], close, list);
+            if (isArray(points[0]))
+                for (; i < ii; )
+                    buildSimpleSegment(points[i++], close, list);
             else
                 buildSimpleSegment(points, close, list);
             return list
         }
         function buildSimpleLineSegment(points, close, list) {
             var i = 0,
-                k0 = list.length,
-                k = k0,
                 ii = (points || []).length;
-            if (ii) {
-                if (points[0].x !== undefined)
+            if (ii)
+                if (isObject(points[0]))
                     for (; i < ii; )
-                        list[k++] = ["L", points[i].x, points[i++].y];
+                        list.push([!i ? "M" : "L", points[i].x, points[i++].y]);
                 else
                     for (; i < ii; )
-                        list[k++] = ["L", points[i++], points[i++]];
-                list[k0][0] = "M"
-            }
+                        list.push([!i ? "M" : "L", points[i++], points[i++]]);
             else
-                list[k] = ["M", 0, 0];
+                list.push(["M", 0, 0]);
             close && list.push(["Z"]);
             return list
         }
         function buildSimpleCurveSegment(points, close, list) {
-            var i,
-                k = list.length,
+            var i = 2,
                 ii = (points || []).length;
             if (ii)
-                if (points[0].x !== undefined) {
-                    list[k++] = ["M", points[0].x, points[0].y];
-                    for (i = 1; i < ii; )
-                        list[k++] = ["C", points[i].x, points[i++].y, points[i].x, points[i++].y, points[i].x, points[i++].y]
+                if (isObject(points[0])) {
+                    i = 1;
+                    list.push(["M", points[0].x, points[0].y]);
+                    for (; i < ii; )
+                        list.push(["C", points[i].x, points[i++].y, points[i].x, points[i++].y, points[i].x, points[i++].y])
                 }
                 else {
-                    list[k++] = ["M", points[0], points[1]];
-                    for (i = 2; i < ii; )
-                        list[k++] = ["C", points[i++], points[i++], points[i++], points[i++], points[i++], points[i++]]
+                    list.push(["M", points[0], points[1]]);
+                    for (; i < ii; )
+                        list.push(["C", points[i++], points[i++], points[i++], points[i++], points[i++], points[i++]])
                 }
             else
-                list[k] = ["M", 0, 0];
+                list.push(["M", 0, 0]);
             close && list.push(["Z"]);
             return list
         }
         function combinePathParam(segments) {
             var d = [],
-                k = 0,
-                i,
-                ii = segments.length,
-                segment,
-                j,
-                jj;
-            for (i = 0; i < ii; ++i) {
-                segment = segments[i];
-                for (j = 0, jj = segment.length; j < jj; ++j)
-                    d[k++] = segment[j]
-            }
+                i = 0,
+                length = segments.length;
+            for (; i < length; i++)
+                d.push(segments[i].join(" "));
             return d.join(" ")
         }
         function compensateSegments(oldSegments, newSegments, type) {
@@ -6808,31 +4523,27 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 }
             }
         }
-        function baseCss(that, styles) {
-            var elemStyles = that._styles,
+        function baseCss(styles) {
+            var elemStyles = this._styles,
                 str = "",
                 key,
                 value;
-            styles = styles || {};
-            for (key in styles) {
-                value = styles[key];
-                if (_isDefined(value)) {
-                    if (typeof value === "number" && !pxAddingExceptions[key])
-                        value += "px";
-                    elemStyles[key] = value !== "" ? value : null
-                }
-            }
+            extend(elemStyles, styles || {}, true);
             for (key in elemStyles) {
                 value = elemStyles[key];
-                if (value)
-                    str += key + ":" + value + ";"
+                if (value === "")
+                    continue;
+                if (typeof value === "number" && !pxAddingExceptions[key])
+                    value += "px";
+                str += key + ":" + value + ";"
             }
-            str && that.element.setAttribute("style", str);
-            return that
+            str && this.element.setAttribute("style", str);
+            return this
         }
-        function baseAttr(that, attrs, inh) {
+        function baseAttr(attrs) {
             attrs = attrs || {};
-            var settings = that._settings,
+            var that = this,
+                settings = that._settings,
                 attributes = {},
                 key,
                 value,
@@ -6921,7 +4632,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             delete attrs.segments
                         }
                     }
-                    return baseAttr(that, attrs, inh)
+                    return baseAttr.call(that, attrs, inh)
                 }
         }
         function createArcAttr(baseAttr, buildArcPath) {
@@ -6948,10 +4659,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             delete attrs.startAngle;
                             settings.endAngle = endAngle = "endAngle" in attrs ? attrs.endAngle : settings.endAngle;
                             delete attrs.endAngle;
-                            attrs.d = buildArcPath.apply(null, rendererNS._normalizeArcParams(x, y, innerRadius, outerRadius, startAngle, endAngle))
+                            attrs.d = buildArcPath.apply(this, rendererNS._normalizeArcParams(x, y, innerRadius, outerRadius, startAngle, endAngle))
                         }
                     }
-                    return baseAttr(this, attrs, inh)
+                    return baseAttr.call(this, attrs, inh)
                 }
         }
         function createRectAttr(baseAttr) {
@@ -6983,7 +4694,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         if ("sharp" in attrs)
                             delete attrs.sharp
                     }
-                    return baseAttr(that, attrs, inh)
+                    return baseAttr.call(that, attrs, inh)
                 }
         }
         var pathAttr = createPathAttr(baseAttr),
@@ -6996,10 +4707,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 wasStroked,
                 isStroked;
             if (!isObjectArgument(attrs))
-                return baseAttr(that, attrs);
+                return baseAttr.call(that, attrs);
             attrs = extend({}, attrs);
             settings = that._settings;
-            wasStroked = _isDefined(settings[KEY_STROKE]) && _isDefined(settings[KEY_STROKE_WIDTH]);
+            wasStroked = isDefined(settings[KEY_STROKE]) && isDefined(settings[KEY_STROKE_WIDTH]);
             if (attrs[KEY_TEXT] !== undefined) {
                 settings[KEY_TEXT] = attrs[KEY_TEXT];
                 delete attrs[KEY_TEXT];
@@ -7017,8 +4728,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 settings[KEY_STROKE_OPACITY] = attrs[KEY_STROKE_OPACITY];
                 delete attrs[KEY_STROKE_OPACITY]
             }
-            isStroked = _isDefined(settings[KEY_STROKE]) && _isDefined(settings[KEY_STROKE_WIDTH]);
-            baseAttr(that, attrs);
+            isStroked = isDefined(settings[KEY_STROKE]) && isDefined(settings[KEY_STROKE_WIDTH]);
+            baseAttr.call(that, attrs);
             isResetRequired = isResetRequired || isStroked !== wasStroked && settings[KEY_TEXT];
             if (isResetRequired)
                 createTextNodes(that, settings.text, isStroked);
@@ -7030,52 +4741,56 @@ if (!DevExpress.MOD_VIZ_CORE) {
         }
         function textCss(styles) {
             styles = styles || {};
-            baseCss(this, styles);
+            baseCss.call(this, styles);
             if (KEY_FONT_SIZE in styles)
                 locateTextNodes(this);
             return this
         }
-        function orderHtmlTree(list, line, node, parentStyle, parentClassName) {
-            var style,
-                realStyle,
-                i,
-                ii,
-                nodes;
-            if (node.wholeText !== undefined)
-                list.push({
-                    value: node.wholeText,
-                    style: parentStyle,
-                    className: parentClassName,
-                    line: line,
-                    height: parentStyle[KEY_FONT_SIZE] || 0
-                });
-            else if (node.tagName === "BR")
-                ++line;
-            else {
-                extend(style = {}, parentStyle);
-                switch (node.tagName) {
-                    case"B":
-                    case"STRONG":
-                        style[KEY_FONT_WEIGHT] = "bold";
-                        break;
-                    case"I":
-                    case"EM":
-                        style[KEY_FONT_STYLE] = "italic";
-                        break;
-                    case"U":
-                        style[KEY_TEXT_DECORATION] = "underline";
-                        break
-                }
-                realStyle = node.style;
-                realStyle.color && (style.fill = realStyle.color);
-                realStyle.fontSize && (style[KEY_FONT_SIZE] = _parseInt(realStyle.fontSize, 10));
-                realStyle.fontStyle && (style[KEY_FONT_STYLE] = realStyle.fontStyle);
-                realStyle.fontWeight && (style[KEY_FONT_WEIGHT] = realStyle.fontWeight);
-                realStyle.textDecoration && (style[KEY_TEXT_DECORATION] = realStyle.textDecoration);
-                for (i = 0, nodes = node.childNodes, ii = nodes.length; i < ii; ++i)
-                    line = orderHtmlTree(list, line, nodes[i], style, node.className || parentClassName)
+        function orderHtmlTree(strCount, node, textArray) {
+            var nodeParams = node.params = node.params || {style: {}},
+                nodeStyle = nodeParams.style,
+                parentStyle = node.parentNode && node.parentNode.params && node.parentNode.params.style || {},
+                nativeElementStyle = node.style,
+                childCount = node.childNodes.length,
+                count = 0;
+            if (node.nodeName !== '#text')
+                extend(nodeStyle, parentStyle);
+            switch (node.tagName) {
+                case'B':
+                case'STRONG':
+                    nodeStyle[KEY_FONT_WEIGHT] = 'bold';
+                    break;
+                case'I':
+                case'EM':
+                    nodeStyle[KEY_FONT_STYLE] = 'italic';
+                    break;
+                case'U':
+                    nodeStyle[KEY_TEXT_DECORATION] = 'underline';
+                    break;
+                case'BR':
+                    strCount++;
+                    break
             }
-            return line
+            if (nativeElementStyle) {
+                if (nativeElementStyle.fontSize)
+                    nodeStyle[KEY_FONT_SIZE] = (_parseInt(nativeElementStyle.fontSize, 10) || nodeStyle[KEY_FONT_SIZE]) + 'px';
+                nodeStyle.fill = nativeElementStyle.color || nodeStyle.fill;
+                nodeStyle[KEY_FONT_STYLE] = nativeElementStyle.fontStyle || nodeStyle[KEY_FONT_STYLE];
+                nodeStyle[KEY_FONT_WEIGHT] = nativeElementStyle.fontWeight || nodeStyle[KEY_FONT_WEIGHT];
+                nodeStyle[KEY_TEXT_DECORATION] = nativeElementStyle.textDecoration || nodeStyle[KEY_TEXT_DECORATION]
+            }
+            while (count !== childCount)
+                strCount = orderHtmlTree(strCount, node.childNodes[count++], textArray);
+            if (node.wholeText !== undefined) {
+                extend(nodeStyle, parentStyle);
+                textArray.push({
+                    value: node.wholeText,
+                    style: nodeStyle,
+                    line: strCount,
+                    height: _parseInt(nodeStyle[KEY_FONT_SIZE], 10) || 0
+                })
+            }
+            return strCount
         }
         function adjustLineHeights(items) {
             var i,
@@ -7097,7 +4812,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             var items = [],
                 div = doc.createElement("div");
             div.innerHTML = text.replace(/\r/g, "").replace(/\n/g, "<br/>");
-            orderHtmlTree(items, 0, div, {}, "");
+            orderHtmlTree(0, div, items);
             adjustLineHeights(items);
             return items
         }
@@ -7120,11 +4835,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 item = items[i];
                 item[fieldName] = createElement("tspan");
                 item[fieldName].appendChild(doc.createTextNode(item.value));
-                item.style && baseCss({
+                item.style && baseCss.call({
                     element: item[fieldName],
                     _styles: {}
                 }, item.style);
-                item.className && item[fieldName].setAttribute("class", item.className);
                 element.appendChild(item[fieldName])
             }
         }
@@ -7132,47 +4846,36 @@ if (!DevExpress.MOD_VIZ_CORE) {
             return function(maxWidth) {
                     var element = this.element,
                         lines,
-                        width = this.getBBox().width,
+                        bbox = this.getBBox(),
                         maxLength = 0,
                         requiredLength,
-                        hasEllipsis = false,
-                        i,
-                        ii,
-                        lineParts,
-                        j,
-                        jj,
-                        text;
+                        hasEllipsis = false;
                     if (maxWidth < 0)
                         maxWidth = 0;
-                    if (width > maxWidth) {
+                    if (bbox.width > maxWidth) {
                         lines = prepareLines(element, this._texts);
-                        for (i = 0, ii = lines.length; i < ii; ++i)
-                            maxLength = mathMax(maxLength, lines[i].commonLength);
-                        requiredLength = mathCeil(maxLength * maxWidth / width);
-                        for (i = 0; i < ii; ++i) {
-                            lineParts = lines[i].parts;
-                            for (j = 0, jj = lineParts.length; j < jj; ++j) {
-                                text = lineParts[j];
+                        _each(lines, function(_, line) {
+                            maxLength = mathMax(maxLength, line.commonLength)
+                        });
+                        requiredLength = mathCeil(maxLength * maxWidth / bbox.width);
+                        _each(lines, function(_, line) {
+                            _each(line.parts, function(i, text) {
                                 if (text.startIndex <= requiredLength && text.endIndex > requiredLength) {
                                     setNewText(text, requiredLength - text.startIndex - 4);
                                     hasEllipsis = true
                                 }
                                 else if (text.startIndex > requiredLength)
                                     removeTextSpan(text)
-                            }
-                        }
+                            })
+                        })
                     }
                     return hasEllipsis
                 }
         }
         function prepareLines(element, texts) {
-            var lines = [],
-                i,
-                ii,
-                text;
+            var lines = [];
             if (texts)
-                for (i = 0, ii = texts.length; i < ii; ++i) {
-                    text = texts[i];
+                _each(texts, function(i, text) {
                     if (!lines[text.line]) {
                         text.startIndex = 0;
                         text.endIndex = text.value.length;
@@ -7187,7 +4890,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         lines[text.line].parts.push(text);
                         lines[text.line].commonLength += text.value.length
                     }
-                }
+                });
             else
                 lines = [{
                         commonLength: element.textContent.length,
@@ -7245,7 +4948,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return;
             var items = wrapper._texts,
                 x = wrapper._settings.x,
-                lineHeight = _parseInt(wrapper._styles[KEY_FONT_SIZE], 10) || 12,
+                lineHeight = wrapper._styles[KEY_FONT_SIZE] || 12,
                 i,
                 ii,
                 item = items[0];
@@ -7277,9 +4980,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 tspan.setAttribute("stroke-linejoin", "round")
             }
         }
-        function baseAnimate(that, params, options, complete) {
+        function baseAnimate(params, options, complete) {
             options = options || {};
-            var key,
+            var that = this,
+                key,
                 value,
                 renderer = that.renderer,
                 settings = that._settings,
@@ -7338,7 +5042,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 };
                 delete params.points
             }
-            return baseAnimate(that, params, options, complete)
+            return baseAnimate.call(that, params, options, complete)
         }
         function arcAnimate(params, options, complete) {
             var that = this,
@@ -7368,55 +5072,101 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 delete params.endAngle;
                 params.arc = arcParams
             }
-            return baseAnimate(that, params, options, complete)
+            return baseAnimate.call(that, params, options, complete)
         }
-        rendererNS.DEBUG_set_getNextDefsSvgId = function(newFunction) {
-            getNextDefsSvgId = newFunction
-        };
-        rendererNS.DEBUG_removeBackupContainer = function() {
-            if (backupCounter) {
-                backupCounter = 0;
-                doc.body.removeChild(backupContainer)
+        rendererNS.__mockPrivateFunctions = function(fs) {
+            fs = fs || {};
+            function mockFunction(mock, orig) {
+                if (!mock)
+                    return orig;
+                var originalFunction = orig;
+                orig = mock;
+                orig._originalFunction = originalFunction;
+                return orig
             }
+            createElement = mockFunction(fs.createElement, createElement);
+            baseAttr = mockFunction(fs.baseAttr, baseAttr);
+            baseAnimate = mockFunction(fs.baseAnimate, baseAnimate);
+            getNextDefsSvgId = mockFunction(fs.getNextDefsSvgId, getNextDefsSvgId);
+            compensateSegments = mockFunction(fs.compensateSegments, compensateSegments);
+            buildPathSegments = mockFunction(fs.buildPathSegments, buildPathSegments);
+            buildArcPath = mockFunction(fs.buildArcPath, buildArcPath);
+            pathAttr = createPathAttr(baseAttr);
+            arcAttr = createArcAttr(baseAttr, buildArcPath);
+            rectAttr = createRectAttr(baseAttr);
+            return {
+                    createElement: createElement,
+                    baseAttr: baseAttr,
+                    baseAnimate: baseAnimate,
+                    getNextDefsSvgId: getNextDefsSvgId,
+                    compensateSegments: compensateSegments,
+                    buildPathSegments: buildPathSegments,
+                    buildArcPath: buildArcPath
+                }
         };
-        function buildLink(target, parameters) {
-            var obj = {
-                    is: false,
-                    name: parameters.name || parameters,
-                    after: parameters.after
-                };
-            if (target)
-                obj.to = target;
-            else
-                obj.virtual = true;
-            return obj
-        }
-        function SvgElement(renderer, tagName, type) {
-            var that = this;
-            that.renderer = renderer;
-            that.element = createElement(tagName);
-            that._settings = {};
-            that._styles = {};
-            if (tagName === "path")
-                that.type = type || "line"
+        rendererNS.__restoreMockPrivateFunctions = function() {
+            function restoreFunction(func) {
+                return func._originalFunction || func
+            }
+            createElement = restoreFunction(createElement);
+            baseAttr = restoreFunction(baseAttr);
+            baseAnimate = restoreFunction(baseAnimate);
+            getNextDefsSvgId = restoreFunction(getNextDefsSvgId);
+            compensateSegments = restoreFunction(compensateSegments);
+            buildPathSegments = restoreFunction(buildPathSegments);
+            buildArcPath = restoreFunction(buildArcPath);
+            pathAttr = createPathAttr(baseAttr);
+            arcAttr = createArcAttr(baseAttr, buildArcPath);
+            rectAttr = createRectAttr(baseAttr)
+        };
+        function SvgElement() {
+            this.ctor.apply(this, arguments)
         }
         rendererNS.SvgElement = SvgElement;
         SvgElement.prototype = {
-            constructor: SvgElement,
-            _getJQElement: function() {
-                return this._$element || (this._$element = $(this.element))
+            ctor: function(renderer, tagName, type) {
+                var that = this;
+                that.renderer = renderer;
+                that.element = createElement(tagName);
+                that._settings = {};
+                that._styles = {};
+                if (tagName === "path")
+                    that.type = type || "line";
+                if (tagName === "text") {
+                    that.attr = textAttr;
+                    that.css = textCss;
+                    that.applyEllipsis = applyEllipsis
+                }
+                else if (tagName === "path")
+                    if (that.type === "arc") {
+                        that.attr = arcAttr;
+                        that.animate = arcAnimate
+                    }
+                    else {
+                        that.attr = pathAttr;
+                        that.animate = pathAnimate
+                    }
+                else if (tagName === "rect") {
+                    that.attr = rectAttr;
+                    that.sharp = function() {
+                        return this
+                    }
+                }
+                that._$element = $(that.element)
             },
             dispose: function() {
-                this._getJQElement().remove();
+                this._$element.remove();
                 return this
             },
             append: function(parent) {
-                (parent || this.renderer.root).element.appendChild(this.element);
+                parent = parent || this.renderer.root;
+                (parent.element || parent).appendChild(this.element);
                 return this
             },
             remove: function() {
-                var element = this.element;
-                element.parentNode && element.parentNode.removeChild(element);
+                var elem = this.element,
+                    parent = elem.parentNode;
+                parent && parent.removeChild(elem);
                 return this
             },
             enableLinks: function() {
@@ -7424,31 +5174,34 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return this
             },
             checkLinks: function() {
-                var count = 0,
-                    links = this._links,
-                    i,
-                    ii = links.length;
-                for (i = 0; i < ii; ++i)
-                    if (!links[i]._link.virtual)
-                        ++count;
+                var count = 0;
+                $.each(this._links, function(_, item) {
+                    if (!item._link.virtual)
+                        ++count
+                });
                 if (count > 0)
                     throw new Error("There are non disposed links!");
             },
             virtualLink: function(parameters) {
-                linkItem({_link: buildLink(null, parameters)}, this);
-                return this
-            },
-            linkAfter: function(name) {
-                this._linkAfter = name;
+                linkItem({_link: {
+                        virtual: true,
+                        name: parameters.name || parameters,
+                        after: parameters.after
+                    }}, this._links);
                 return this
             },
             linkOn: function(target, parameters) {
-                this._link = buildLink(target, parameters);
-                linkItem(this, target);
+                this._link = {
+                    to: target,
+                    is: false,
+                    name: parameters.name || parameters,
+                    after: parameters.after
+                };
+                linkItem(this, target._links);
                 return this
             },
             linkOff: function() {
-                unlinkItem(this);
+                unlinkItem(this, this._link.to._links);
                 this._link = null;
                 return this
             },
@@ -7471,7 +5224,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return this
             },
             clear: function() {
-                this._getJQElement().empty();
+                this._$element.empty();
                 return this
             },
             toBackground: function() {
@@ -7486,15 +5239,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 parent && parent.appendChild(elem);
                 return this
             },
-            attr: function(attrs, inh) {
-                return baseAttr(this, attrs, inh)
-            },
-            css: function(styles) {
-                return baseCss(this, styles)
-            },
-            animate: function(params, options, complete) {
-                return baseAnimate(this, params, options, complete)
-            },
+            css: baseCss,
+            attr: baseAttr,
             sharp: function(pos) {
                 return this.attr({sharp: pos || true})
             },
@@ -7509,20 +5255,19 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     strokeOdd = tr[KEY_STROKE_WIDTH] % 2,
                     correctionX = strokeOdd && (sharpMode === "h" || sharpMode === true) ? SHARPING_CORRECTION : 0,
                     correctionY = strokeOdd && (sharpMode === "v" || sharpMode === true) ? SHARPING_CORRECTION : 0;
+                if (!("rotateX" in tr))
+                    rotateX = tr.x;
+                else
+                    rotateX = tr.rotateX;
+                if (!("rotateY" in tr))
+                    rotateY = tr.y;
+                else
+                    rotateY = tr.rotateY;
                 transformations.push("translate(" + ((tr.translateX || 0) + correctionX) + "," + ((tr.translateY || 0) + correctionY) + ")");
-                if (tr.rotate) {
-                    if ("rotateX" in tr)
-                        rotateX = tr.rotateX;
-                    else
-                        rotateX = tr.x;
-                    if ("rotateY" in tr)
-                        rotateY = tr.rotateY;
-                    else
-                        rotateY = tr.y;
-                    transformations.push("rotate(" + tr.rotate + "," + (rotateX || 0) + "," + (rotateY || 0) + ")")
-                }
-                scaleXDefined = _isDefined(tr.scaleX);
-                scaleYDefined = _isDefined(tr.scaleY);
+                if (tr.rotate)
+                    transformations.push("rotate(" + tr.rotate + "," + (rotateX || 0) + "," + (rotateY || 0) + ")");
+                scaleXDefined = isDefined(tr.scaleX);
+                scaleYDefined = isDefined(tr.scaleY);
                 if (scaleXDefined || scaleYDefined)
                     transformations.push("scale(" + (scaleXDefined ? tr.scaleX : 1) + "," + (scaleYDefined ? tr.scaleY : 1) + ")");
                 if (transformations.length)
@@ -7530,8 +5275,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             move: function(x, y, animate, animOptions) {
                 var obj = {};
-                _isDefined(x) && (obj.translateX = x);
-                _isDefined(y) && (obj.translateY = y);
+                isDefined(x) && (obj.translateX = x);
+                isDefined(y) && (obj.translateY = y);
                 if (!animate)
                     this.attr(obj);
                 else
@@ -7540,8 +5285,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             rotate: function(angle, x, y, animate, animOptions) {
                 var obj = {rotate: angle || 0};
-                _isDefined(x) && (obj.rotateX = x);
-                _isDefined(y) && (obj.rotateY = y);
+                isDefined(x) && (obj.rotateX = x);
+                isDefined(y) && (obj.rotateY = y);
                 if (!animate)
                     this.attr(obj);
                 else
@@ -7575,8 +5320,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return temp.innerHTML
             },
             getOffset: function() {
-                return this._getJQElement().offset()
+                return this._$element.offset()
             },
+            animate: baseAnimate,
             stopAnimation: function(disableComplete) {
                 var animation = this.animation;
                 animation && animation.stop(disableComplete);
@@ -7587,78 +5333,31 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 titleElem.textContent = text || '';
                 this.element.appendChild(titleElem)
             },
-            data: function(obj, val) {
-                var elem = this.element,
-                    key;
-                if (val !== undefined)
-                    elem[obj] = val;
-                else
-                    for (key in obj)
-                        elem[key] = obj[key];
-                return this
-            },
             on: function() {
-                $.fn.on.apply(this._getJQElement(), arguments);
+                $.fn.on.apply(this._$element, arguments);
                 return this
             },
             off: function() {
-                $.fn.off.apply(this._getJQElement(), arguments);
+                $.fn.off.apply(this._$element, arguments);
                 return this
             },
             trigger: function() {
-                $.fn.trigger.apply(this._getJQElement(), arguments);
+                $.fn.trigger.apply(this._$element, arguments);
+                return this
+            },
+            data: function() {
+                $.fn.data.apply(this._$element, arguments);
                 return this
             }
         };
-        function PathSvgElement(renderer, type) {
-            SvgElement.call(this, renderer, "path", type)
-        }
-        rendererNS.PathSvgElement = PathSvgElement;
-        PathSvgElement.prototype = objectCreate(SvgElement.prototype);
-        extend(PathSvgElement.prototype, {
-            constructor: PathSvgElement,
-            attr: pathAttr,
-            animate: pathAnimate
-        });
-        function ArcSvgElement(renderer) {
-            SvgElement.call(this, renderer, "path", "arc")
-        }
-        rendererNS.ArcSvgElement = ArcSvgElement;
-        ArcSvgElement.prototype = objectCreate(SvgElement.prototype);
-        extend(ArcSvgElement.prototype, {
-            constructor: ArcSvgElement,
-            attr: arcAttr,
-            animate: arcAnimate
-        });
-        function RectSvgElement(renderer) {
-            SvgElement.call(this, renderer, "rect")
-        }
-        rendererNS.RectSvgElement = RectSvgElement;
-        RectSvgElement.prototype = objectCreate(SvgElement.prototype);
-        extend(RectSvgElement.prototype, {
-            constructor: RectSvgElement,
-            attr: rectAttr
-        });
-        function TextSvgElement(renderer) {
-            SvgElement.call(this, renderer, "text")
-        }
-        rendererNS.TextSvgElement = TextSvgElement;
-        TextSvgElement.prototype = objectCreate(SvgElement.prototype);
-        extend(TextSvgElement.prototype, {
-            constructor: TextSvgElement,
-            attr: textAttr,
-            css: textCss,
-            applyEllipsis: applyEllipsis
-        });
         function updateIndexes(items, k) {
             var i,
                 item;
             for (i = k; !!(item = items[i]); ++i)
                 item._link.i = i
         }
-        function linkItem(target, container) {
-            var items = container._links,
-                key = target._link.after = target._link.after || container._linkAfter,
+        function linkItem(target, items) {
+            var key = target._link.after,
                 i,
                 item;
             if (key) {
@@ -7671,36 +5370,23 @@ if (!DevExpress.MOD_VIZ_CORE) {
             items.splice(i, 0, target);
             updateIndexes(items, i)
         }
-        function unlinkItem(target) {
-            var i,
-                items = target._link.to._links;
+        function unlinkItem(target, items) {
+            var i;
             for (i = 0; items[i] !== target; ++i);;
             items.splice(i, 1);
             updateIndexes(items, i)
         }
         function SvgRenderer(options) {
             var that = this;
-            that.root = that._createElement(that._rootTag, that._rootAttr).attr({"class": options.cssClass}).css(that._rootCss);
-            that._init();
-            that.pathModified = !!options.pathModified;
-            that._$container = $(options.container);
-            that.root.append({element: options.container});
-            that._locker = 0;
-            that._backed = false
-        }
-        rendererNS.SvgRenderer = SvgRenderer;
-        SvgRenderer.prototype = {
-            constructor: SvgRenderer,
-            _rootTag: "svg",
-            _rootAttr: {
+            that.root = that._createElement("svg", {
                 xmlns: "http://www.w3.org/2000/svg",
                 "xmlns:xlink": "http://www.w3.org/1999/xlink",
                 version: "1.1",
                 fill: NONE,
                 stroke: NONE,
-                "stroke-width": 0
-            },
-            _rootCss: {
+                "stroke-width": 0,
+                "class": options.cssClass
+            }).css({
                 "line-height": "normal",
                 "-ms-user-select": NONE,
                 "-moz-user-select": NONE,
@@ -7708,48 +5394,37 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 "-webkit-tap-highlight-color": "rgba(0, 0, 0, 0)",
                 display: "block",
                 overflow: "hidden"
-            },
-            _init: function() {
-                var that = this;
-                that._defs = that._createElement("defs").append(that.root);
-                that._animationController = new rendererNS.AnimationController(that.root.element);
-                that._animation = {
-                    enabled: true,
-                    duration: 1000,
-                    easing: "easeOutCubic"
-                }
-            },
+            });
+            that._defs = that._createElement("defs").append(that.root);
+            that._animationController = new rendererNS.AnimationController(that.root.element);
+            that._animation = {
+                enabled: true,
+                duration: 1000,
+                easing: "easeOutCubic"
+            };
+            that.pathModified = !!options.pathModified
+        }
+        rendererNS.SvgRenderer = SvgRenderer;
+        SvgRenderer.prototype = {
+            constructor: SvgRenderer,
             setOptions: function(options) {
                 var that = this;
                 that.rtl = !!options.rtl;
                 that.encodeHtml = !!options.encodeHtml,
                 that.updateAnimationOptions(options.animation || {});
-                that.root.attr({direction: that.rtl ? "rtl" : "ltr"});
-                return that
+                that.root.attr({direction: that.rtl ? "rtl" : "ltr"})
             },
             _createElement: function(tagName, attr, type) {
                 var elem = new rendererNS.SvgElement(this, tagName, type);
                 attr && elem.attr(attr);
                 return elem
             },
-            lock: function() {
+            draw: function(container) {
                 var that = this;
-                if (that._locker === 0) {
-                    that._backed = !that._$container.is(":visible");
-                    if (that._backed)
-                        backupRoot(that.root)
-                }
-                ++that._locker;
-                return that
-            },
-            unlock: function() {
-                var that = this;
-                --that._locker;
-                if (that._locker === 0) {
-                    if (that._backed)
-                        restoreRoot(that.root, that._$container[0]);
-                    that._backed = false
-                }
+                if (!container || that.drawn)
+                    return that;
+                that.root.append(container);
+                that.drawn = true;
                 return that
             },
             resize: function(width, height) {
@@ -7760,6 +5435,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     });
                 return this
             },
+            clear: function() {
+                var that = this;
+                that.root.remove();
+                that.drawn = null;
+                return this
+            },
             dispose: function() {
                 var that = this,
                     key;
@@ -7768,7 +5449,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that._animationController.dispose();
                 for (key in that)
                     that[key] = null;
-                return that
+                return null
             },
             animationEnabled: function() {
                 return !!this._animation.enabled
@@ -7795,8 +5476,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 this._animationController.onEndAnimation(endAnimation)
             },
             rect: function(x, y, width, height) {
-                var elem = new rendererNS.RectSvgElement(this);
-                return elem.attr({
+                return this._createElement("rect", {
                         x: x || 0,
                         y: y || 0,
                         width: width || 0,
@@ -7819,29 +5499,26 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         y: y || 0,
                         width: w || 0,
                         height: h || 0,
-                        preserveAspectRatio: preserveAspectRatioMap[_normalizeEnum(location)] || NONE
+                        preserveAspectRatio: getPreserveAspectRatio(location)
                     });
                 image.element.setAttributeNS("http://www.w3.org/1999/xlink", "href", href || "");
                 return image
             },
             path: function(points, type) {
-                var elem = new rendererNS.PathSvgElement(this, type);
-                return elem.attr({points: points || []})
+                return this._createElement("path", {points: points || []}, type)
             },
             arc: function(x, y, innerRadius, outerRadius, startAngle, endAngle) {
-                var elem = new rendererNS.ArcSvgElement(this);
-                return elem.attr({
+                return this._createElement("path", {
                         x: x || 0,
                         y: y || 0,
                         innerRadius: innerRadius || 0,
                         outerRadius: outerRadius || 0,
                         startAngle: startAngle || 0,
                         endAngle: endAngle || 0
-                    })
+                    }, "arc")
             },
             text: function(text, x, y) {
-                var elem = new rendererNS.TextSvgElement(this);
-                return elem.attr({
+                return this._createElement("text", {
                         text: text,
                         x: x || 0,
                         y: y || 0
@@ -7882,7 +5559,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     fill: color,
                     opacity: hatching.opacity
                 }).append(pattern);
-                path = new rendererNS.PathSvgElement(this).attr({
+                path = that._createElement("path", {
                     d: d,
                     "stroke-width": hatching.width || 1,
                     stroke: color
@@ -7960,7 +5637,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     "y" in attrs && (filterAttrs.y = attrs.y);
                     "width" in attrs && (filterAttrs.width = attrs.width);
                     "height" in attrs && (filterAttrs.height = attrs.height);
-                    baseAttr(that, filterAttrs);
+                    baseAttr.call(that, filterAttrs);
                     "blur" in attrs && that.gaussianBlur.attr({stdDeviation: attrs.blur});
                     "offsetX" in attrs && (offsetAttrs.dx = attrs.offsetX);
                     "offsetY" in attrs && (offsetAttrs.dy = attrs.offsetY);
@@ -7983,14 +5660,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
     (function($, DX, doc) {
         DX.viz.renderers = DX.viz.renderers || {};
         var rendererNS = DX.viz.renderers,
-            commonUtils = DX.require("/utils/utils.common"),
             math = Math,
             mathMin = math.min,
             mathMax = math.max,
             mathFloor = math.floor,
             mathSin = math.sin,
             mathCos = math.cos,
-            isDefined = commonUtils.isDefined,
+            isDefined = DX.utils.isDefined,
             _each = $.each,
             _normalizeEnum = DX.viz.utils.normalizeEnum,
             baseElementPrototype = rendererNS.SvgElement.prototype,
@@ -8100,10 +5776,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
             resultRect.bottom = resultRect.bottom || 0;
             return correctBoundingRectWithStrokeWidth(resultRect, this._fullSettings[STROKEWIDTH])
         }
-        function baseAttr(that, attrs, inh) {
-            var element = that.element,
-                settings = that._settings,
-                fullSettings = that._fullSettings,
+        function baseAttr(attrs, inh) {
+            var element = this.element,
+                settings = this._settings,
+                fullSettings = this._fullSettings,
                 value,
                 key,
                 params = {style: {}},
@@ -8126,27 +5802,27 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 !inh && (settings[key] = value);
                 fullSettings[key] = value;
                 if (INHERITABLE_PROPERTIES[key])
-                    value = value === null ? that._parent && that._parent._fullSettings[key] || value : value;
-                appliedAttr !== value && that.processAttr(element, key, value, params)
+                    value = value === null ? this._parent && this._parent._fullSettings[key] || value : value;
+                appliedAttr !== value && this.processAttr(element, key, value, params)
             }
-            that._applyTransformation(params);
-            that.css(params.style);
-            for (var i = 0; i < that._children.length; i++) {
-                elem = that._children[i];
-                elem !== that._clipRect && elem.attr(extend(getInheritSettings(that._fullSettings), elem._settings), true);
+            this._applyTransformation(params);
+            this.css(params.style);
+            for (var i = 0; i < this._children.length; i++) {
+                elem = this._children[i];
+                elem !== this._clipRect && elem.attr(extend(getInheritSettings(this._fullSettings), elem._settings), true);
                 elem._applyStyleSheet()
             }
-            !inh && that._applyStyleSheet();
+            !inh && this._applyStyleSheet();
             if (element)
                 if (element.strokecolor && element.strokecolor.value !== "none" && element.strokeweight)
                     element.stroked = "t";
                 else
                     element.stroked = "f";
-            return that
+            return this
         }
-        function vmlAttr(that, attrs, inh) {
-            var elem = that.element,
-                result = baseAttr(that, attrs, inh);
+        function vmlAttr() {
+            var elem = this.element,
+                result = baseAttr.apply(this, arguments);
             for (var i = 0; i < elem.childNodes.length; i++) {
                 elem.childNodes[i].xmlns = XMLNS;
                 elem.childNodes[i].style.behavior = "url(#default#VML)";
@@ -8292,9 +5968,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
         var elementMixin = {
                 div: {
                     processAttr: processAttr,
-                    attr: function(attrs, inh) {
-                        return baseAttr(this, attrs, inh)
-                    },
+                    attr: baseAttr,
                     _applyTransformation: function(params) {
                         var style = params.style,
                             settings = this._settings,
@@ -8404,9 +6078,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         else
                             processAttr(element, attr, value, params)
                     },
-                    attr: function(attrs, inh) {
-                        return baseAttr(this, attrs, inh)
-                    },
+                    attr: baseAttr,
                     applyEllipsis: applyEllipsis,
                     _applyTransformation: function(params) {
                         this.element.offsetHeight;
@@ -8498,7 +6170,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this,
                     tagPrefix = "<";
                 that.renderer = renderer;
-                that.type = type || "line";
+                that.type = type;
                 that._children = [];
                 that._settings = {};
                 that._fullSettings = {};
@@ -8522,9 +6194,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 this._$element.remove();
                 return this
             },
-            attr: function(attrs, inh) {
-                return vmlAttr(this, attrs, inh)
-            },
+            attr: vmlAttr,
             processAttr: processVmlAttr,
             css: function(css) {
                 var elem = this.element,
@@ -8695,8 +6365,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 this._elements = [];
                 this.id = id
             },
-            attr: function(attrs, inh) {
-                var result = baseAttr(this, attrs, inh),
+            attr: function() {
+                var result = baseAttr.apply(this, arguments),
                     elements = this._elements.slice(),
                     element,
                     i;
@@ -8736,44 +6406,44 @@ if (!DevExpress.MOD_VIZ_CORE) {
             css: stubReturnedThis,
             remove: stubReturnedThis
         });
-        function VmlRenderer() {
-            rendererNS.SvgRenderer.apply(this, arguments)
-        }
-        extend(VmlRenderer.prototype, rendererNS.SvgRenderer.prototype);
-        extend(VmlRenderer.prototype, {
-            constructor: VmlRenderer,
-            _rootTag: "div",
-            _rootAttr: {
-                fill: "none",
-                stroke: "none",
-                "stroke-width": 0
-            },
-            _rootCss: {
-                position: "relative",
-                display: "inline-block",
-                overflow: "hidden"
-            },
-            _init: function() {
-                this._clipRects = [];
-                this._animationController = {dispose: stubReturnedThis};
-                this._animation = {enabled: false};
-                this._defs = {
+        var VmlRenderer = function(options) {
+                var that = this;
+                that.root = that._createElement("div", {
+                    fill: "none",
+                    stroke: "none",
+                    "stroke-width": 0
+                }).css({
+                    position: "relative",
+                    display: "inline-block",
+                    overflow: "hidden"
+                });
+                that._clipRects = [];
+                that._animation = {enabled: false};
+                that._defs = {
                     clear: stubReturnedThis,
                     remove: stubReturnedThis,
                     append: stubReturnedThis,
                     dispose: stubReturnedThis
-                }
-            },
+                };
+                that.pathModified = !!options.pathModified;
+                that.setOptions(options)
+            };
+        extend(VmlRenderer.prototype, rendererNS.SvgRenderer.prototype);
+        extend(VmlRenderer.prototype, {
+            constructor: VmlRenderer,
             setOptions: function() {
                 rendererNS.SvgRenderer.prototype.setOptions.apply(this, arguments);
-                this.root.css({direction: this.rtl ? "rtl" : "ltr"});
-                return this
+                this.root.css({direction: this.rtl ? "rtl" : "ltr"})
             },
             _createElement: function(tagName, attr, type) {
                 tagName = svgToVmlConv[tagName] || tagName;
                 var elem = new rendererNS.VmlElement(this, tagName, type);
                 attr && elem.attr(attr);
                 return elem
+            },
+            dispose: function() {
+                this.root.dispose();
+                return null
             },
             shadowFilter: function() {
                 return {
@@ -8821,34 +6491,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     });
                 return image
             },
-            rect: function(x, y, width, height) {
-                return this._createElement("rect", {
-                        x: x || 0,
-                        y: y || 0,
-                        width: width || 0,
-                        height: height || 0
-                    })
-            },
-            path: function(points, type) {
-                return this._createElement("path", {points: points || []}, type)
-            },
-            arc: function(x, y, innerRadius, outerRadius, startAngle, endAngle) {
-                return this._createElement("path", {
-                        x: x || 0,
-                        y: y || 0,
-                        innerRadius: innerRadius || 0,
-                        outerRadius: outerRadius || 0,
-                        startAngle: startAngle || 0,
-                        endAngle: endAngle || 0
-                    }, "arc")
-            },
-            text: function(text, x, y) {
-                return this._createElement("text", {
-                        text: text,
-                        x: x || 0,
-                        y: y || 0
-                    })
-            },
             updateAnimationOptions: stubReturnedThis,
             stopAllAnimations: stubReturnedThis,
             svg: function() {
@@ -8864,8 +6506,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(jQuery, DevExpress, document);
     /*! Module viz-core, file animation.js */
     (function(DX) {
-        var animationFrame = DX.require("/utils/utils.animationFrame"),
-            rendererNS = DX.viz.renderers,
+        var rendererNS = DX.viz.renderers,
             noop = function(){},
             easingFunctions = {
                 easeOutCubic: function(pos, start, end) {
@@ -8997,7 +6638,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     });
                     return
                 }
-                that._timerId = animationFrame.request.call(null, function() {
+                that._timerId = DX.requestAnimationFrame.call(null, function() {
                     that._loop()
                 }, that.element)
             },
@@ -9030,7 +6671,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 that._animations = {};
                 that._animationCount = 0;
-                animationFrame.cancel(that._timerId);
+                DX.cancelAnimationFrame(that._timerId);
                 clearTimeout(that._startDelay);
                 clearTimeout(that._endAnimationTimer);
                 that._timerId = null
@@ -9057,7 +6698,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file renderer.js */
     (function($, DX, document) {
         var renderers = DX.viz.renderers,
-            browser = DX.require("/utils/utils.browser");
+            browser = DX.browser;
         function isSvg() {
             return !(browser.msie && browser.version < 9) || !!document.createElementNS && !!document.createElementNS('http://www.w3.org/2000/svg', "svg").createSVGRect
         }
@@ -9105,15 +6746,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         hideGroup: {opacity: 0.0001},
                         showGroup: {opacity: 1}
                     },
-                    pieLabelIndent: 30,
-                    pieLabelSpacing: 10,
-                    pieSeriesSpacing: 4
+                    pieLabelIndent: 30
                 }}}
     })(DevExpress);
     /*! Module viz-core, file seriesFamily.js */
     (function($, DX) {
         var viz = DX.viz,
-            commonUtils = DX.require("/utils/utils.common"),
             _math = Math,
             _round = _math.round,
             _abs = _math.abs,
@@ -9129,7 +6767,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         pointsLength = points.length,
                         i;
                     for (i = 0; i < pointsLength; ++i)
-                        if (points[i].value) {
+                        if (points[i] && points[i].value) {
                             stacksWithArgument.push(stackName);
                             return false
                         }
@@ -9137,37 +6775,67 @@ if (!DevExpress.MOD_VIZ_CORE) {
             });
             return stacksWithArgument
         }
-        function correctPointCoordinatesForStacks(stackKeepers, stacksWithArgument, argument, parameters) {
+        function correctPointCoordinatesForStacks(stackKeepers, stacksWithArgument, argument, middleIndex, width, spacing) {
             _each(stackKeepers, function(stackName, seriesInStack) {
                 var stackIndex = $.inArray(stackName, stacksWithArgument),
                     offset;
                 if (stackIndex === -1)
                     return;
-                offset = getOffset(stackIndex, parameters);
+                offset = (stackIndex - middleIndex + 0.5) * width - (middleIndex - stackIndex - 0.5) * spacing;
                 _each(seriesInStack, function(_, singleSeries) {
-                    correctPointCoordinates(singleSeries.getPointsByArg(argument) || [], parameters.width, offset)
+                    _each(singleSeries.getPointsByArg(argument) || [], function(_, point) {
+                        if (point && point.value)
+                            point.correctCoordinates({
+                                width: width,
+                                offset: offset
+                            })
+                    })
                 })
             })
         }
-        function adjustBarSeriesDimensionsCore(series, interval, stackCount, options, seriesStackIndexCallback) {
-            var percentWidth,
+        function adjustBarSeriesDimensionsCore(series, interval, stackCount, equalBarWidth, seriesStackIndexCallback) {
+            var spacing,
+                width,
+                maxWidth,
+                middleIndex,
                 stackIndex,
                 i,
                 points,
+                seriesOffset,
                 stackName,
                 argumentsKeeper = {},
                 stackKeepers = {},
                 stacksWithArgument,
-                barsArea = interval * 0.7,
-                barWidth = options.barWidth,
-                parameters;
-            if (options.equalBarWidth) {
-                percentWidth = barWidth && (barWidth < 0 || barWidth > 1) ? 0 : barWidth;
-                parameters = calculateParams(barsArea, stackCount, percentWidth);
+                count;
+            if (equalBarWidth) {
+                width = equalBarWidth.width && equalBarWidth.width < 0 ? 0 : equalBarWidth.width;
+                spacing = equalBarWidth.spacing && equalBarWidth.spacing < 0 ? 0 : equalBarWidth.spacing;
+                if (!spacing)
+                    if (stackCount > 1) {
+                        spacing = width ? _round((interval * 0.7 - width * stackCount) / (stackCount - 1)) : _round(interval * 0.7 / stackCount * 0.2);
+                        if (spacing < 1)
+                            spacing = 1
+                    }
+                    else
+                        spacing = 0;
+                if (!width) {
+                    width = _round((interval * 0.7 - spacing * (stackCount - 1)) / stackCount);
+                    if (width < 2)
+                        width = 2
+                }
+                if (width * stackCount + spacing * (stackCount - 1) > interval) {
+                    spacing = _round((interval * 0.7 - width * stackCount) / (stackCount - 1));
+                    if (spacing < 1) {
+                        spacing = 1;
+                        maxWidth = _round((interval * 0.7 - spacing * (stackCount - 1)) / stackCount)
+                    }
+                }
+                middleIndex = stackCount / 2;
                 for (i = 0; i < series.length; i++) {
                     stackIndex = seriesStackIndexCallback(i, stackCount);
                     points = series[i].getPoints();
-                    correctPointCoordinates(points, parameters.width, getOffset(stackIndex, parameters))
+                    seriesOffset = (stackIndex - middleIndex + 0.5) * (maxWidth || width) - (middleIndex - stackIndex - 0.5) * spacing;
+                    correctPointCoordinates(points, width, seriesOffset)
                 }
             }
             else {
@@ -9176,7 +6844,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     stackName = stackName || i.toString();
                     if (!stackKeepers[stackName])
                         stackKeepers[stackName] = [];
-                    stackKeepers[stackName].push(singleSeries);
+                    stackKeepers[stackName].push(singleSeries)
+                });
+                _each(series, function(i, singleSeries) {
                     _each(singleSeries.getPoints(), function(_, point) {
                         var argument = point.argument;
                         if (!argumentsKeeper.hasOwnProperty(argument))
@@ -9184,33 +6854,20 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     })
                 });
                 for (var argument in argumentsKeeper) {
+                    if (!argumentsKeeper.hasOwnProperty(argument))
+                        continue;
                     stacksWithArgument = getStacksWithArgument(stackKeepers, argument);
-                    parameters = calculateParams(barsArea, stacksWithArgument.length);
-                    correctPointCoordinatesForStacks(stackKeepers, stacksWithArgument, argument, parameters)
+                    count = stacksWithArgument.length;
+                    spacing = _round(interval * 0.7 / count * 0.2);
+                    if (spacing < 1)
+                        spacing = 1;
+                    width = _round((interval * 0.7 - spacing * (count - 1)) / count);
+                    if (width < 2)
+                        width = 2;
+                    middleIndex = count / 2;
+                    correctPointCoordinatesForStacks(stackKeepers, stacksWithArgument, argument, middleIndex, width, spacing)
                 }
             }
-        }
-        function calculateParams(barsArea, count, percentWidth) {
-            var spacing,
-                width,
-                middleIndex = count / 2;
-            if (!percentWidth) {
-                spacing = _round(barsArea / count * 0.2);
-                width = _round((barsArea - spacing * (count - 1)) / count);
-                width < 2 && (width = 2)
-            }
-            else {
-                width = _round(barsArea * percentWidth / count);
-                spacing = _round(count > 1 ? (barsArea - barsArea * percentWidth) / (count - 1) : 0)
-            }
-            return {
-                    width: width,
-                    spacing: spacing,
-                    middleIndex: middleIndex
-                }
-        }
-        function getOffset(stackIndex, parameters) {
-            return (stackIndex - parameters.middleIndex + 0.5) * parameters.width - (parameters.middleIndex - stackIndex - 0.5) * parameters.spacing
         }
         function correctPointCoordinates(points, width, offset) {
             _each(points, function(_, point) {
@@ -9247,14 +6904,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     }
         }
         function adjustBarSeriesDimensions(translators) {
-            var debug = DX.require("/utils/utils.console").debug;
+            var debug = DX.utils.debug;
             debug.assert(translators, "translator was not passed or empty");
             var that = this,
                 series = getVisibleSeries(that);
-            adjustBarSeriesDimensionsCore(series, translators.arg.getInterval(), series.length, that._options, getSeriesStackIndexCallback(that.rotated, series))
+            adjustBarSeriesDimensionsCore(series, translators.arg.getInterval(), series.length, that.equalBarWidth, getSeriesStackIndexCallback(that.rotated, series))
         }
         function adjustStackedBarSeriesDimensions(translators) {
-            var debug = DX.require("/utils/utils.console").debug;
+            var debug = DX.utils.debug;
             debug.assert(translators, "translators was not passed or empty");
             var that = this,
                 series = getVisibleSeries(that),
@@ -9265,7 +6922,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 if (!stackIndexes.hasOwnProperty(stackName))
                     stackIndexes[stackName] = stackCount++
             });
-            adjustBarSeriesDimensionsCore(series, translators.arg.getInterval(), stackCount, that._options, getSeriesStackIndexCallback(that.rotated, series, stackIndexes))
+            adjustBarSeriesDimensionsCore(series, translators.arg.getInterval(), stackCount, that.equalBarWidth, getSeriesStackIndexCallback(that.rotated, series, stackIndexes))
         }
         function adjustStackedSeriesValues() {
             var that = this,
@@ -9356,7 +7013,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         valueType,
                         currentStack;
                     if (that.fullStacked)
-                        value = value / getAbsStackSumByArg(stack, stackName, argument) || 0;
+                        value = _abs(value) / getAbsStackSumByArg(stack, stackName, argument) || 0;
                     updateValue = checkMinBarSize(value, minShownBusinessValue);
                     valueType = getValueType(updateValue);
                     currentStack = stackKeepers[valueType][stackName] = stackKeepers[valueType][stackName] || {};
@@ -9376,10 +7033,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _each(series, function(_, singleSeries) {
                 var stackName = singleSeries.getStackName ? singleSeries.getStackName() : "default";
                 _each(singleSeries.getPoints(), function(index, point) {
-                    var stackSum = getAbsStackSumByArg(stackKeepers, stackName, point.argument.valueOf());
-                    point.value = point.value / stackSum;
-                    if (commonUtils.isNumber(point.minValue))
-                        point.minValue = point.minValue / stackSum
+                    var argument = point.argument.valueOf(),
+                        valueType = getValueType(_abs(point.value)),
+                        currentStack;
+                    stackKeepers[valueType][stackName] = stackKeepers[valueType][stackName] || {};
+                    currentStack = stackKeepers[valueType][stackName];
+                    point.value = point.value / currentStack[argument] || 0;
+                    if (DX.utils.isNumber(point.minValue))
+                        point.minValue = point.minValue / currentStack[argument] || 0
                 })
             })
         }
@@ -9395,26 +7056,22 @@ if (!DevExpress.MOD_VIZ_CORE) {
             })
         }
         function adjustCandlestickSeriesDimensions(translators) {
-            var debug = DX.require("/utils/utils.console").debug;
+            var debug = DX.utils.debug;
             debug.assert(translators, "translator was not passed or empty");
             var series = getVisibleSeries(this);
-            adjustBarSeriesDimensionsCore(series, translators.arg.getInterval(), series.length, {
-                barWidth: null,
-                equalBarWidth: true
-            }, getSeriesStackIndexCallback(this.rotated, series))
+            adjustBarSeriesDimensionsCore(series, translators.arg.getInterval(), series.length, true, getSeriesStackIndexCallback(this.rotated, series))
         }
         function adjustBubbleSeriesDimensions(translators) {
-            var debug = DX.require("/utils/utils.console").debug;
+            var debug = DX.utils.debug;
             debug.assert(translators, "translator was not passed or empty");
             var that = this,
                 series = getVisibleSeries(that),
-                options = that._options,
                 visibleAreaX = translators.arg.getCanvasVisibleArea(),
                 visibleAreaY = translators.val.getCanvasVisibleArea(),
                 min = _math.min(visibleAreaX.max - visibleAreaX.min, visibleAreaY.max - visibleAreaY.min),
-                minBubbleArea = _pow(options.minBubbleSize, 2),
-                maxBubbleArea = _pow(min * options.maxBubbleSize, 2),
-                equalBubbleSize = (min * options.maxBubbleSize + options.minBubbleSize) / 2,
+                minBubbleArea = _pow(that.minBubbleSize, 2),
+                maxBubbleArea = _pow(min * that.maxBubbleSize, 2),
+                equalBubbleSize = (min * that.maxBubbleSize + that.minBubbleSize) / 2,
                 minPointSize = Infinity,
                 maxPointSize = 0,
                 pointSize,
@@ -9445,7 +7102,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             })
         }
         function SeriesFamily(options) {
-            var debug = DX.require("/utils/utils.console").debug;
+            var debug = DX.utils.debug;
             debug.assert(options.type, "type was not passed or empty");
             var that = this;
             that.type = _normalizeEnum(options.type);
@@ -9501,7 +7158,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
             adjustSeriesValues: _noop,
             updateSeriesValues: _noop,
             updateOptions: function(options) {
-                this._options = options
+                var that = this;
+                that.equalBarWidth = options.equalBarWidth;
+                that.minBubbleSize = options.minBubbleSize;
+                that.maxBubbleSize = options.maxBubbleSize
             },
             dispose: function() {
                 this.series = this.translators = null
@@ -9536,9 +7196,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
     (function($, DX, undefined) {
         var viz = DX.viz,
             seriesNS = viz.series,
-            dateUtils = DevExpress.require("/utils/utils.date"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
             _map = viz.utils.map,
             _each = $.each,
             _extend = $.extend,
@@ -9654,8 +7313,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             var minTick = ticks[nowIndexTicks],
                 maxTick = ticks[nowIndexTicks + 1],
                 sumMinTickTicksInterval;
-            ticksInterval = $.isNumeric(ticksInterval) ? ticksInterval : dateUtils.dateToMilliseconds(ticksInterval);
-            sumMinTickTicksInterval = commonUtils.isDate(minTick) ? new Date(minTick.getTime() + ticksInterval) : minTick + ticksInterval;
+            ticksInterval = $.isNumeric(ticksInterval) ? ticksInterval : utils.dateToMilliseconds(ticksInterval);
+            sumMinTickTicksInterval = utils.isDate(minTick) ? new Date(minTick.getTime() + ticksInterval) : minTick + ticksInterval;
             if (argument >= minTick && argument < sumMinTickTicksInterval)
                 return true;
             if (argument < minTick || maxTick === undefined)
@@ -9665,17 +7324,19 @@ if (!DevExpress.MOD_VIZ_CORE) {
         function applyPointStyle(point, styleName) {
             !point.isSelected() && !point.hasSelectedView && point.applyStyle(styleName)
         }
-        function Series(renderSettings, options) {
-            var that = this;
-            that.fullState = 0;
-            that._extGroups = renderSettings;
-            that._renderer = renderSettings.renderer;
-            that._group = renderSettings.renderer.g().attr({"class": "dxc-series"});
-            that.updateOptions(options)
+        function Series() {
+            this.ctor.apply(this, arguments)
         }
         seriesNS.Series = Series;
         Series.prototype = {
-            constructor: Series,
+            ctor: function(renderSettings, options) {
+                var that = this;
+                that.fullState = 0;
+                that._extGroups = renderSettings;
+                that._renderer = renderSettings.renderer;
+                that._group = renderSettings.renderer.g().attr({"class": "dxc-series"});
+                that.updateOptions(options)
+            },
             update: function(data, options) {
                 this.updateOptions(options);
                 this.updateData(data)
@@ -9723,23 +7384,17 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this,
                     point = pointsArray[index],
                     pointsByArgument = that.pointsByArgument,
-                    options,
-                    arg,
-                    pba;
+                    options;
                 if (that._checkData(data)) {
-                    options = that._customizePoint(data) || that._getCreatingPointOptions(data);
+                    options = that._customizePoint(data) || that._getCreatingPointOptions();
                     if (point)
                         point.update(data, options);
                     else {
                         point = viz.CoreFactory.createPoint(that, data, options);
                         pointsArray.push(point)
                     }
-                    arg = point.argument.valueOf();
-                    pba = pointsByArgument[arg];
-                    if (pba)
-                        pba.push(point);
-                    else
-                        pointsByArgument[arg] = [point];
+                    pointsByArgument[point.argument.valueOf()] = pointsByArgument[point.argument.valueOf()] || [];
+                    pointsByArgument[point.argument.valueOf()].push(point);
                     return true
                 }
             },
@@ -9806,7 +7461,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _getTicksForAggregation: function(min, max, screenDelta, pointSize) {
                 var types = {
                         axisType: "continuous",
-                        dataType: commonUtils.isDate(min) ? "datetime" : "numeric"
+                        dataType: utils.isDate(min) ? "datetime" : "numeric"
                     },
                     data = {
                         min: min,
@@ -9824,7 +7479,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         tickInterval: tickManager.getTickInterval()
                     }
             },
-            getErrorBarRangeCorrector: _noop,
+            _getRangeCorrector: _noop,
             updateDataType: function(settings) {
                 var that = this;
                 that.argumentType = settings.argumentType;
@@ -9845,25 +7500,21 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     points = that._originalPoints || [],
                     lastPointIndex = 0,
                     options = that._options,
-                    i = 0,
-                    len = data.length,
-                    lastPoint = null,
-                    curPoint,
-                    rangeCorrector = that.getErrorBarRangeCorrector();
+                    pointData,
+                    rangeCorrector;
+                that._rangeErrorBarCorrector = rangeCorrector = that._getRangeCorrector();
                 that.pointsByArgument = {};
                 that._resetRangeData();
                 if (data && data.length)
                     that._canRenderCompleteHandle = true;
                 that._beginUpdateData(data);
-                while (i < len) {
-                    if (that._createPoint(that._getPointData(data[i], options), points, lastPointIndex)) {
-                        curPoint = points[lastPointIndex];
-                        that._processRange(curPoint, lastPoint, rangeCorrector);
-                        lastPoint = curPoint;
+                _each(data, function(_, dataItem) {
+                    pointData = that._getPointData(dataItem, options);
+                    if (that._createPoint(pointData, points, lastPointIndex)) {
+                        that._processRange(points[lastPointIndex], lastPointIndex > 0 ? points[lastPointIndex - 1] : null, rangeCorrector);
                         lastPointIndex++
                     }
-                    i++
-                }
+                });
                 that._disposePoints(that._aggregatedPoints);
                 that._aggregatedPoints = null;
                 that._points = that._originalPoints = points;
@@ -9956,7 +7607,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 }
                 that._group.append(that._extGroups.seriesGroup);
                 that.translators = translators;
-                that._applyVisibleArea();
                 that._setGroupsSettings(animationEnabled, firstDrawing);
                 that._segments = [];
                 that._drawedPoints = [];
@@ -10010,19 +7660,17 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return widgetType === "polar" && options.spiderWidget && this.type.indexOf("bar") !== -1
             },
             _resetType: function(seriesType, widgetType) {
-                var methodName,
-                    methods;
-                if (seriesType) {
-                    methods = seriesNS.mixins[widgetType][seriesType];
-                    for (methodName in methods)
-                        delete this[methodName]
-                }
+                var that = this;
+                if (seriesType)
+                    _each(seriesNS.mixins[widgetType][seriesType], function(methodName) {
+                        delete that[methodName]
+                    })
             },
             _setType: function(seriesType, widgetType) {
-                var methodName,
-                    methods = seriesNS.mixins[widgetType][seriesType];
-                for (methodName in methods)
-                    this[methodName] = methods[methodName]
+                var that = this;
+                _each(seriesNS.mixins[widgetType][seriesType], function(methodName, method) {
+                    that[methodName] = method
+                })
             },
             setSelectedState: function(state, mode, legendCallback) {
                 var that = this;
@@ -10175,7 +7823,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     usePointCustomOptions = customOptions && !_isEmptyObject(customOptions)
                 }
                 if (useLabelCustomOptions || usePointCustomOptions) {
-                    pointOptions = that._parsePointOptions(that._preparePointOptions(customOptions), customLabelOptions || options.label, pointData);
+                    pointOptions = that._parsePointOptions(that._preparePointOptions(customOptions), customLabelOptions || options.label);
                     pointOptions.styles.useLabelCustomOptions = useLabelCustomOptions;
                     pointOptions.styles.usePointCustomOptions = usePointCustomOptions
                 }
@@ -10202,10 +7850,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     point._label.hide()
                 })
             },
-            _parsePointOptions: function(pointOptions, labelOptions, data) {
+            _parsePointOptions: function(pointOptions, labelOptions) {
                 var that = this,
                     options = that._options,
-                    styles = that._createPointStyles(pointOptions, data),
+                    styles = that._createPointStyles(pointOptions),
                     parsedOptions = _extend(true, {}, pointOptions, {
                         type: options.type,
                         tag: that.tag,
@@ -10215,8 +7863,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         visibilityChanged: options.visibilityChanged
                     });
                 parsedOptions.label = getLabelOptions(labelOptions, styles.normal.fill);
-                if (that.areErrorBarsVisible())
-                    parsedOptions.errorBars = options.valueErrorBar;
+                parsedOptions.errorBars = options.valueErrorBar;
                 return parsedOptions
             },
             _resample: function(ticks, ticksInterval, argTranslator) {
@@ -10376,6 +8023,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 triggerEvent(that._extGroups.seriesGroup, new _Event("deselectseries", {target: that}), that._options.selectionMode)
             },
+            getPointByArg: function(arg) {
+                return this.getPointsByArg(arg)[0] || null
+            },
             getPointsByArg: function(arg) {
                 return this.pointsByArgument[arg.valueOf()] || []
             },
@@ -10438,8 +8088,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _max = _math.max,
             _each = $.each,
             _isEmptyObject = $.isEmptyObject,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
+            utils = DX.utils,
+            _isDefined = utils.isDefined,
             _isFinite = isFinite,
             unique = viz.utils.unique,
             MIN_VISIBLE = "minVisible",
@@ -10452,11 +8102,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
             data.max = value > max || !_isDefined(max) ? value : max
         }
         function _processValue(series, type, value, prevValue, calcInterval) {
-            var isDiscrete = (type === "arg" ? series.argumentAxisType : series.valueAxisType) === DISCRETE,
+            var axis = type === "arg" ? "argument" : "value",
                 data = series._rangeData[type],
                 minInterval = data.interval,
                 interval;
-            if (isDiscrete) {
+            if (series[axis + "AxisType"] === DISCRETE) {
                 data.categories = data.categories || [];
                 data.categories.push(value)
             }
@@ -10527,7 +8177,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 lastVisibleIndex,
                 prevPointAdded = false,
                 rangeData = series._rangeData,
-                errorBarCorrector = series.getErrorBarRangeCorrector();
+                errorBarCorrector = series._rangeErrorBarCorrector;
             _each(points, function(index, point) {
                 var arg = point.argument,
                     prevPoint = index > 0 ? points[index - 1] : null;
@@ -10627,10 +8277,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             var data = series._rangeData.val,
                 isRangeEmpty = _isEmptyObject(data);
             data.percentStick = true;
-            if (!isRangeEmpty) {
-                data.min = data.min > 0 ? 0 : data.min;
-                data.max = data.max < 0 ? 0 : data.max
-            }
+            !isRangeEmpty && (data.min = 0)
         }
         function _correctMinMaxByErrorBar(data, point, getMinMaxCorrector, minSelector, maxSelector) {
             if (!getMinMaxCorrector)
@@ -10706,9 +8353,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _each = $.each,
             _extend = $.extend,
             _noop = $.noop,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
-            _isString = commonUtils.isString,
+            _utils = DX.utils,
+            _isDefined = _utils.isDefined,
+            _isString = _utils.isString,
             _map = viz.utils.map,
             _normalizeEnum = viz.utils.normalizeEnum,
             math = Math,
@@ -10740,7 +8387,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             return summa
         }
         function isErrorBarTypeCorrect(type) {
-            return $.inArray(type, [FIXED, PERCENT, VARIANCE, STANDARD_DEVIATION, STANDARD_ERROR]) !== -1
+            return $.inArray(type, [FIXED, PERCENT, VARIANCE, STANDARD_DEVIATION, STANDARD_ERROR, UNDEFINED]) !== -1
         }
         function variance(array, expectedValue) {
             return sum(_map(array, function(value) {
@@ -10806,24 +8453,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     that._applyMarkerClipRect(settings);
                     that._markersGroup.attr(settings)
                 },
-                _applyVisibleArea: function() {
-                    var that = this,
-                        visibleX = that.translators.x.getCanvasVisibleArea(),
-                        visibleY = that.translators.y.getCanvasVisibleArea();
-                    that._visibleArea = {
-                        minX: visibleX.min,
-                        maxX: visibleX.max,
-                        minY: visibleY.min,
-                        maxY: visibleY.max
-                    }
-                },
                 areErrorBarsVisible: function() {
-                    var errorBarOptions = this._options.valueErrorBar;
-                    return errorBarOptions && this._errorBarsEnabled() && errorBarOptions.displayMode !== "none" && (isErrorBarTypeCorrect(_normalizeEnum(errorBarOptions.type)) || _isDefined(errorBarOptions.lowValueField) || _isDefined(errorBarOptions.highValueField))
+                    var errorBarOptions = this._options.valueErrorBar || {};
+                    return this._errorBarsEnabled() && errorBarOptions.displayMode !== "none" && (isErrorBarTypeCorrect(_normalizeEnum(errorBarOptions.type)) || _isDefined(errorBarOptions.lowValueField) || _isDefined(errorBarOptions.highValueField))
                 },
                 _createErrorBarGroup: function(animationEnabled) {
                     var that = this,
-                        errorBarOptions = that._options.valueErrorBar,
+                        errorBarOptions = that._options.valueErrorBar || {},
                         settings;
                     if (that.areErrorBarsVisible()) {
                         settings = {
@@ -10896,12 +8532,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 _checkData: function(data) {
                     return _isDefined(data.argument) && data.value !== undefined
                 },
-                getErrorBarRangeCorrector: function() {
-                    var mode,
-                        func;
-                    if (this.areErrorBarsVisible()) {
-                        mode = _normalizeEnum(this._options.valueErrorBar.displayMode);
-                        func = function(point) {
+                _getRangeCorrector: function() {
+                    var errorBars = this.getOptions().valueErrorBar || {},
+                        mode = _normalizeEnum(errorBars.displayMode);
+                    return errorBars ? function(point) {
                             var lowError = point.lowError,
                                 highError = point.highError;
                             switch (mode) {
@@ -10914,9 +8548,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                                 default:
                                     return [lowError, highError]
                             }
-                        }
-                    }
-                    return func
+                        } : undefined
                 },
                 _processRange: function(point, prevPoint, errorBarCorrector) {
                     rangeCalculator.processRange(this, point, prevPoint, errorBarCorrector)
@@ -10939,8 +8571,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     return this.valueAxisType !== DISCRETE && this.valueAxisType !== LOGARITHMIC && this.valueType !== DATETIME
                 },
                 _fillErrorBars: function(data, pointData, options) {
-                    var errorBars = options.valueErrorBar;
-                    if (this.areErrorBarsVisible()) {
+                    var errorBars = options.valueErrorBar || {};
+                    if (this._errorBarsEnabled()) {
                         pointData.lowError = data[errorBars.lowValueField || LOW_ERROR];
                         pointData.highError = data[errorBars.highValueField || HIGH_ERROR]
                     }
@@ -10970,7 +8602,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     var that = this,
                         animationSettings = {duration: that._defaultDuration};
                     that._labelsGroup && that._labelsGroup.animate({opacity: 1}, animationSettings);
-                    that._errorBarGroup && that._errorBarGroup.animate({opacity: that._options.valueErrorBar.opacity || 1}, animationSettings)
+                    that._errorBarGroup && that._errorBarGroup.animate({opacity: (that._options.valueErrorBar || {}).opacity || 1}, animationSettings)
                 },
                 _animate: function() {
                     var that = this,
@@ -11040,24 +8672,18 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 },
                 getValueFields: function() {
                     var options = this._options,
-                        errorBarsOptions = options.valueErrorBar,
+                        errorBarsOptions = options.valueErrorBar || {},
                         valueFields = [options.valueField || "val"],
-                        lowValueField,
-                        highValueField;
-                    if (errorBarsOptions) {
-                        lowValueField = errorBarsOptions.lowValueField;
+                        lowValueField = errorBarsOptions.lowValueField,
                         highValueField = errorBarsOptions.highValueField;
-                        _isString(lowValueField) && valueFields.push(lowValueField);
-                        _isString(highValueField) && valueFields.push(highValueField)
-                    }
+                    _isString(lowValueField) && valueFields.push(lowValueField);
+                    _isString(highValueField) && valueFields.push(highValueField);
                     return valueFields
                 },
                 _calculateErrorBars: function(data) {
-                    if (!this.areErrorBarsVisible())
-                        return;
                     var that = this,
                         options = that._options,
-                        errorBarsOptions = options.valueErrorBar,
+                        errorBarsOptions = options.valueErrorBar || {},
                         errorBarType = _normalizeEnum(errorBarsOptions.type),
                         floatErrorValue = parseFloat(errorBarsOptions.value),
                         valueField = that.getValueFields()[0],
@@ -11073,6 +8699,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             item[lowValueField] = value - floatErrorValue;
                             item[highValueField] = value + floatErrorValue
                         };
+                    if (!that._errorBarsEnabled() || !isErrorBarTypeCorrect(errorBarType))
+                        return;
                     switch (errorBarType) {
                         case FIXED:
                             processDataItem = addSubError;
@@ -11142,7 +8770,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     })).attr({clipId: this._paneClipRectID || null}).append(that._group);
                     _each(segments, function(i, segment) {
                         if (!trackers[i])
-                            trackers[i] = that._drawTrackerElement(segment).data({"chart-data-series": that}).append(trackersGroup);
+                            trackers[i] = that._drawTrackerElement(segment).data({series: that}).append(trackersGroup);
                         else
                             that._updateTrackerElement(segment, trackers[i])
                     })
@@ -11203,16 +8831,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
             getNeighborPoint: function(x, y) {
                 var pos = this.translators.untranslate(x, y);
                 return chartSeries.scatter.getNeighborPoint.call(this, pos.phi, pos.r)
-            },
-            _applyVisibleArea: function() {
-                var that = this,
-                    canvas = that.translators.canvas;
-                that._visibleArea = {
-                    minX: canvas.left,
-                    maxX: canvas.width - canvas.right,
-                    minY: canvas.top,
-                    maxY: canvas.height - canvas.bottom
-                }
             }
         })
     })(jQuery, DevExpress);
@@ -11222,10 +8840,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
             series = viz.series,
             chartSeries = series.mixins.chart,
             polarSeries = series.mixins.polar,
-            objectUtils = DX.require("/utils/utils.object"),
+            utils = DX.utils,
             scatterSeries = chartSeries.scatter,
-            mathUtils = DX.require("/utils/utils.math"),
-            normalizeAngle = mathUtils.normalizeAngle,
+            rangeCalculator = series.helpers.rangeDataCalculator,
+            normalizeAngle = utils.normalizeAngle,
             CANVAS_POSITION_START = "canvas_position_start",
             CANVAS_POSITION_TOP = "canvas_position_top",
             DISCRETE = "discrete",
@@ -11233,7 +8851,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _extend = $.extend,
             _each = $.each;
         function clonePoint(point, newX, newY, newAngle) {
-            var p = objectUtils.clone(point);
+            var p = utils.clone(point);
             p.x = newX;
             p.y = newY;
             p.angle = newAngle;
@@ -11241,7 +8859,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
         }
         function getTangentPoint(point, prevPoint, centerPoint, tan, nextStepAngle) {
             var currectAngle = point.angle + nextStepAngle,
-                cossin = mathUtils.getCosAndSin(currectAngle),
+                cossin = utils.getCosAndSin(currectAngle),
                 x = centerPoint.x + (point.radius + tan * nextStepAngle) * cossin.cos,
                 y = centerPoint.y - (point.radius + tan * nextStepAngle) * cossin.sin;
             return clonePoint(prevPoint, x, y, currectAngle)
@@ -11394,7 +9012,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     }
                     stepY = segment[segment.length - 1].y;
                     if (stepY !== pt.y) {
-                        point = objectUtils.clone(pt);
+                        point = utils.clone(pt);
                         point.y = stepY;
                         segment.push(point)
                     }
@@ -11406,6 +9024,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return chartSeries.line._prepareSegment(this._calculateStepLinePoints(points))
             }
         });
+        chartSeries.stackedline = _extend({}, chartSeries.line, {});
+        chartSeries.fullstackedline = _extend({}, chartSeries.line, {_getRangeData: function(zoomArgs, calcIntervalFunction) {
+                var that = this;
+                rangeCalculator.calculateRangeData(that, zoomArgs, calcIntervalFunction);
+                rangeCalculator.addLabelPaddings(that);
+                rangeCalculator.processFullStackedRange(that);
+                return that._rangeData
+            }});
         chartSeries.spline = _extend({}, chartSeries.line, {
             _calculateBezierPoints: function(src, rotated) {
                 var bezierPoints = [],
@@ -11571,9 +9197,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file areaSeries.js */
     (function($, DX) {
         var viz = DX.viz,
-            objectUtils = DX.require("/utils/utils.object"),
-            commonUtils = DX.require("/utils/utils.common"),
-            Color = DX.require("/color"),
+            utils = DX.utils,
             series = viz.series,
             chartSeries = series.mixins.chart,
             polarSeries = series.mixins.polar,
@@ -11590,7 +9214,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     return legendState
                 },
                 _getSpecialColor: function(color) {
-                    return this._options._IE8 ? new Color(color).highlight(HOVER_COLOR_HIGHLIGHTING) : color
+                    return this._options._IE8 ? new DX.Color(color).highlight(HOVER_COLOR_HIGHLIGHTING) : color
                 },
                 _getRangeData: function(zoomArgs, calcIntervalFunction) {
                     rangeCalculator.calculateRangeData(this, zoomArgs, calcIntervalFunction);
@@ -11635,7 +9259,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     })
                 },
                 _createPattern: function(color, hatching) {
-                    if (hatching && commonUtils.isObject(hatching)) {
+                    if (hatching && utils.isObject(hatching)) {
                         var pattern = this._renderer.pattern(color, hatching);
                         this._patterns.push(pattern);
                         return pattern.id
@@ -11685,7 +9309,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _processSinglePointsAreaSegment: function(points, rotated) {
                 if (points.length === 1) {
                     var p = points[0],
-                        p1 = objectUtils.clone(p);
+                        p1 = utils.clone(p);
                     p1[rotated ? "y" : "x"] += 1;
                     p1.argument = null;
                     return [p, p1]
@@ -11912,9 +9536,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
     (function($, DX) {
         var viz = DX.viz,
             series = viz.series.mixins.chart,
-            commonUtils = DX.require("/utils/utils.common"),
+            _utils = DX.utils,
             _extend = $.extend,
-            _isDefined = commonUtils.isDefined,
+            _isDefined = _utils.isDefined,
             _map = viz.utils.map,
             _noop = $.noop,
             rangeCalculator = viz.series.helpers.rangeDataCalculator,
@@ -12039,14 +9663,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
             series = mixins.chart,
             scatterSeries = series.scatter,
             barSeries = series.bar,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
+            _isDefined = DX.utils.isDefined,
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop;
         series.bubble = _extend({}, scatterSeries, {
             _fillErrorBars: _noop,
-            getErrorBarRangeCorrector: _noop,
+            _getRangeCorrector: _noop,
             _calculateErrorBars: _noop,
             _getMainColor: barSeries._getMainColor,
             _createPointStyles: barSeries._createPointStyles,
@@ -12127,7 +9750,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
         var viz = DX.viz,
             mixins = viz.series.mixins,
             pieSeries = mixins.pie,
-            mathUtils = DX.require("/utils/utils.math"),
+            _utils = DX.utils,
             scatterSeries = mixins.chart.scatter,
             barSeries = mixins.chart.bar,
             _extend = $.extend,
@@ -12154,7 +9777,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 _each(points, function(_, point) {
                     if (point._label.isVisible() && point._label.getLayoutOptions().position !== "inside") {
                         point.setLabelEllipsis();
-                        point.setLabelTrackerData();
                         labelsBBoxes.push(point._label.getBoundingRect().width)
                     }
                 });
@@ -12173,11 +9795,16 @@ if (!DevExpress.MOD_VIZ_CORE) {
             areErrorBarsVisible: _noop,
             _prepareSeriesToDrawing: _noop,
             _endUpdateData: scatterSeries._prepareSeriesToDrawing,
+            resetLabelSetups: function() {
+                _each(this._points || [], function(_, point) {
+                    point._label.clearVisibility()
+                })
+            },
             drawLabelsWOPoints: function(translators) {
                 var that = this,
                     options = that._options,
                     points = that._points || [];
-                if (options.label.position === "inside" || !options.label.visible)
+                if (options.label.position === "inside")
                     return false;
                 that._labelsGroup.append(that._extGroups.labelsGroup);
                 _each(points, function(_, point) {
@@ -12185,8 +9812,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 });
                 return true
             },
-            _getCreatingPointOptions: function(data) {
-                return this._getPointOptions(data)
+            _getCreatingPointOptions: function() {
+                return this._getPointOptions()
             },
             _updateOptions: function(options) {
                 this.labelSpace = 0;
@@ -12201,11 +9828,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 that._markersGroup.attr({"class": "dxc-markers"})
             },
-            _getMainColor: function(data) {
-                return this._options.mainSeriesColor(data)
+            _getMainColor: function() {
+                return this._options.mainSeriesColor()
             },
-            _getPointOptions: function(data) {
-                return this._parsePointOptions(this._preparePointOptions(), this._options.label, data)
+            _getPointOptions: function() {
+                return this._parsePointOptions(this._preparePointOptions(), this._options.label)
             },
             _getRangeData: function() {
                 return this._rangeData
@@ -12218,9 +9845,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 });
                 return total
             },
-            _createPointStyles: function(pointOptions, data) {
+            _createPointStyles: function(pointOptions) {
                 var that = this,
-                    mainColor = pointOptions.color || that._getMainColor(data),
+                    mainColor = pointOptions.color || that._getMainColor(),
                     specialMainColor = that._getSpecialColor(mainColor);
                 return {
                         normal: that._parsePointStyle(pointOptions, mainColor, mainColor),
@@ -12250,7 +9877,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _applyArrangeCorrection: function(points, minShownValue, total) {
                 var options = this._options,
                     isClockWise = options.segmentsDirection !== "anticlockwise",
-                    shiftedAngle = _isFinite(options.startAngle) ? mathUtils.normalizeAngle(options.startAngle) : 0,
+                    shiftedAngle = _isFinite(options.startAngle) ? _utils.normalizeAngle(options.startAngle) : 0,
                     minSegmentSize = options.minSegmentSize,
                     percent,
                     correction = 0,
@@ -12279,6 +9906,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     originalPoints = that._originalPoints || [],
                     minSegmentSize = that._options.minSegmentSize,
                     minShownValue,
+                    pointIndex = 0,
                     total,
                     isAllPointsNegative = true,
                     points,
@@ -12289,12 +9917,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     i++
                 }
                 points = that._originalPoints = that._points = _map(originalPoints, function(point) {
-                    if (point.value === null || !isAllPointsNegative && point.value < 0) {
+                    if (point.value === null || !isAllPointsNegative && point.value < 0 || point.value === 0 && !minSegmentSize) {
                         point.dispose();
                         return null
                     }
-                    else
+                    else {
+                        point.index = pointIndex++;
                         return point
+                    }
                 });
                 total = that._getArrangeTotal(points);
                 if (minSegmentSize)
@@ -12302,37 +9932,19 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that._applyArrangeCorrection(points, minShownValue, total)
             },
             correctPosition: function(correction) {
-                var debug = DX.require("/utils/utils.console").debug;
+                var debug = DX.utils.debug;
                 debug.assert(correction, "correction was not passed");
                 debug.assertParam(correction.centerX, "correction.centerX was not passed");
                 debug.assertParam(correction.centerY, "correction.centerY was not passed");
                 debug.assertParam(correction.radiusInner, "correction.radiusInner was not passed");
                 debug.assertParam(correction.radiusOuter, "correction.radiusOuter was not passed");
-                debug.assertParam(correction.canvas, "correction.canvas was not passed");
                 _each(this._points, function(_, point) {
                     point.correctPosition(correction)
                 });
-                this.setVisibleArea(correction.canvas)
+                this._centerX = correction.centerX;
+                this._centerY = correction.centerY;
+                this._radiusOuter = correction.radiusOuter
             },
-            correctRadius: function(correction) {
-                _each(this._points, function(_, point) {
-                    point.correctRadius(correction)
-                })
-            },
-            correctLabelRadius: function(labelRadius) {
-                _each(this._points, function(_, point) {
-                    point.correctLabelRadius(labelRadius)
-                })
-            },
-            setVisibleArea: function(canvas) {
-                this._visibleArea = {
-                    minX: canvas.left,
-                    maxX: canvas.width - canvas.right,
-                    minY: canvas.top,
-                    maxY: canvas.height - canvas.bottom
-                }
-            },
-            _applyVisibleArea: _noop,
             _animate: function(firstDrawing) {
                 var that = this,
                     index = 0,
@@ -12365,8 +9977,21 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         return p.isVisible() ? p : null
                     })
             },
+            getPointByCoord: function(x, y) {
+                var points = this._points,
+                    i = 0;
+                for (; i < points.length; i++)
+                    if (points[i].coordsIn(x, y))
+                        return points[i]
+            },
             _beginUpdateData: function() {
                 this._deletePatterns()
+            },
+            getCenter: function() {
+                return {
+                        x: this._centerX,
+                        y: this._centerY
+                    }
             }
         });
         pieSeries.doughnut = pieSeries.donut = pieSeries.pie
@@ -12379,8 +10004,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             scatterSeries = series.scatter,
             barSeries = series.bar,
             rangeCalculator = seriesNS.helpers.rangeDataCalculator,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
+            _isDefined = DX.utils.isDefined,
             _normalizeEnum = DX.viz.utils.normalizeEnum,
             _extend = $.extend,
             _each = $.each,
@@ -12393,7 +10017,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             _updatePointsVisibility: barSeries._updatePointsVisibility,
             _preparePointOptions: barSeries._preparePointOptions,
-            getErrorBarRangeCorrector: _noop,
+            _getRangeCorrector: _noop,
             _createErrorBarGroup: _noop,
             areErrorBarsVisible: _noop,
             _createGroups: scatterSeries._createGroups,
@@ -12623,11 +10247,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
             lineSeries = chartSeries.line,
             rangeCalculator = viz.series.helpers.rangeDataCalculator,
             _extend = $.extend,
-            objectUtils = DX.require("/utils/utils.object"),
+            utils = DX.utils,
             _noop = $.noop,
             baseStackedSeries = {
                 _processRange: _noop,
-                getErrorBarRangeCorrector: _noop,
+                _getRangeCorrector: _noop,
                 _fillErrorBars: _noop,
                 _calculateErrorBars: _noop,
                 _processStackedRange: function() {
@@ -12682,7 +10306,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return rangeData
             }});
         function clonePoint(point, value, minValue, position) {
-            point = objectUtils.clone(point);
+            point = utils.clone(point);
             point.value = value;
             point.minValue = minValue;
             point.translate();
@@ -12780,28 +10404,27 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(jQuery, DevExpress);
     /*! Module viz-core, file basePoint.js */
     (function($, DX) {
-        DX.viz.series.points = {};
         var seriesNS = DX.viz.series,
-            pointsNS = seriesNS.points,
             statesConsts = seriesNS.helpers.consts.states,
             _each = $.each,
             _extend = $.extend,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
+            _isDefined = DX.utils.isDefined,
             seiresMixins = seriesNS.mixins,
             _noop = $.noop;
-        function Point(series, dataItem, options) {
-            this.series = series;
-            this.update(dataItem, options);
-            this._emptySettings = {
-                fill: null,
-                stroke: null,
-                dashStyle: null
-            }
+        function Point() {
+            this.ctor.apply(this, arguments)
         }
-        seriesNS.points.Point = Point;
+        seriesNS.points = {Point: Point};
         Point.prototype = {
-            constructor: Point,
+            ctor: function(series, dataItem, options) {
+                this.series = series;
+                this.update(dataItem, options);
+                this._emptySettings = {
+                    fill: null,
+                    stroke: null,
+                    dashStyle: null
+                }
+            },
             getColor: function() {
                 return this._styles.normal.fill || this.series.getColor()
             },
@@ -12917,28 +10540,28 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 this.series.hidePointTooltip(this)
             },
             _checkLabelsChanging: function(oldType, newType) {
-                var isNewRange = ~newType.indexOf("range"),
-                    isOldRange = ~oldType.indexOf("range");
-                return isOldRange && !isNewRange || !isOldRange && isNewRange
+                if (oldType) {
+                    var isNewRange = ~newType.indexOf("range"),
+                        isOldRange = ~oldType.indexOf("range");
+                    return isOldRange && !isNewRange || !isOldRange && isNewRange
+                }
+                else
+                    return false
             },
             updateOptions: function(newOptions) {
-                if (!newOptions)
+                if (!_isDefined(newOptions))
                     return;
                 var that = this,
                     oldOptions = that._options,
                     widgetType = newOptions.widgetType,
                     oldType = oldOptions && oldOptions.type,
-                    newType = newOptions.type,
-                    pointTypes = seiresMixins[widgetType].pointTypes,
-                    newPointTypeMixin = pointTypes[newType];
-                if (oldType !== newType) {
+                    newType = newOptions.type;
+                if (seiresMixins[widgetType].pointTypes[oldType] !== seiresMixins[widgetType].pointTypes[newType]) {
                     that._needDeletingOnDraw = true;
                     that._needClearingOnDraw = false;
-                    if (oldType) {
-                        that._checkLabelsChanging(oldType, newType) && that.deleteLabel();
-                        that._resetType(pointsNS.mixins[pointTypes[oldType]])
-                    }
-                    that._setType(pointsNS.mixins[newPointTypeMixin])
+                    that._checkLabelsChanging(oldType, newType) && that.deleteLabel();
+                    that._resetType(oldType, widgetType);
+                    that._setType(newType, widgetType)
                 }
                 else {
                     that._needDeletingOnDraw = that._checkSymbol(oldOptions, newOptions);
@@ -12946,7 +10569,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 }
                 that._options = newOptions;
                 that._fillStyle();
-                that._updateLabelOptions(newPointTypeMixin)
+                that._updateLabelOptions(seiresMixins[widgetType].pointTypes[newType])
             },
             translate: function(translators) {
                 var that = this;
@@ -12962,13 +10585,18 @@ if (!DevExpress.MOD_VIZ_CORE) {
             getBoundingRect: function() {
                 return this._getGraphicBbox()
             },
-            _resetType: function(methods) {
-                for (var methodName in methods)
-                    delete this[methodName]
+            _resetType: function(type, widgetType) {
+                var that = this;
+                if (type)
+                    _each(seriesNS.points.mixins[seiresMixins[widgetType].pointTypes[type]], function(methodName) {
+                        delete that[methodName]
+                    })
             },
-            _setType: function(methods) {
-                for (var methodName in methods)
-                    this[methodName] = methods[methodName]
+            _setType: function(type, widgetType) {
+                var that = this;
+                _each(seriesNS.points.mixins[seiresMixins[widgetType].pointTypes[type]], function(methodName, method) {
+                    that[methodName] = method
+                })
             },
             isInVisibleArea: function() {
                 return this.inVisibleArea
@@ -13016,9 +10644,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         y: that.y
                     }
             },
-            _getVisibleArea: function() {
-                return this.series._visibleArea
-            },
             _calculateVisibility: function(x, y, width, height) {
                 var that = this,
                     visibleAreaX,
@@ -13033,15 +10658,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         that.inVisibleArea = true
                 }
             },
+            correctPosition: _noop,
             hasValue: function() {
                 return this.value !== null && this.minValue !== null
             },
             getBoundaryCoords: function() {
                 return this.getBoundingRect()
             },
-            correctPosition: _noop,
-            correctRadius: _noop,
-            correctLabelRadius: _noop,
             getCrosshairData: _noop,
             getPointRadius: _noop,
             _populatePointShape: _noop,
@@ -13060,7 +10683,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
             coordsIn: _noop,
             getTooltipParams: _noop,
             setLabelEllipsis: _noop,
-            setLabelTrackerData: _noop,
             updateLabelCoord: _noop,
             drawLabel: _noop,
             correctLabelPosition: _noop,
@@ -13118,12 +10740,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
     })(jQuery, DevExpress);
     /*! Module viz-core, file label.js */
     (function(DX, $, undefined) {
-        var formatHelper = DX.require("/utils/utils.formatHelper"),
-            mathUtils = DX.require("/utils/utils.math"),
-            _degreesToRadians = mathUtils.degreesToRadians,
+        var _degreesToRadians = DX.utils.degreesToRadians,
             _patchFontOptions = DX.viz.utils.patchFontOptions,
             _round = Math.round,
-            _getCosAndSin = mathUtils.getCosAndSin,
+            _getCosAndSin = DX.utils.getCosAndSin,
             _rotateBBox = DX.viz.renderers.rotateBBox,
             LABEL_BACKGROUND_PADDING_X = 8,
             LABEL_BACKGROUND_PADDING_Y = 4;
@@ -13207,7 +10827,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             return connector && connector["stroke-width"] > 0 && connector.stroke && connector.stroke !== "none"
         }
         function formatValue(value, format, precision) {
-            return formatHelper.format(value, format, precision)
+            return DX.formatHelper.format(value, format, precision)
         }
         function formatText(data, options) {
             var format = options.format,
@@ -13358,10 +10978,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 this._text && this._text.applyEllipsis(maxWidth);
                 this._updateBackground(this._text.getBBox())
             },
-            setTrackerData: function(point) {
-                this._text.data({"chart-data-point": point});
-                this._background && this._background.data({"chart-data-point": point})
-            },
             shift: function(x, y) {
                 var that = this;
                 if (that._textContent) {
@@ -13402,14 +11018,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
     (function($, DX) {
         var viz = DX.viz,
             seriesNS = viz.series,
-            commonUtils = DX.require("/utils/utils.common"),
             _extend = $.extend,
-            _isDefined = commonUtils.isDefined,
+            _isDefined = DX.utils.isDefined,
             _normalizeEnum = DX.viz.utils.normalizeEnum,
             _math = Math,
             _round = _math.round,
             _floor = _math.floor,
             _ceil = _math.ceil,
+            _abs = _math.abs,
             DEFAULT_IMAGE_WIDTH = 20,
             DEFAULT_IMAGE_HEIGHT = 20,
             LABEL_OFFSET = 10,
@@ -13555,7 +11171,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this,
                     marker = that._checkImage(image) ? that._createImageMarker(renderer, settings, image) : that._createSymbolMarker(renderer, settings);
                 if (marker)
-                    marker.data({"chart-data-point": that}).append(group);
+                    marker.data({point: that}).append(group);
                 return marker
             },
             _getSymbolBbox: function(x, y, r) {
@@ -13593,6 +11209,21 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         height: 0
                     };
                 return bbox
+            },
+            _getVisibleArea: function() {
+                var translators = this.translators,
+                    visibleX,
+                    visibleY;
+                if (translators) {
+                    visibleX = translators.x.getCanvasVisibleArea();
+                    visibleY = translators.y.getCanvasVisibleArea();
+                    return {
+                            minX: visibleX.min,
+                            maxX: visibleX.max,
+                            minY: visibleY.min,
+                            maxY: visibleY.max
+                        }
+                }
             },
             _isLabelInsidePoint: $.noop,
             _getShiftLabelCoords: function(label) {
@@ -13734,11 +11365,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return {visibility: "visible"}
             },
             _drawErrorBar: function(renderer, group) {
-                if (!this._options.errorBars)
-                    return;
                 var that = this,
-                    options = that._options,
-                    errorBarOptions = options.errorBars,
+                    errorBarOptions = that._options.errorBars || {},
                     points = [],
                     settings,
                     pos = that._errorBarPos,
@@ -13756,7 +11384,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     !lowErrorOnly && points.push([pos - edgeLength, high, pos + edgeLength, high]);
                     points.push([pos, high, pos, low]);
                     !highErrorOnly && points.push([pos + edgeLength, low, pos - edgeLength, low]);
-                    options.rotated && $.each(points, function(_, p) {
+                    that._options.rotated && $.each(points, function(_, p) {
                         p.reverse()
                     });
                     settings = that._getErrorBarSettings(errorBarOptions);
@@ -13781,8 +11409,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             setPercentValue: function(total, fullStacked, leftHoleTotal, rightHoleTotal) {
                 var that = this,
-                    valuePercent = that.value / total || 0,
-                    minValuePercent = that.minValue / total || 0,
+                    valuePercent = _abs(that.value / total || 0),
+                    minValuePercent = _abs(that.minValue / total || 0),
                     percent = valuePercent - minValuePercent;
                 that._label.setDataField("percent", percent);
                 that._label.setDataField("total", total);
@@ -13814,34 +11442,23 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _translateErrorBars: function(valueTranslator) {
                 var that = this,
                     options = that._options,
-                    rotated = options.rotated,
-                    errorBars = options.errorBars;
-                if (!errorBars)
-                    return;
+                    errorBars = options.errorBars || {};
                 _isDefined(that.lowError) && (that._lowErrorCoord = valueTranslator.translate(that.lowError));
                 _isDefined(that.highError) && (that._highErrorCoord = valueTranslator.translate(that.highError));
-                that._errorBarPos = _floor(rotated ? that.vy : that.vx);
-                that._baseErrorBarPos = errorBars.type === "stdDeviation" ? that._lowErrorCoord + (that._highErrorCoord - that._lowErrorCoord) / 2 : rotated ? that.vx : that.vy
+                that._errorBarPos = _floor(that._options.rotated ? that.vy : that.vx);
+                that._baseErrorBarPos = errorBars.type === "stdDeviation" ? that._lowErrorCoord + (that._highErrorCoord - that._lowErrorCoord) / 2 : that._options.rotated ? that.vx : that.vy
             },
             _translate: function(translators) {
                 var that = this,
-                    valueTranslator;
-                if (that._options.rotated) {
-                    valueTranslator = translators.x;
-                    that.vx = that.x = valueTranslator.translate(that.value);
-                    that.vy = that.y = translators.y.translate(that.argument);
-                    that.minX = valueTranslator.translate(that.minValue);
-                    that.defaultX = valueTranslator.translate(CANVAS_POSITION_DEFAULT);
-                    that._translateErrorBars(valueTranslator)
-                }
-                else {
-                    valueTranslator = translators.y;
-                    that.vy = that.y = valueTranslator.translate(that.value);
-                    that.vx = that.x = translators.x.translate(that.argument);
-                    that.minY = valueTranslator.translate(that.minValue);
-                    that.defaultY = valueTranslator.translate(CANVAS_POSITION_DEFAULT);
-                    that._translateErrorBars(valueTranslator)
-                }
+                    valueAxis = that._options.rotated ? "x" : "y",
+                    upperValueAxis = valueAxis.toUpperCase(),
+                    valueTranslator = translators[valueAxis],
+                    argumentAxis = that._options.rotated ? "y" : "x";
+                that["v" + valueAxis] = that[valueAxis] = valueTranslator.translate(that.value);
+                that["v" + argumentAxis] = that[argumentAxis] = translators[argumentAxis].translate(that.argument);
+                that["min" + upperValueAxis] = valueTranslator.translate(that.minValue);
+                that["default" + upperValueAxis] = valueTranslator.translate(CANVAS_POSITION_DEFAULT);
+                that._translateErrorBars(valueTranslator);
                 that._calculateVisibility(that.x, that.y)
             },
             _updateData: function(data) {
@@ -13915,7 +11532,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             _getLabelPosition: function() {
                 var rotated = this._options.rotated;
-                if (this.initialValue > 0)
+                if (this.series.isFullStackedSeries() || this.initialValue > 0)
                     return rotated ? "right" : "top";
                 else
                     return rotated ? "left" : "bottom"
@@ -14061,7 +11678,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that.graphic = renderer.rect(x, y, width, height).attr({
                     rx: r,
                     ry: r
-                }).attr(style).data({"chart-data-point": that}).append(group)
+                }).attr(style).data({point: that}).append(group)
             },
             _getSettingsForTracker: function() {
                 var that = this,
@@ -14217,7 +11834,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         translateX: that.x,
                         translateY: that.y
                     }, that._getStyle());
-                that.graphic = renderer.circle(0, 0, animationEnabled ? 0 : that.bubbleSize).attr(attr).data({"chart-data-point": that}).append(group)
+                that.graphic = renderer.circle(0, 0, animationEnabled ? 0 : that.bubbleSize).attr(attr).data({point: that}).append(group)
             },
             getTooltipParams: function(location) {
                 var that = this,
@@ -14286,11 +11903,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
             _acos = Math.acos,
             DEG = 180 / Math.PI,
             _abs = Math.abs,
-            mathUtils = DX.require("/utils/utils.math"),
-            _normalizeAngle = mathUtils.normalizeAngle,
-            _getCosAndSin = mathUtils.getCosAndSin,
-            commonUtils = DX.require("/utils/utils.common"),
-            _isDefined = commonUtils.isDefined,
+            _normalizeAngle = DX.utils.normalizeAngle,
+            _getCosAndSin = DX.utils.getCosAndSin,
+            _isDefined = DX.utils.isDefined,
             INDENT_FROM_PIE = series.helpers.consts.pieLabelIndent;
         function getVerticallyShiftedAngularCoords(bbox, dy, center) {
             var isPositive = bbox.x + bbox.width / 2 >= center.x,
@@ -14328,17 +11943,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             correctPosition: function(correction) {
                 var that = this;
-                that.correctRadius(correction);
-                that.correctLabelRadius(correction.radiusOuter);
+                that.radiusInner = correction.radiusInner;
+                that.radiusOuter = correction.radiusOuter;
                 that.centerX = correction.centerX;
                 that.centerY = correction.centerY
-            },
-            correctRadius: function(correction) {
-                this.radiusInner = correction.radiusInner;
-                this.radiusOuter = correction.radiusOuter
-            },
-            correctLabelRadius: function(radiusLabels) {
-                this.radiusLabels = radiusLabels
             },
             correctValue: function(correction, percent, base) {
                 var that = this;
@@ -14371,7 +11979,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     position = that._getLabelPosition(options),
                     radiusInner = that.radiusInner,
                     radiusOuter = that.radiusOuter,
-                    radiusLabels = that.radiusLabels,
                     rad,
                     x;
                 if (position === 'inside') {
@@ -14379,7 +11986,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     x = that.centerX + rad * angleFunctions.cos - bbox.width / 2
                 }
                 else {
-                    rad = radiusLabels + options.radialOffset + INDENT_FROM_PIE;
+                    rad = radiusOuter + options.radialOffset + INDENT_FROM_PIE;
                     if (angleFunctions.cos > 0.1)
                         x = that.centerX + rad * angleFunctions.cos;
                     else if (angleFunctions.cos < -0.1)
@@ -14397,10 +12004,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     label = that._label,
                     bbox = label.getBoundingRect(),
                     options = label.getLayoutOptions(),
-                    rad = that.radiusLabels + options.radialOffset,
-                    visibleArea = that._getVisibleArea(),
-                    rightBorderX = visibleArea.maxX - bbox.width,
-                    leftBorderX = visibleArea.minX,
+                    rad = that.radiusOuter + options.radialOffset,
+                    canvas = that.series.canvas,
+                    rightBorderX = canvas.width - canvas.right - bbox.width,
+                    leftBorderX = canvas.left,
                     angleOfPoint = _normalizeAngle(that.middleAngle),
                     x;
                 if (options.position !== 'columns')
@@ -14471,8 +12078,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     coord = that._checkHorizontalLabelPosition(bbox, bbox, that._getVisibleArea());
                 that._label.fit(bbox.width - _abs(coord.x - bbox.x))
             },
-            setLabelTrackerData: function() {
-                this._label.setTrackerData(this)
+            _getVisibleArea: function() {
+                var canvas = this.series.canvas;
+                return {
+                        minX: canvas.left,
+                        maxX: canvas.width - canvas.right,
+                        minY: canvas.top,
+                        maxY: canvas.height - canvas.bottom
+                    }
             },
             _checkLabelPosition: function(coord, bbox, visibleArea) {
                 coord = this._checkHorizontalLabelPosition(coord, bbox, visibleArea);
@@ -14506,7 +12119,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     if (!firstDrawing)
                         fromAngle = toAngle = that.shiftedAngle
                 }
-                that.graphic = renderer.arc(that.centerX, that.centerY, radiusInner, radiusOuter, toAngle, fromAngle).attr({"stroke-linejoin": "round"}).attr(that._getStyle()).data({"chart-data-point": that}).sharp().append(group)
+                that.graphic = renderer.arc(that.centerX, that.centerY, radiusInner, radiusOuter, toAngle, fromAngle).attr({"stroke-linejoin": "round"}).attr(that._getStyle()).data({point: that}).sharp().append(group)
             },
             getTooltipParams: function() {
                 var that = this,
@@ -14608,9 +12221,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
     (function($, DX) {
         var viz = DX.viz,
             points = viz.series.points.mixins,
-            commonUtils = DX.require("/utils/utils.common"),
             _extend = $.extend,
-            _isDefined = commonUtils.isDefined,
+            _isDefined = DX.utils.isDefined,
             _math = Math,
             _abs = _math.abs,
             _min = _math.min,
@@ -15210,7 +12822,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             _drawMarkerInGroup: function(group, attributes, renderer) {
                 var that = this;
-                that.graphic = renderer.path(that._getPoints(), "area").attr({"stroke-linecap": "square"}).attr(attributes).data({"chart-data-point": that}).sharp().append(group)
+                that.graphic = renderer.path(that._getPoints(), "area").attr({"stroke-linecap": "square"}).attr(attributes).data({point: that}).sharp().append(group)
             },
             _fillStyle: function() {
                 var that = this,
@@ -15474,7 +13086,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return points
             },
             _drawMarkerInGroup: function(group, attributes, renderer) {
-                this.graphic = renderer.path(this._getPoints(), "line").attr({"stroke-linecap": "square"}).attr(attributes).data({"chart-data-point": this}).sharp().append(group)
+                this.graphic = renderer.path(this._getPoints(), "line").attr({"stroke-linecap": "square"}).attr(attributes).data({point: this}).sharp().append(group)
             },
             _getMinTrackerWidth: function() {
                 var width = 2 + this._styles.normal['stroke-width'];
@@ -15487,10 +13099,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
         var _extend = $.extend,
             viz = DX.viz,
             points = viz.series.points.mixins,
-            commonUtils = DX.require("/utils/utils.common"),
-            isDefined = commonUtils.isDefined,
-            mathUtils = DX.require("/utils/utils.math"),
-            normalizeAngle = mathUtils.normalizeAngle,
+            utils = DX.utils,
+            isDefined = utils.isDefined,
+            normalizeAngle = utils.normalizeAngle,
             _math = Math,
             _max = _math.max,
             ERROR_BARS_ANGLE_OFFSET = 90,
@@ -15509,7 +13120,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     coord = translator.translate(that.argument, that.value),
                     center = translator.translate(CANVAS_POSITION_START, CANVAS_POSITION_TOP);
                 that.vx = normalizeAngle(coord.angle);
-                that.vy = that.radiusOuter = that.radiusLabels = coord.radius;
+                that.vy = that.radiusOuter = coord.radius;
                 that.radius = coord.radius;
                 that.middleAngle = -coord.angle;
                 that.angle = -coord.angle;
@@ -15521,14 +13132,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that.inVisibleArea = true
             },
             _translateErrorBars: function(translator) {
-                var that = this,
-                    errorBars = that._options.errorBars;
-                if (!errorBars)
-                    return;
+                var that = this;
                 isDefined(that.lowError) && (that._lowErrorCoord = that.centerY - translator.translate(that.argument, that.lowError).radius);
                 isDefined(that.highError) && (that._highErrorCoord = that.centerY - translator.translate(that.argument, that.highError).radius);
                 that._errorBarPos = that.centerX;
-                that._baseErrorBarPos = errorBars.type === "stdDeviation" ? that._lowErrorCoord + (that._highErrorCoord - that._lowErrorCoord) / 2 : that.centerY - that.radius
+                that._baseErrorBarPos = (that._options.errorBars || {}).type === "stdDeviation" ? that._lowErrorCoord + (that._highErrorCoord - that._lowErrorCoord) / 2 : that.centerY - that.radius
             },
             _getTranslates: function(animationEnabled) {
                 return animationEnabled ? this.getDefaultCoords() : {
@@ -15537,7 +13145,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     }
             },
             getDefaultCoords: function() {
-                var cossin = mathUtils.getCosAndSin(-this.angle),
+                var cossin = utils.getCosAndSin(-this.angle),
                     radius = this.translators.translate(CANVAS_POSITION_START, CANVAS_POSITION_DEFAULT).radius,
                     x = this.defaultX + radius * cossin.cos,
                     y = this.defaultY + radius * cossin.sin;
@@ -15548,6 +13156,15 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             _addLabelAlignmentAndOffset: function(label, coord) {
                 return coord
+            },
+            _getVisibleArea: function() {
+                var canvas = this.translators.canvas;
+                return {
+                        minX: canvas.left,
+                        maxX: canvas.width - canvas.right,
+                        minY: canvas.top,
+                        maxY: canvas.height - canvas.bottom
+                    }
             },
             _checkLabelPosition: function(label, coord) {
                 var that = this,
@@ -15574,6 +13191,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
         points.polarBarPoint = _extend({}, points.barPoint, {
             _translateErrorBars: points.polarSymbolPoint._translateErrorBars,
             _getErrorBarSettings: points.polarSymbolPoint._getErrorBarSettings,
+            _getVisibleArea: points.polarSymbolPoint._getVisibleArea,
             _moveLabelOnCanvas: points.barPoint._moveLabelOnCanvas,
             _getLabelCoords: points.piePoint._getLabelCoords,
             _getLabelConnector: points.piePoint._getLabelConnector,
@@ -15589,9 +13207,9 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     that.radiusInner = that.radius = maxRadius;
                 else if (that.radius === null)
                     this.radius = this.value >= 0 ? maxRadius : 0;
-                that.radiusOuter = that.radiusLabels = _max(that.radiusInner, that.radius);
+                that.radiusOuter = _max(that.radiusInner, that.radius);
                 that.radiusInner = that.defaultRadius = _math.min(that.radiusInner, that.radius);
-                that.middleAngle = that.angle = -normalizeAngle(that.middleAngleCorrection - that.angle)
+                that.middleAngle = that.angle = -utils.normalizeAngle(that.middleAngleCorrection - that.angle)
             },
             _checkVisibility: function(translator) {
                 return translator.checkVisibility(this.radius, this.radiusInner)
@@ -15621,12 +13239,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     x = start.x;
                     y = start.y
                 }
-                that.graphic = renderer.arc(x, y, innerRadius, outerRadius, coords.startAngle, coords.endAngle).attr(styles).data({"chart-data-point": that}).append(group)
+                that.graphic = renderer.arc(x, y, innerRadius, outerRadius, coords.startAngle, coords.endAngle).attr(styles).data({point: that}).append(group)
             },
             _checkLabelPosition: function(label, coord) {
                 var that = this,
                     visibleArea = that._getVisibleArea(),
-                    angleFunctions = mathUtils.getCosAndSin(that.middleAngle),
+                    angleFunctions = utils.getCosAndSin(that.middleAngle),
                     x = that.centerX + that.defaultRadius * angleFunctions.cos,
                     y = that.centerY - that.defaultRadius * angleFunctions.sin;
                 if (x > visibleArea.minX && x < visibleArea.maxX && y > visibleArea.minY && y < visibleArea.maxY)
@@ -15651,7 +13269,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file dataValidator.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
-            commonUtils = DX.require("/utils/utils.common"),
+            utils = DX.utils,
             STRING = "string",
             NUMERIC = "numeric",
             DATETIME = "datetime",
@@ -15662,13 +13280,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
             ARGUMENT_TYPE = "argumentType",
             axisTypeParser = viz.utils.enumParser([STRING, NUMERIC, DATETIME]),
             _getParser = viz.parseUtils.getParser,
-            _isDefined = commonUtils.isDefined,
-            _isFunction = commonUtils.isFunction,
-            _isArray = commonUtils.isArray,
-            _isString = commonUtils.isString,
-            _isDate = commonUtils.isDate,
-            _isNumber = commonUtils.isNumber,
-            _isObject = commonUtils.isObject,
+            _isDefined = utils.isDefined,
+            _isFunction = utils.isFunction,
+            _isArray = utils.isArray,
+            _isString = utils.isString,
+            _isDate = utils.isDate,
+            _isNumber = utils.isNumber,
+            _isObject = utils.isObject,
             _each = $.each;
         function groupingValues(data, others, valueField, index) {
             if (index >= 0)
@@ -15815,6 +13433,25 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 parsedData[i] = getParsedCell(data[i], parsers);
             return parsedData
         }
+        function groupSameArguments(data, argumentField, valueFields) {
+            var dataOfArguments = {};
+            _each(data, function(i, cell) {
+                var argument,
+                    cellByArgument;
+                if (!_isDefined(cell[argumentField]) || !_isDefined(cell[valueFields[0]]))
+                    return;
+                argument = cell[argumentField];
+                if (dataOfArguments[argument] >= 0) {
+                    cellByArgument = data[dataOfArguments[argument]];
+                    _each(valueFields, function(_, field) {
+                        cellByArgument[field] += cell[field];
+                        cell[field] = cell["original" + field] = undefined
+                    })
+                }
+                else
+                    dataOfArguments[argument] = i
+            })
+        }
         function findIndexByThreshold(data, valueField, threshold) {
             var i,
                 ii = data.length,
@@ -15850,7 +13487,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 return;
             _each(groups, function(_, group) {
                 _each(group, function(_, series) {
-                    groupMinSlices(data, series.getArgumentField(), series.getValueFields()[0], series.getOptions().smallValuesGrouping)
+                    var argumentField = series.getArgumentField(),
+                        valueFields = series.getValueFields();
+                    if (groups.argumentAxisType === DISCRETE)
+                        groupSameArguments(data, argumentField, valueFields);
+                    groupMinSlices(data, argumentField, valueFields[0], series.getOptions().smallValuesGrouping)
                 })
             })
         }
@@ -16017,14 +13658,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
             secondaryTitleColor: "#767676",
             axisColor: LIGHT_GREY,
             axisLabelColor: "#a8a8a8",
-            title: {
-                font: {
-                    size: 28,
+            title: {font: {
                     family: "'Segoe UI Light', 'Helvetica Neue Light', 'Segoe UI', 'Helvetica Neue', 'Trebuchet MS', Verdana",
                     weight: 200
-                },
-                subtitle: {font: {size: 16}}
-            },
+                }},
             loadingIndicator: {text: "Loading..."},
             tooltip: {
                 enabled: false,
@@ -16159,7 +13796,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     convertToAxisDataType: true,
                     sortingMethod: true
                 },
-                title: {margin: 10},
+                title: {
+                    font: {size: 28},
+                    margin: 10
+                },
                 adaptiveLayout: {
                     width: 80,
                     height: 80,
@@ -16190,16 +13830,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     width: 1,
                     opacity: 0.3
                 },
-                tick: {
-                    visible: false,
-                    width: 1,
-                    length: 8
-                },
+                tick: {visible: false},
                 minorTick: {
                     visible: false,
-                    width: 1,
-                    opacity: 0.3,
-                    length: 8
+                    opacity: 0.3
                 },
                 stripStyle: {
                     paddingLeftRight: 10,
@@ -16213,8 +13847,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         visible: true,
                         position: "inside"
                     }
-                },
-                marker: {label: {}}
+                }
             },
             chart: {
                 commonSeriesSettings: {
@@ -16433,7 +14066,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     multipleAxesSpacing: 5,
                     label: {
                         overlappingBehavior: {
-                            mode: 'enlargeTickInterval',
+                            mode: 'auto',
                             rotationAngle: 90,
                             staggeringSpacing: 5
                         },
@@ -16511,9 +14144,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 maxBubbleSize: 0.2
             },
             pie: {
-                innerRadius: 0.5,
-                type: 'pie',
                 commonSeriesSettings: {
+                    type: 'pie',
                     pie: {
                         border: {
                             visible: false,
@@ -16546,6 +14178,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         }
                     },
                     doughnut: {
+                        innerRadius: 0.5,
                         border: {
                             visible: false,
                             width: 2,
@@ -16577,6 +14210,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         }
                     },
                     donut: {
+                        innerRadius: 0.5,
                         border: {
                             visible: false,
                             width: 2,
@@ -16609,7 +14243,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     }
                 },
                 legend: {
-                    hoverMode: 'allArgumentPoints',
+                    hoverMode: 'markPoint',
                     backgroundColor: "none"
                 },
                 adaptiveLayout: {keepLabels: false}
@@ -16648,28 +14282,20 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 }},
             gauge: {
                 scale: {
-                    tick: {
+                    majorTick: {
                         visible: true,
                         length: 5,
                         width: 2,
-                        opacity: 1
+                        showCalculatedTicks: true,
+                        useTicksAutoArrangement: true
                     },
                     minorTick: {
                         visible: false,
                         length: 3,
                         width: 1,
-                        opacity: 1,
                         showCalculatedTicks: true
                     },
-                    label: {
-                        visible: true,
-                        alignment: "center",
-                        overlappingBehavior: {
-                            hideFirstOrLast: "last",
-                            useAutoArrangement: true
-                        }
-                    },
-                    position: "top"
+                    label: {visible: true}
                 },
                 rangeContainer: {
                     offset: 0,
@@ -16709,11 +14335,21 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             }}
                     }
                 },
+                title: {
+                    layout: {
+                        horizontalAlignment: 'center',
+                        verticalAlignment: 'top',
+                        overlay: 0
+                    },
+                    font: {size: 16}
+                },
+                subtitle: {font: {size: 14}},
                 indicator: {
                     hasPositiveMeaning: true,
                     layout: {
                         horizontalAlignment: 'center',
-                        verticalAlignment: 'bottom'
+                        verticalAlignment: 'bottom',
+                        overlay: 0
                     },
                     text: {font: {size: 18}}
                 },
@@ -16791,11 +14427,21 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     connectorWidth: 2,
                     font: {size: 16}
                 },
+                title: {
+                    layout: {
+                        horizontalAlignment: 'center',
+                        verticalAlignment: 'top',
+                        overlay: 0
+                    },
+                    font: {size: 16}
+                },
+                subtitle: {font: {size: 14}},
                 indicator: {
                     hasPositiveMeaning: true,
                     layout: {
                         horizontalAlignment: 'center',
-                        verticalAlignment: 'bottom'
+                        verticalAlignment: 'bottom',
+                        overlay: 0
                     },
                     text: {font: {size: 18}}
                 }
@@ -16871,28 +14517,16 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     },
                     commonSeriesSettings: {
                         type: "area",
-                        point: {visible: false},
-                        scatter: {point: {visible: true}}
+                        point: {visible: false}
                     }
                 }
             },
             map: {
-                title: {margin: 10},
                 background: {
                     borderWidth: 1,
                     borderColor: '#cacaca'
                 },
-                layer: {label: {
-                        enabled: false,
-                        stroke: WHITE,
-                        'stroke-width': 1,
-                        'stroke-opacity': 0.5,
-                        font: {
-                            color: '#2b2b2b',
-                            size: 12
-                        }
-                    }},
-                "layer:area": {
+                areaSettings: {
                     borderWidth: 1,
                     borderColor: WHITE,
                     color: '#d2d2d2',
@@ -16900,60 +14534,57 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     selectedBorderWidth: 2,
                     selectedBorderColor: GREY_GREEN,
                     label: {
+                        enabled: false,
+                        stroke: WHITE,
                         'stroke-width': 2,
+                        'stroke-opacity': 0.5,
                         font: {
+                            color: '#2b2b2b',
                             size: 16,
                             opacity: 0.5
                         }
                     }
                 },
-                "layer:line": {
-                    width: 2,
-                    color: "#ba8365",
-                    hoveredColor: "#a94813",
-                    selectedWidth: 3,
-                    selectedColor: "#e55100",
+                markerSettings: {
                     label: {
-                        'stroke-width': 2,
-                        font: {
-                            size: 16,
-                            opacity: 0.5
-                        }
-                    }
-                },
-                "layer:marker": {label: {
                         enabled: true,
-                        "stroke-width": 1,
-                        font: {size: 12}
-                    }},
-                "layer:marker:dot": {
-                    borderWidth: 2,
-                    borderColor: WHITE,
-                    color: '#ba4d51',
-                    size: 8,
-                    selectedStep: 2,
-                    backStep: 18,
-                    backColor: WHITE,
-                    backOpacity: 0.32,
-                    shadow: true
+                        stroke: WHITE,
+                        'stroke-width': 1,
+                        'stroke-opacity': 0.5,
+                        font: {
+                            color: '#2b2b2b',
+                            size: 12
+                        }
+                    },
+                    _dot: {
+                        borderWidth: 2,
+                        borderColor: WHITE,
+                        color: '#ba4d51',
+                        size: 8,
+                        selectedStep: 2,
+                        backStep: 18,
+                        backColor: WHITE,
+                        backOpacity: 0.32,
+                        shadow: true
+                    },
+                    _bubble: {
+                        minSize: 20,
+                        maxSize: 50,
+                        color: '#ba4d51',
+                        hoveredBorderWidth: 1,
+                        hoveredBorderColor: GREY_GREEN,
+                        selectedBorderWidth: 2,
+                        selectedBorderColor: GREY_GREEN
+                    },
+                    _pie: {
+                        size: 50,
+                        hoveredBorderWidth: 1,
+                        hoveredBorderColor: GREY_GREEN,
+                        selectedBorderWidth: 2,
+                        selectedBorderColor: GREY_GREEN
+                    },
+                    _image: {size: 20}
                 },
-                "layer:marker:bubble": {
-                    minSize: 20,
-                    maxSize: 50,
-                    color: '#ba4d51',
-                    hoveredBorderWidth: 1,
-                    hoveredBorderColor: GREY_GREEN,
-                    selectedBorderWidth: 2,
-                    selectedBorderColor: GREY_GREEN
-                },
-                "layer:marker:pie": {
-                    size: 50,
-                    hoveredBorderWidth: 1,
-                    hoveredBorderColor: GREY_GREEN,
-                    selectedBorderWidth: 2,
-                    selectedBorderColor: GREY_GREEN
-                },
-                "layer:marker:image": {size: 20},
                 legend: {
                     verticalAlignment: 'bottom',
                     horizontalAlignment: 'right',
@@ -17156,28 +14787,29 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             map: {
                 background: {borderColor: '#3f3f3f'},
-                layer: {label: {
-                        stroke: BLACK,
-                        font: {color: WHITE}
-                    }},
-                "layer:area": {
+                areaSettings: {
                     borderColor: GREY_GREEN,
                     color: '#686868',
                     hoveredBorderColor: WHITE,
-                    selectedBorderColor: WHITE
+                    selectedBorderColor: WHITE,
+                    label: {
+                        stroke: BLACK,
+                        font: {color: WHITE}
+                    }
                 },
-                "layer:line": {
-                    color: "#c77244",
-                    hoveredColor: "#ff5d04",
-                    selectedColor: "#ff784f"
-                },
-                "layer:point:bubble": {
-                    hoveredBorderColor: WHITE,
-                    selectedBorderColor: WHITE
-                },
-                "layer:point:pie": {
-                    hoveredBorderColor: WHITE,
-                    selectedBorderColor: WHITE
+                markerSettings: {
+                    label: {
+                        stroke: BLACK,
+                        font: {color: WHITE}
+                    },
+                    _bubble: {
+                        hoveredBorderColor: WHITE,
+                        selectedBorderColor: WHITE
+                    },
+                    _pie: {
+                        hoveredBorderColor: WHITE,
+                        selectedBorderColor: WHITE
+                    }
                 },
                 legend: {
                     border: {color: '#3f3f3f'},
@@ -17285,36 +14917,41 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             map: {
                 background: {borderColor: WHITE},
-                layer: {label: {
-                        stroke: BLACK,
-                        font: {color: WHITE}
-                    }},
-                "layer:area": {
+                areaSettings: {
                     borderColor: BLACK,
-                    color: "#686868",
+                    color: '#686868',
                     hoveredBorderColor: WHITE,
                     selectedBorderColor: WHITE,
-                    label: {font: {opacity: 1}}
+                    label: {
+                        stroke: BLACK,
+                        'stroke-opacity': 1,
+                        font: {
+                            color: WHITE,
+                            opacity: 1
+                        }
+                    }
                 },
-                "layer:line": {
-                    color: '#267cff',
-                    hoveredColor: "#f613ff",
-                    selectedColor: "#ffffff"
-                },
-                "layer:point:dot": {
-                    borderColor: BLACK,
-                    color: '#f8ca00',
-                    backColor: BLACK,
-                    backOpacity: 0.32
-                },
-                "layer:point:bubble": {
-                    color: '#f8ca00',
-                    hoveredBorderColor: WHITE,
-                    selectedBorderColor: WHITE
-                },
-                "layer:point:pie": {
-                    hoveredBorderColor: WHITE,
-                    selectedBorderColor: WHITE
+                markerSettings: {
+                    label: {
+                        stroke: BLACK,
+                        'stroke-opacity': 1,
+                        font: {color: WHITE}
+                    },
+                    _dot: {
+                        borderColor: BLACK,
+                        color: '#f8ca00',
+                        backColor: BLACK,
+                        backOpacity: 0.32
+                    },
+                    _bubble: {
+                        color: '#f8ca00',
+                        hoveredBorderColor: WHITE,
+                        selectedBorderColor: WHITE
+                    },
+                    _pie: {
+                        hoveredBorderColor: WHITE,
+                        selectedBorderColor: WHITE
+                    }
                 },
                 legend: {markerColor: '#f8ca00'},
                 controlBar: {
@@ -17386,19 +15023,15 @@ if (!DevExpress.MOD_VIZ_CORE) {
         }, "generic.light");
         viz.registerThemeAlias("ios", IOS7_DEFAULT)
     })(DevExpress);
-    /*! Module viz-core, file win.js */
+    /*! Module viz-core, file win8.js */
     (function(DX) {
         var viz = DX.viz,
             registerTheme = viz.registerTheme,
             registerThemeSchemeAlias = viz.registerThemeSchemeAlias,
             BLACK = "#000000",
-            WHITE = "#ffffff",
-            WIN10_WHITE = "win10.white",
-            WIN10_BLACK = "win10.black",
-            WIN8_WHITE = "win8.white",
-            WIN8_BLACK = "win8.black";
+            WHITE = "#ffffff";
         registerTheme({
-            name: WIN10_BLACK,
+            name: "win8.black",
             backgroundColor: BLACK,
             primaryTitleColor: WHITE,
             secondaryTitleColor: "#d8d8d8",
@@ -17430,7 +15063,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
             rangeSelector: {scale: {tick: {opacity: 0.15}}}
         }, "generic.dark");
         registerTheme({
-            name: WIN10_WHITE,
+            name: "win8.white",
             backgroundColor: WHITE,
             primaryTitleColor: BLACK,
             secondaryTitleColor: "#767676",
@@ -17440,24 +15073,21 @@ if (!DevExpress.MOD_VIZ_CORE) {
             legend: {font: {color: BLACK}},
             tooltip: {font: {color: '#808080'}}
         }, "generic.light");
-        registerThemeSchemeAlias("win10.dark", WIN10_BLACK);
-        registerThemeSchemeAlias("win10.light", WIN10_WHITE);
-        registerTheme({name: WIN8_BLACK}, WIN10_BLACK);
-        registerTheme({name: WIN8_WHITE}, WIN10_WHITE);
-        registerThemeSchemeAlias("win8.dark", WIN8_BLACK);
-        registerThemeSchemeAlias("win8.light", WIN8_WHITE)
+        registerThemeSchemeAlias("win8.dark", "win8.black");
+        registerThemeSchemeAlias("win8.light", "win8.white")
     })(DevExpress);
     /*! Module viz-core, file themeManager.js */
     (function($, DX, undefined) {
         var viz = DX.viz,
+            utils = DX.utils,
             isIE8 = !viz.renderers.isSvg(),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isString = commonUtils.isString,
-            _isDefined = commonUtils.isDefined,
+            _isString = utils.isString,
+            _isDefined = utils.isDefined,
             _normalizeEnum = viz.utils.normalizeEnum,
+            HOVER_COLOR_HIGHLIGHTING = 20,
             FONT = "font",
             COMMON_AXIS_SETTINGS = "commonAxisSettings",
-            PIE_FONT_FIELDS = ["legend." + FONT, "title." + FONT, "title.subtitle." + FONT, "tooltip." + FONT, "loadingIndicator." + FONT, "commonSeriesSettings.label." + FONT],
+            PIE_FONT_FIELDS = ["legend." + FONT, "title." + FONT, "tooltip." + FONT, "loadingIndicator." + FONT, "commonSeriesSettings.label." + FONT],
             POLAR_FONT_FIELDS = PIE_FONT_FIELDS.concat([COMMON_AXIS_SETTINGS + ".label." + FONT, COMMON_AXIS_SETTINGS + ".title." + FONT]),
             CHART_FONT_FIELDS = POLAR_FONT_FIELDS.concat(["crosshair.label." + FONT]),
             chartToFontFieldsMap = {
@@ -17473,7 +15103,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     options = options || {};
                     that._userOptions = options;
                     that._mergeAxisTitleOptions = [];
-                    that._multiPieColors = {};
                     that._themeSection = themeGroupName;
                     that._fontFields = chartToFontFieldsMap[themeGroupName];
                     that._IE8 = isIE8;
@@ -17482,12 +15111,11 @@ if (!DevExpress.MOD_VIZ_CORE) {
             var dispose = function() {
                     var that = this;
                     that.palette && that.palette.dispose();
-                    that.palette = that._userOptions = that._mergedSettings = that._multiPieColors = null;
+                    that.palette = that._userOptions = that._mergedSettings = null;
                     return that.callBase.apply(that, arguments)
                 };
             var resetPalette = function() {
-                    this.palette.reset();
-                    this._multiPieColors = {}
+                    this.palette.reset()
                 };
             var updatePalette = function(palette) {
                     this.palette = this.createPalette(palette, {useHighlight: true})
@@ -17540,23 +15168,25 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         return mergeOptions.call(this, "valueAxis")
                     },
                     valueAxis: applyParticularAxisOptions,
+                    title: function(name) {
+                        var userOptions = processTitleOptions(this._userOptions[name]);
+                        return mergeOptions.call(this, name, userOptions)
+                    },
                     series: function(name, userOptions) {
-                        var that = this,
-                            theme = that._theme,
-                            userCommonSettings = that._userOptions.commonSeriesSettings || {},
+                        var theme = this._theme,
+                            userCommonSettings = this._userOptions.commonSeriesSettings || {},
                             themeCommonSettings = theme.commonSeriesSettings,
-                            widgetType = that._themeSection.split(".").slice(-1)[0],
-                            type = _normalizeEnum(userOptions.type || userCommonSettings.type || themeCommonSettings.type || widgetType === "pie" && theme.type),
+                            type = _normalizeEnum(userOptions.type || userCommonSettings.type || themeCommonSettings.type),
                             settings,
-                            palette = that.palette,
+                            palette = this.palette,
                             isBar = ~type.indexOf("bar"),
                             isLine = ~type.indexOf("line"),
                             isArea = ~type.indexOf("area"),
                             isBubble = type === "bubble",
                             mainSeriesColor,
-                            resolveLabelsOverlapping = that.getOptions("resolveLabelsOverlapping"),
-                            resolveLabelOverlapping = that.getOptions("resolveLabelOverlapping"),
-                            containerBackgroundColor = that.getOptions("containerBackgroundColor"),
+                            resolveLabelsOverlapping = this.getOptions("resolveLabelsOverlapping"),
+                            resolveLabelOverlapping = this.getOptions("resolveLabelOverlapping"),
+                            containerBackgroundColor = this.getOptions("containerBackgroundColor"),
                             seriesVisibility;
                         if (isBar || isBubble) {
                             userOptions = $.extend(true, {}, userCommonSettings, userCommonSettings[type], userOptions);
@@ -17567,26 +15197,13 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         }
                         settings = $.extend(true, {}, themeCommonSettings, themeCommonSettings[type], userCommonSettings, userCommonSettings[type], userOptions);
                         settings.type = type;
-                        settings.widgetType = widgetType;
+                        settings.widgetType = this._themeSection.split(".").slice(-1)[0];
                         settings.containerBackgroundColor = containerBackgroundColor;
-                        if (widgetType !== "pie")
+                        if (settings.widgetType !== "pie")
                             mainSeriesColor = settings.color || palette.getNextColor();
                         else
-                            mainSeriesColor = function(data) {
-                                var argument = data.argument,
-                                    argumentsCount;
-                                if (data.index === 0)
-                                    that._arrayArguments = {};
-                                if (that._arrayArguments[argument] === undefined)
-                                    that._arrayArguments[argument] = 0;
-                                else
-                                    that._arrayArguments[argument]++;
-                                argumentsCount = that._arrayArguments[argument];
-                                if (!that._multiPieColors[argument])
-                                    that._multiPieColors[argument] = [];
-                                if (!that._multiPieColors[argument][argumentsCount])
-                                    that._multiPieColors[argument][argumentsCount] = palette.getNextColor();
-                                return that._multiPieColors[argument][argumentsCount]
+                            mainSeriesColor = function() {
+                                return palette.getNextColor()
                             };
                         settings.mainSeriesColor = mainSeriesColor;
                         settings._IE8 = isIE8;
@@ -17594,6 +15211,17 @@ if (!DevExpress.MOD_VIZ_CORE) {
                         settings.resolveLabelsOverlapping = resolveLabelsOverlapping;
                         if (settings.label && (isLine || isArea && type !== "rangearea" || type === "scatter"))
                             settings.label.position = "outside";
+                        return settings
+                    },
+                    pieSegment: function(name, seriesSettings, segmentSettings) {
+                        var settings = $.extend(true, {}, seriesSettings, segmentSettings),
+                            mainColor = new DX.Color(settings.color || this.palette.getNextColor());
+                        settings.color = mainColor.toHex();
+                        settings.border.color = settings.border.color || mainColor.toHex();
+                        settings.hoverStyle.color = settings.hoverStyle.color || isIE8 && mainColor.highlight(HOVER_COLOR_HIGHLIGHTING) || mainColor.toHex();
+                        settings.hoverStyle.border.color = settings.hoverStyle.border.color || mainColor.toHex();
+                        settings.selectionStyle.color = settings.selectionStyle.color || isIE8 && mainColor.highlight(HOVER_COLOR_HIGHLIGHTING) || mainColor.toHex();
+                        settings.selectionStyle.border.color = settings.selectionStyle.border.color || mainColor.toHex();
                         return settings
                     },
                     animation: function(name) {
@@ -17648,12 +15276,16 @@ if (!DevExpress.MOD_VIZ_CORE) {
             var createTracker = function(options, name) {
                     return name === "dxPieChart" ? new charts.PieTracker(options) : new charts.ChartTracker(options)
                 };
+            var createTitle = function(renderer, options, group) {
+                    return new charts.ChartTitle(renderer, options, group)
+                };
             var createCrosshair = function(renderer, options, params, group) {
                     return new charts.Crosshair(renderer, options, params, group)
                 };
             return {
                     createThemeManager: createThemeManager,
                     createTracker: createTracker,
+                    createTitle: createTitle,
                     createCrosshair: createCrosshair,
                     createScrollBar: function(renderer, group) {
                         return new DevExpress.viz.charts.ScrollBar(renderer, group)
@@ -17664,15 +15296,12 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file baseWidget.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
-            _windowResizeCallbacks = DX.require("/utils/utils.window").resizeCallbacks,
+            _windowResizeCallbacks = DX.utils.windowResizeCallbacks,
             _Number = Number,
-            DOMComponent = DX.require("/domComponent"),
-            commonUtils = DX.require("/utils/utils.common"),
-            _isString = commonUtils.isString,
-            _stringFormat = DX.require("/utils/utils.string").format,
+            _stringFormat = DX.utils.stringFormat,
+            _isFunction = DX.utils.isFunction,
             _parseScalar = viz.utils.parseScalar,
-            errors = DX.require("/vis/core/errorWarnings"),
-            _log = errors.log,
+            _log = DX.log,
             OPTION_RTL_ENABLED = "rtlEnabled",
             OPTION_LOADING_INDICATOR = "loadingIndicator";
         function getTrue() {
@@ -17704,8 +15333,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 $window.width() === width && $window.height() === height && callback()
             }
         }
-        function defaultOnIncidentOccurred(e) {
-            _log.apply(null, [e.target.id].concat(e.target.args || []))
+        function defaultIncidentOccured(target) {
+            _log.apply(null, [target.id].concat(target.args || []))
         }
         var createIncidentOccurred = function(widgetName, eventTrigger) {
                 return incidentOccurred;
@@ -17714,81 +15343,76 @@ if (!DevExpress.MOD_VIZ_CORE) {
                             id: id,
                             type: id[0] === "E" ? "error" : "warning",
                             args: args,
-                            text: _stringFormat.apply(null, [errors.ERROR_MESSAGES[id]].concat(args || [])),
+                            text: _stringFormat.apply(null, [DX.ERROR_MESSAGES[id]].concat(args || [])),
                             widget: widgetName,
                             version: DX.VERSION
                         }})
                 }
             };
-        function processTitleOptions(options) {
-            var newOptions = _isString(options) ? {text: options} : options || {};
-            newOptions.subtitle = _isString(newOptions.subtitle) ? {text: newOptions.subtitle} : newOptions.subtitle || {};
-            return newOptions
-        }
-        function pickPositiveValue(value, defaultValue) {
-            return _Number(value > 0 ? value : defaultValue || 0)
-        }
         viz.DEBUG_createResizeHandler = createResizeHandler;
-        viz.BaseWidget = DOMComponent.inherit({
+        viz.BaseWidget = DX.DOMComponent.inherit({
             _eventsMap: {
-                onIncidentOccurred: {name: "incidentOccurred"},
-                onDrawn: {name: 'drawn'},
+                onIncidentOccurred: {
+                    name: "incidentOccurred",
+                    deprecated: "incidentOccured",
+                    deprecatedContext: $.noop,
+                    deprecatedArgs: function(arg) {
+                        return [arg.target]
+                    }
+                },
+                onDrawn: {
+                    name: 'drawn',
+                    deprecated: 'drawn',
+                    deprecatedContext: $.noop,
+                    deprecatedArgs: function(arg) {
+                        return [arg.component]
+                    }
+                },
+                incidentOccured: {newName: 'onIncidentOccurred'},
+                drawn: {newName: 'onDrawn'},
                 onTooltipShown: {name: 'tooltipShown'},
                 onTooltipHidden: {name: 'tooltipHidden'},
                 onLoadingIndicatorReady: {name: "loadingIndicatorReady"}
             },
-            _getDefaultOptions: function() {
-                return $.extend(this.callBase(), {onIncidentOccurred: defaultOnIncidentOccurred})
+            _setDeprecatedOptions: function() {
+                this.callBase.apply(this, arguments);
+                $.extend(this._deprecatedOptions, {
+                    incidentOccured: {
+                        since: '14.2',
+                        message: "Use the 'onIncidentOccurred' option instead"
+                    },
+                    drawn: {
+                        since: '14.2',
+                        message: "Use the 'onDrawn' option instead"
+                    }
+                })
+            },
+            _setDefaultOptions: function() {
+                this.callBase.apply(this, arguments);
+                this.option({incidentOccured: defaultIncidentOccured})
             },
             _useLinks: true,
             _init: function() {
-                var that = this,
-                    linkTarget;
+                var that = this;
                 that.callBase.apply(that, arguments);
                 that._themeManager = that._createThemeManager();
                 that._themeManager.setCallback(function() {
                     that._handleThemeOptions()
                 });
-                that._initRenderer();
-                linkTarget = that._useLinks && that._renderer.root;
-                linkTarget && linkTarget.enableLinks().virtualLink("core").virtualLink("peripheral");
+                that._renderer = new viz.renderers.Renderer({
+                    cssClass: that._rootClassPrefix + " " + that._rootClass,
+                    pathModified: that.option("pathModified")
+                });
+                that._useLinks && that._renderer.root.enableLinks();
                 that._renderVisibilityChange();
                 that._initEventTrigger();
                 that._incidentOccured = createIncidentOccurred(that.NAME, that._eventTrigger);
                 that._initTooltip();
-                that._initTitle();
-                linkTarget && linkTarget.linkAfter("core");
-                that._initDataSource();
                 that._initCore();
-                linkTarget && linkTarget.linkAfter();
                 that._initLoadingIndicator();
                 that._setThemeAndRtl();
-                that._setContentSize();
+                that._initSize();
                 that._setupResizeHandler()
-            },
-            _initRenderer: function() {
-                var that = this;
-                that._canvas = that._calculateCanvas();
-                that._renderer = new viz.renderers.Renderer({
-                    cssClass: that._rootClassPrefix + " " + that._rootClass,
-                    pathModified: that.option("pathModified"),
-                    container: that._$element[0]
-                });
-                that._renderer.resize(that._canvas.width, that._canvas.height)
-            },
-            _disposeRenderer: function() {
-                this._useLinks && this._renderer.root.checkLinks();
-                this._renderer.dispose()
-            },
-            _initTitle: function() {
-                this._title = new viz.Title({
-                    renderer: this._renderer,
-                    cssClass: this._rootClassPrefix + "-title",
-                    incidentOccured: this._incidentOccured
-                })
-            },
-            _disposeTitle: function() {
-                this._title && this._title.dispose()
             },
             _initTooltip: function() {
                 var that = this;
@@ -17798,26 +15422,74 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     pathModified: that.option("pathModified")
                 })
             },
-            _disposeTooltip: function() {
-                this._tooltip && this._tooltip.dispose()
-            },
-            _initDataSource: function() {
-                var that = this;
-                that._dataSource = new viz.DataSource(function() {
-                    that._dataSourceChangedHandler()
-                })
-            },
-            _disposeDataSource: function() {
-                this._dataSource.dispose()
-            },
-            _updateDataSource: function() {
-                this._dataSource.update(this.option("dataSource"))
-            },
             _getAnimationOptions: $.noop,
+            _initSize: function() {
+                var canvas = null;
+                if (this._isContainerVisible()) {
+                    canvas = this._calculateCanvas();
+                    if (canvas)
+                        this._updateSize(canvas, true)
+                }
+                if (!canvas)
+                    this._setHiddenState()
+            },
+            _setHiddenState: function() {
+                var that = this;
+                that._clean = that._render = $.noop;
+                that._canvas = null
+            },
+            _setVisibleState: function() {
+                delete this._clean;
+                delete this._render
+            },
+            _updateSize: function(canvas, isDrawRequired) {
+                var that = this;
+                that._renderer.resize(canvas.width, canvas.height);
+                isDrawRequired && that._renderer.draw(that._$element[0]);
+                that._canvas = canvas;
+                that._applySize();
+                that._updateLoadingIndicatorSize()
+            },
+            _updateCanvasAndResize: function() {
+                var that = this,
+                    canvas = that._calculateCanvas();
+                if (canvas)
+                    if (areCanvasesDifferent(canvas, that._canvas) || that.__forceRender) {
+                        that._updateSize(canvas);
+                        that._resize()
+                    }
+                return canvas
+            },
             render: function() {
-                this._updateSize();
-                if (!this._$element.is(":visible"))
-                    this._hideTooltip()
+                var that = this,
+                    canvas,
+                    visible = that._isContainerVisible();
+                if (that._canvas) {
+                    if (visible)
+                        canvas = that._updateCanvasAndResize();
+                    if (!canvas) {
+                        that._clean();
+                        that._renderer.clear();
+                        that._setHiddenState();
+                        that._hideTooltip()
+                    }
+                }
+                else {
+                    if (visible) {
+                        canvas = that._calculateCanvas();
+                        if (canvas) {
+                            that._setVisibleState();
+                            that._updateSize(canvas, true);
+                            that._render()
+                        }
+                    }
+                    if (!canvas)
+                        that._setHiddenState()
+                }
+            },
+            _handleResize: function() {
+                if (this._canvas)
+                    this._updateCanvasAndResize()
             },
             _dispose: function() {
                 var that = this;
@@ -17825,54 +15497,45 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that._removeResizeHandler();
                 that._eventTrigger.dispose();
                 that._disposeCore();
-                that._disposeDataSource();
                 that._disposeLoadingIndicator();
-                that._disposeTooltip();
-                that._disposeTitle();
-                that._disposeRenderer();
+                that._useLinks && that._renderer.root.checkLinks();
+                that._renderer.dispose();
+                that._tooltip && that._tooltip.dispose();
                 that._themeManager.dispose();
-                that._themeManager = that._renderer = that._eventTrigger = that._tooltip = that._title = that._dataSource = null
+                that._themeManager = that._renderer = that._eventTrigger = that._tooltip = null
             },
             _initEventTrigger: function() {
                 var that = this;
-                that._eventTrigger = createEventTrigger(that._eventsMap, function(name) {
-                    return that._createActionByOption(name)
+                that._eventTrigger = createEventTrigger(that._eventsMap, function(name, deprecatedName) {
+                    var data = {callback: that._createActionByOption(name)};
+                    that._suppressDeprecatedWarnings();
+                    if (that.option(name) === undefined)
+                        data.deprecatedCallback = that.option(deprecatedName);
+                    that._resumeDeprecatedWarnings();
+                    return data
                 })
+            },
+            _isContainerVisible: function() {
+                return this._$element.is(':visible')
             },
             _calculateCanvas: function() {
                 var that = this,
-                    size = that.option("size") || {},
-                    margin = that.option("margin") || {},
+                    size = that.option('size') || {},
+                    margin = that.option('margin') || {},
                     defaultCanvas = that._getDefaultSize() || {},
-                    canvas = {
-                        width: size.width <= 0 ? 0 : pickPositiveValue(size.width, that._$element.width() || defaultCanvas.width),
-                        height: size.height <= 0 ? 0 : pickPositiveValue(size.height, that._$element.height() || defaultCanvas.height),
-                        left: pickPositiveValue(margin.left, defaultCanvas.left || 0),
-                        top: pickPositiveValue(margin.top, defaultCanvas.top || 0),
-                        right: pickPositiveValue(margin.right, defaultCanvas.right || 0),
-                        bottom: pickPositiveValue(margin.bottom, defaultCanvas.bottom || 0)
-                    };
-                if (canvas.width - canvas.left - canvas.right <= 0 || canvas.height - canvas.top - canvas.bottom <= 0)
-                    canvas = {
-                        width: 0,
-                        height: 0
-                    };
-                return canvas
-            },
-            _updateSize: function() {
-                var that = this,
-                    canvas = that._calculateCanvas();
-                if (areCanvasesDifferent(that._canvas, canvas) || that.__forceRender) {
-                    that._canvas = canvas;
-                    that._renderer.resize(canvas.width, canvas.height);
-                    that._setContentSize();
-                    that._updateLoadingIndicatorSize();
-                    that._resize()
+                    canvas = {};
+                if (size.width <= 0 || size.height <= 0)
+                    canvas = null;
+                else {
+                    canvas.width = size.width > 0 ? _Number(size.width) : that._$element.width() || defaultCanvas.width;
+                    canvas.height = size.height > 0 ? _Number(size.height) : that._$element.height() || defaultCanvas.height;
+                    canvas.left = margin.left > 0 ? _Number(margin.left) : defaultCanvas.left || 0;
+                    canvas.top = margin.top > 0 ? _Number(margin.top) : defaultCanvas.top || 0;
+                    canvas.right = margin.right > 0 ? _Number(margin.right) : defaultCanvas.right || 0;
+                    canvas.bottom = margin.bottom > 0 ? _Number(margin.bottom) : defaultCanvas.bottom || 0;
+                    canvas = canvas.width - canvas.left - canvas.right > 0 && canvas.height - canvas.top - canvas.bottom > 0 ? canvas : null
                 }
-            },
-            _setContentSize: function() {
-                this._applySize();
-                this._updateLoadingIndicatorSize()
+                return canvas
             },
             DEBUG_getCanvas: function() {
                 return this._canvas
@@ -17895,7 +15558,7 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 if (!that._resizeHandler) {
                     that._resizeHandler = createResizeHandler(function() {
-                        that._updateSize()
+                        that._handleResize()
                     });
                     _windowResizeCallbacks.add(that._resizeHandler)
                 }
@@ -17920,11 +15583,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
             endUpdate: function() {
                 var that = this;
                 if (that._initialized && that._updateLockCount === 1) {
-                    if (that._changedOptions._num) {
-                        that._renderer.lock();
+                    if (that._changedOptions._num)
                         that._handleChangedOptions(that._changedOptions);
-                        that._renderer.unlock()
-                    }
                     that._changedOptions = null
                 }
                 that.callBase.apply(that, arguments);
@@ -17949,12 +15609,10 @@ if (!DevExpress.MOD_VIZ_CORE) {
                     that._handleThemeOptions();
                 if ("tooltip" in options)
                     that._setTooltipOptions();
-                if ("title" in options)
-                    that._updateTitle();
                 if (OPTION_LOADING_INDICATOR in options)
                     that._updateLoadingIndicatorOptions();
                 if ("size" in options || "margin" in options)
-                    that._updateSize();
+                    that.render();
                 if (options._has(that._invalidatingOptions || []))
                     that._invalidate()
             },
@@ -17968,11 +15626,8 @@ if (!DevExpress.MOD_VIZ_CORE) {
                 that._renderer.setOptions(options);
                 that._setTooltipRendererOptions(options);
                 that._setTooltipOptions();
-                that._renderer.lock();
-                that._updateTitle();
                 that._updateLoadingIndicatorOptions();
-                that._handleThemeOptionsCore();
-                that._renderer.unlock()
+                that._handleThemeOptionsCore()
             },
             _handleThemeOptionsCore: function() {
                 this._initialized && this._refresh()
@@ -17988,9 +15643,6 @@ if (!DevExpress.MOD_VIZ_CORE) {
             },
             _setTooltipOptions: function() {
                 this._tooltip.update(this._getOption("tooltip"))
-            },
-            _updateTitle: function() {
-                this._title.update($.extend(true, {}, this._themeManager.theme("title"), processTitleOptions(this.option("title"))))
             },
             _hideTooltip: function() {
                 this._tooltip.hide()
@@ -18084,11 +15736,14 @@ if (!DevExpress.MOD_VIZ_CORE) {
             };
             return triggerEvent;
             function createEvent(name) {
-                var eventInfo = eventsMap[name];
-                triggers[eventInfo.name] = callbackGetter(name)
+                var eventInfo = eventsMap[name],
+                    data = callbackGetter(name, eventInfo.deprecated);
+                triggers[eventInfo.name] = [data.callback, _isFunction(data.deprecatedCallback) && data.deprecatedCallback, eventInfo.deprecatedContext, eventInfo.deprecatedArgs]
             }
             function triggerEvent(name, arg, complete) {
-                triggers[name](arg);
+                var data = triggers[name];
+                data[0](arg);
+                data[1] && data[1].apply(data[2](arg), data[3](arg));
                 complete && complete()
             }
         }
@@ -18104,17 +15759,16 @@ if (!DevExpress.MOD_VIZ_CORE) {
     /*! Module viz-core, file CoreFactory.js */
     (function(DX, undefined) {
         var viz = DX.viz,
-            seriesNS = viz.series,
-            pointsNS = seriesNS.points;
+            seriesNS = viz.series;
         viz.CoreFactory = {
             createSeries: function(renderSettings, options) {
                 return new seriesNS.Series(renderSettings, options)
             },
             createPoint: function(series, data, options) {
-                return new pointsNS.Point(series, data, options)
+                return new seriesNS.points.Point(series, data, options)
             },
             createLabel: function(options) {
-                return new pointsNS.Label(options)
+                return new viz.series.points.Label(options)
             },
             createTranslator1D: function(fromValue, toValue, fromAngle, toAngle) {
                 return (new viz.Translator1D).setDomain(fromValue, toValue).setCodomain(fromAngle, toAngle)

@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.2
-* Build date: Nov 16, 2015
+* Version: 15.1.8
+* Build date: Oct 29, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -68,8 +68,7 @@ Globalize.addCultureInfo("de", {messages: {
         "dxRangeSlider-ariaFrom": "Von {0}",
         "dxRangeSlider-ariaTill": "Bis {0}",
         "dxSwitch-onText": "EIN",
-        "dxSwitch-offText": "AUS",
-        "dxForm-optionalMark": "optional"
+        "dxSwitch-offText": "AUS"
     }});
 Globalize.addCultureInfo("de", {messages: {
         "dxDataGrid-columnChooserTitle": "Spaltenauswahl",
@@ -83,7 +82,7 @@ Globalize.addCultureInfo("de", {messages: {
         "dxDataGrid-editingUndeleteRow": "Wiederherstellen",
         "dxDataGrid-editingConfirmDeleteMessage": "Sind Sie sicher, dass Sie diesen Datensatz löschen wollen?",
         "dxDataGrid-editingConfirmDeleteTitle": "",
-        "dxDataGrid-validationCancelChanges": "Änderungen verwerfen",
+        "dxDataGrid-validationCancelChanges": "!TODO!",
         "dxDataGrid-groupPanelEmptyText": "Ziehen Sie eine Spalte hierhin, um danach zu gruppieren",
         "dxDataGrid-noDataText": "Keine Daten",
         "dxDataGrid-searchPanelPlaceholder": "Suchen...",
@@ -99,9 +98,6 @@ Globalize.addCultureInfo("de", {messages: {
         "dxDataGrid-filterRowOperationContains": "Enthält",
         "dxDataGrid-filterRowOperationNotContains": "Enthält nicht",
         "dxDataGrid-filterRowOperationEndsWith": "Endet mit",
-        "dxDataGrid-filterRowOperationBetween": "Zwischen",
-        "dxDataGrid-filterRowOperationBetweenStartText": "Anfang",
-        "dxDataGrid-filterRowOperationBetweenEndText": "Ende",
         "dxDataGrid-applyFilterText": "Filter anwenden",
         "dxDataGrid-trueText": "wahr",
         "dxDataGrid-falseText": "falsch",
@@ -140,7 +136,8 @@ Globalize.addCultureInfo("de", {messages: {
         "dxDataGrid-ariaSearchInGrid": "Suchen in der Datentabelle",
         "dxDataGrid-ariaSelectAll": "Alle auswählen",
         "dxDataGrid-ariaSelectRow": "Zeile auswählen",
-        "dxPager-infoText": "Seite {0} von {1} ({2} Elemente)",
+        "dxFileSaver-fileExported": "!TODO!",
+        "dxPager-infoText": "Seite {0} von {1}",
         "dxPivotGrid-grandTotal": "Gesamt",
         "dxPivotGrid-total": "{0} Gesamt",
         "dxPivotGrid-fieldChooserTitle": "Feldauswahl",
@@ -178,19 +175,9 @@ Globalize.addCultureInfo("de", {messages: {
         "dxScheduler-switcherWeek": "Woche",
         "dxScheduler-switcherWorkWeek": "Arbeitswoche",
         "dxScheduler-switcherMonth": "Monat",
-        "dxScheduler-switcherTimelineDay": "Zeitstrahl Tag",
-        "dxScheduler-switcherTimelineWeek": "Zeitstrahl Woche",
-        "dxScheduler-switcherTimelineWorkWeek": "Zeitstrahl Arbeitswoche",
-        "dxScheduler-switcherTimelineMonth": "Zeitstrahl Monat",
         "dxScheduler-recurrenceRepeatOnDate": "am Datum",
         "dxScheduler-recurrenceRepeatCount": "Ereignisse",
         "dxScheduler-allDay": "Ganztägig",
-        "dxScheduler-confirmRecurrenceEditMessage": "Möchten Sie nur diesen Termin bearbeiten, oder die gesamte Serie?",
-        "dxScheduler-confirmRecurrenceDeleteMessage": "Möchten Sie nur diesen Termin löschen, oder die gesamte Serie?",
-        "dxScheduler-confirmRecurrenceEditSeries": "Serie bearbeiten",
-        "dxScheduler-confirmRecurrenceDeleteSeries": "Serie löschen",
-        "dxScheduler-confirmRecurrenceEditOccurrence": "Termin bearbeiten",
-        "dxScheduler-confirmRecurrenceDeleteOccurrence": "Termin löschen",
         "dxCalendar-todayButtonText": "Heute",
         "dxCalendar-ariaWidgetName": "Kalendar",
         "dxColorView-ariaRed": "Rot",

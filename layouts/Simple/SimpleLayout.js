@@ -60,7 +60,8 @@
             appbar.option("visible", isAppbarNotEmpty)
         },
         _refreshHasToolbarClass: function() {
-            var appbar = this._getCurrentAppbar(),
+            var hasToolbar = false,
+                appbar = this._getCurrentAppbar(),
                 hasToolbar = appbar ? appbar.option("visible") : false;
             this._getViewFrame().toggleClass(HAS_TOOLBAR_BOTTOM_CLASS, hasToolbar)
         }
@@ -68,7 +69,7 @@
     var layoutSets = DX.framework.html.layoutSets;
     layoutSets["navbar"] = layoutSets["navbar"] || [];
     layoutSets["navbar"].push({
-        platform: "win",
+        platform: "win8",
         root: false,
         phone: true,
         controller: new DX.framework.html.Win8SimpleLayoutController
@@ -81,7 +82,7 @@
     layoutSets["simple"] = layoutSets["simple"] || [];
     layoutSets["simple"].push({controller: new DX.framework.html.SimpleLayoutController});
     layoutSets["simple"].push({
-        platform: "win",
+        platform: "win8",
         phone: true,
         controller: new DX.framework.html.Win8SimpleLayoutController
     })
