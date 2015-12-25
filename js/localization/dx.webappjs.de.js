@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.4
-* Build date: Dec 8, 2015
+* Version: 15.2.5-pre
+* Build date: Dec 25, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -65,8 +65,8 @@ Globalize.addCultureInfo("de", {messages: {
         "dxFileUploader-uploaded": "Hochgeladen",
         "dxFileUploader-readyToUpload": "Bereit zum hochladen",
         "dxFileUploader-uploadFailedMessage": "Fehler beim hochladen",
-        "dxRangeSlider-ariaFrom": "Von {0}",
-        "dxRangeSlider-ariaTill": "Bis {0}",
+        "dxRangeSlider-ariaFrom": "Von",
+        "dxRangeSlider-ariaTill": "Bis",
         "dxSwitch-onText": "EIN",
         "dxSwitch-offText": "AUS",
         "dxForm-optionalMark": "optional"

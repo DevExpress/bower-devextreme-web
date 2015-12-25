@@ -1,16 +1,12 @@
 /*! 
 * DevExtreme
-* Version: 15.2.4
-* Build date: Dec 8, 2015
+* Version: 15.2.5-pre
+* Build date: Dec 25, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 
-.dx-invalid-message .dx-tooltip-wrapper .dx-overlay-content .dx-popup-content
-{
-  color: #fff;
-}
 .dx-colorview-palette-handle
 {
   background: -webkit-gradient(transparent 5px,rgba(0,0,0,.2) 6px,#fff 7px,#fff 12px,rgba(0,0,0,.2) 13px);
@@ -355,10 +351,6 @@
   text-align: center;
   line-height: 16px;
 }
-.dx-pivotgrid .dx-icon-field-chooser
-{
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAVElEQVQoz6WQwQ0AIAgD2akLdf8lMMGAMYA8TH9ytgWhviVUlV4lQNMPMEYkYNhiktQVeYDePIC2IOKSTMY+LgB7ho+JFHH1AHOH+GtjFlu4PXboAi5MDAZEZkivAAAAAElFTkSuQmCC) no-repeat center center;
-}
 .dx-pivotgrid .dx-icon-collapse-all
 {
   background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAALElEQVQoz2P4z4AfAtHt/7ghVAEu3eQogBhLIwWY7idVAR0cSVlIEogs/BAA8xtDgN6BqQAAAAAASUVORK5CYII=) no-repeat center center;
@@ -588,6 +580,15 @@
 .dx-rtl .dx-pivotgrid-border .dx-area-column-cell, .dx-rtl .dx-pivotgrid-border .dx-area-data-cell
 {
   border-left: 1px solid #4c4c4c;
+}
+.dx-validationsummary-item
+{
+  color: #ea4444;
+}
+.dx-invalid-message>.dx-overlay-content
+{
+  color: #fff;
+  background-color: #ea4444;
 }
 .dx-scheduler-pseudo-cell:before
 {
@@ -1563,7 +1564,7 @@
   -moz-box-shadow: 7px 7px 15px 0 rgba(50,50,50,.2),inset 0 -2px 0 0 rgba(0,0,0,.3),inset 0 2px 0 0 rgba(0,0,0,.3);
   box-shadow: 7px 7px 15px 0 rgba(50,50,50,.2),inset 0 -2px 0 0 rgba(0,0,0,.3),inset 0 2px 0 0 rgba(0,0,0,.3);
 }
-.dx-scheduler-appointment.dx-state-active, .dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-appointment.dx-draggable-dragging
+.dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-appointment.dx-draggable-dragging
 {
   z-index: 1000;
   filter: alpha(opacity=70);
@@ -1606,6 +1607,12 @@
   -moz-box-shadow: inset 2px 0 0 0 rgba(0,0,0,.3);
   box-shadow: inset 2px 0 0 0 rgba(0,0,0,.3);
 }
+.dx-rtl .dx-scheduler-timeline .dx-scheduler-appointment, .dx-rtl .dx-scheduler-work-space-month .dx-scheduler-appointment, .dx-rtl .dx-scheduler-all-day-appointment
+{
+  -webkit-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3);
+  -moz-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3);
+  box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3);
+}
 .dx-scheduler-timeline .dx-scheduler-appointment.dx-state-active, .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-state-active, .dx-scheduler-all-day-appointment.dx-state-active, .dx-scheduler-timeline .dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-all-day-appointment.dx-resizable-resizing
 {
   -webkit-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
@@ -1638,6 +1645,12 @@
   -moz-box-shadow: inset 5px 0 0 0 rgba(0,0,0,.3),inset -2px 0 0 0 rgba(0,0,0,.3);
   box-shadow: inset 5px 0 0 0 rgba(0,0,0,.3),inset -2px 0 0 0 rgba(0,0,0,.3);
 }
+.dx-rtl .dx-scheduler-timeline .dx-scheduler-appointment.dx-state-hover, .dx-rtl .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-state-hover, .dx-rtl .dx-scheduler-all-day-appointment.dx-state-hover
+{
+  -webkit-box-shadow: inset -5px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
+  -moz-box-shadow: inset -5px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
+  box-shadow: inset -5px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
+}
 .dx-scheduler-timeline .dx-scheduler-appointment.dx-draggable-dragging, .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-draggable-dragging, .dx-scheduler-all-day-appointment.dx-draggable-dragging
 {
   -webkit-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3),7px 7px 15px 0 rgba(50,50,50,.2);
@@ -1652,6 +1665,24 @@
 .dx-scheduler-appointment.dx-scheduler-appointment-body, .dx-scheduler-appointment.dx-scheduler-appointment-tail
 {
   box-shadow: none;
+}
+.dx-scheduler-timeline .dx-scheduler-group-header
+{
+  padding: 0;
+}
+.dx-scheduler-timeline .dx-scheduler-group-header .dx-scheduler-group-header-content
+{
+  overflow: hidden;
+}
+.dx-scheduler-timeline .dx-scheduler-group-header .dx-scheduler-group-header-content div
+{
+  position: relative;
+  top: 50%;
+  -webkit-transform: translate(0,-50%);
+  -moz-transform: translate(0,-50%);
+  -ms-transform: translate(0,-50%);
+  -o-transform: translate(0,-50%);
+  transform: translate(0,-50%);
 }
 .dx-scheduler-appointment-recurrence-icon
 {
@@ -4643,6 +4674,9 @@
   height: 88px;
   background: #1f1f1f;
   line-height: 88px;
+  filter: alpha(opacity=95);
+  -khtml-opacity: .95;
+  -moz-opacity: .95;
   opacity: .95;
 }
 .dx-toolbar .dx-overlay-wrapper
@@ -4695,6 +4729,9 @@
 {
   position: absolute;
   bottom: 0;
+  filter: alpha(opacity=100);
+  -khtml-opacity: 1;
+  -moz-opacity: 1;
   opacity: 1;
 }
 .dx-toolbar-mini
@@ -4790,12 +4827,14 @@
   height: 60px;
   background: #000;
   line-height: 60px;
-  opacity: .95;
+  filter: alpha(opacity=100);
+  -khtml-opacity: 1;
+  -moz-opacity: 1;
+  opacity: 1;
 }
 .dx-device-phone .dx-toolbar.dx-toolbar-bottom
 {
   height: 40px;
-  opacity: 1;
 }
 .dx-device-phone .dx-toolbar.dx-toolbar-bottom .dx-overlay-wrapper .dx-toolbar-items-container
 {
@@ -5436,14 +5475,6 @@
 {
   margin: 0;
 }
-.dx-invalid-message .dx-tooltip-wrapper .dx-overlay-content
-{
-  padding: 0;
-}
-.dx-invalid-message .dx-tooltip-wrapper .dx-overlay-content .dx-popup-content
-{
-  background-color: #ea4444;
-}
 .dx-slider-wrapper
 {
   height: 12px;
@@ -5587,6 +5618,7 @@
 .dx-gallery-indicator-item-selected
 {
   background: #00b8ff;
+  margin: 1px 2px 2px 2px;
 }
 .dx-lookup
 {
@@ -6548,6 +6580,7 @@
 {
   padding: 1px;
   margin: 1px;
+  margin-top: 0;
   background-color: #3d3d3d;
   box-shadow: 0 0 0 1px #616161;
 }
@@ -7247,7 +7280,7 @@
 {
   border: 1px solid #ea4444;
 }
-.dx-datagrid-rowsview .dx-data-row .dx-invalid-message .dx-popup-content
+.dx-datagrid-rowsview .dx-data-row .dx-invalid-message .dx-overlay-content
 {
   padding: 9px 17px 10px;
 }
@@ -8220,10 +8253,6 @@ td.dx-calendar-other-view
 {
   color: #949494;
 }
-.dx-validationsummary-item
-{
-  color: #ea4444;
-}
 .dx-timeview
 {
   height: 300px;
@@ -8290,6 +8319,10 @@ td.dx-calendar-other-view
 {
   margin-top: 11.2px;
 }
+.dx-scheduler-navigator-calendar
+{
+  background-color: #1f1f1f;
+}
 .dx-scheduler-view-switcher-label
 {
   margin-top: 22.4px;
@@ -8309,6 +8342,12 @@ td.dx-calendar-other-view
 {
   padding: 0;
   margin-right: 20px;
+  max-width: 130px;
+}
+.dx-rtl .dx-scheduler-appointment-tooltip .dx-button
+{
+  margin-right: 0;
+  margin-left: 20px;
 }
 .dx-scheduler-all-day-title
 {

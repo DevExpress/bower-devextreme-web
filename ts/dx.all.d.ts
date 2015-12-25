@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme
-* Version: 15.2.4
-* Build date: Dec 8, 2015
+* Version: 15.2.5-pre
+* Build date: Dec 25, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -455,6 +455,7 @@ declare module DevExpress {
             key(): any;
             /** Starts loading data. */
             load(): JQueryPromise<Array<any>>;
+            reload(): JQueryPromise<Array<any>>;
             /** Returns an object that would be passed to the load() method of the underlying Store according to the current data shaping option values of the current DataSource instance. */
             loadOptions(): Object;
             /** Returns the current pageSize option value. */
@@ -1432,7 +1433,7 @@ declare module DevExpress.ui {
         clearButtonText?: string;
         /** Specifies whether or not the widget cleans the search box when the popup window is displayed. */
         cleanSearchOnOpening?: boolean;
-        /** A Boolean value specifying whether or not the widget is closed if a user clicks outside of the overlaying window. */
+        /** A Boolean value specifying whether or not a widget is closed if a user clicks outside of the overlaying window. */
         closeOnOutsideClick?: any;
         /** The text displayed on the Apply button. */
         applyButtonText?: string;
@@ -2964,7 +2965,10 @@ declare module DevExpress.ui {
         dataStructure?: string;
         /** Specifies whether or not a user can expand all tree view items by the "*" hot key. */
         expandAllEnabled?: boolean;
-        /** Specifies whether or not a check box is displayed at each tree view item. */
+        /**
+         * Specifies whether or not a check box is displayed at each tree view item.
+         * @deprecated Use the showCheckBoxesMode option instead.
+         */
         showCheckBoxes?: boolean;
         /** Specifies the current check boxes display mode. */
         showCheckBoxesMode?: string;
@@ -2972,7 +2976,10 @@ declare module DevExpress.ui {
         selectNodesRecursive?: boolean;
         /** Specifies whether or not all parent nodes of an initially expanded node are displayed expanded. */
         expandNodesRecursive?: boolean;
-        /** Specifies whether the "Select All" check box is displayed over the tree view. */
+        /**
+         * Specifies whether the "Select All" check box is displayed over the tree view.
+         * @deprecated Use the showCheckBoxesMode option instead.
+         */
         selectAllEnabled?: boolean;
         /** Specifies the text displayed at the "Select All" check box. */
         selectAllText?: string;
@@ -3225,7 +3232,7 @@ declare module DevExpress.ui {
         };
         /** Specifies column-level options for filtering using a column header filter. */
         headerFilter?: {
-            /** Specifies the data source to be used for header filter. */
+            /** Specifies the data source to be used for the header filter. */
             dataSource?: any;
             /** Specifies how header filter values should be combined into groups. */
             groupInterval?: any;
@@ -5156,6 +5163,10 @@ declare module DevExpress.viz.charts {
         valueField?: string;
     }
     export interface CommonPieSeriesSettings extends CommonPieSeriesConfig {
+        /**
+         * Specifies the type of the pie chart series.
+         * @deprecated use the 'type' option instead
+         */
         type?: string;
     }
     export interface PieSeriesConfig extends CommonPieSeriesConfig {
@@ -5450,10 +5461,11 @@ declare module DevExpress.viz.charts {
     }
     export interface ChartArgumentAxis extends ChartAxis, ArgumentAxis { }
     export interface PolarArgumentAxis extends PolarAxis, ArgumentAxis {
-        /** Specifies a start angle for the argument axis in degrees. */
+        /** Specifies the angle in arc degrees to which the argument axis should be rotated. The positive values rotate the axis clockwise. */
         startAngle?: number;
         /** Specifies whether or not to display the first point at the angle specified by the startAngle option. */
         firstPointOnStartAngle?: boolean;
+        originValue?: number;
         /** Specifies the period of the argument values in the data source. */
         period?: number;
     }
@@ -5826,7 +5838,7 @@ declare module DevExpress.viz.charts {
         diameter?: number;
         /** Specifies the direction that the pie chart segments will occupy. */
         segmentsDirection?: string;
-        /** Specifies the starting angle in arc degrees for the first segment in a pie chart. */
+        /** Specifies the angle in arc degrees from which the first segment of a pie chart should start. */
         startAngle?: number;
         /** Specifies the fraction of the inner radius relative to the total radius in the series of the 'doughnut' type. The value should be between 0 and 1. */
         innerRadius?: number;
@@ -6394,6 +6406,7 @@ declare module DevExpress.viz.rangeSelector {
              * @deprecated ..\tickInterval\tickInterval.md
              */
             majorTickInterval?: any;
+            /** Specifies an interval between axis ticks. */
             tickInterval?: any;
             /** Specifies options for the date-time scale's markers. */
             marker?: {
@@ -6445,10 +6458,15 @@ declare module DevExpress.viz.rangeSelector {
                 /** Specifies the width of the scale's ticks (both major and minor ticks). */
                 width?: number;
             };
+            /** Specifies options of the range selector's minor ticks. */
             minorTick?: {
+                /** Specifies the color of the scale's minor ticks. */
                 color?: string;
+                /** Specifies the opacity of the scale's minor ticks. */
                 opacity?: number;
+                /** Specifies the width of the scale's minor ticks. */
                 width?: number;
+                /** Indicates whether scale minor ticks are visible or not. */
                 visible?: boolean;
             };
             /** Specifies the type of the scale. */
@@ -6695,7 +6713,7 @@ declare module DevExpress.viz.map {
         elementType?: string;
         /** Specifies a data source for the layer. */
         data?: any;
-        /** Specifies the width of the layer elements border in pixels. */
+        /** Specifies the line width (for layers of a line type) or width of the layer elements border in pixels. */
         borderWidth?: number;
         /** Specifies a color for the border of the layer elements. */
         borderColor?: string;
@@ -6703,11 +6721,11 @@ declare module DevExpress.viz.map {
         color?: string;
         /** Specifies a color for the border of the layer element when it is hovered over. */
         hoveredBorderColor?: string;
-        /** Specifies the pixel-measured width for the border of the layer element when it is hovered over. */
+        /** Specifies the pixel-measured line width (for layers of a line type) or width for the border of the layer element when it is hovered over. */
         hoveredBorderWidth?: number;
         /** Specifies a color for a layer element when it is hovered over. */
         hoveredColor?: string;
-        /** Specifies a pixel-measured width for the border of the layer element when it is selected. */
+        /** Specifies a pixel-measured line width (for layers of a line type) or width for the border of the layer element when it is selected. */
         selectedBorderWidth?: number;
         /** Specifies a color for the border of the layer element when it is selected. */
         selectedBorderColor?: string;

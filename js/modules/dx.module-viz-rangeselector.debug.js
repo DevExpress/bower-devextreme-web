@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme (Range Selector)
-* Version: 15.2.4
-* Build date: Dec 8, 2015
+* Version: 15.2.5-pre
+* Build date: Dec 25, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -11,171 +11,9 @@
 if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
     if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE)
         throw Error('Required module is not referenced: viz-core');
-    /*! Module viz-rangeselector, file namespaces.js */
-    (function(DevExpress) {
-        DevExpress.viz.rangeSelector = {}
-    })(DevExpress);
-    /*! Module viz-rangeselector, file utils.js */
-    (function($, DX, undefined) {
-        var commonUtils = DX.require("/utils/utils.common"),
-            mathUtils = DX.require("/utils/utils.math"),
-            utilsAddInterval = DX.require("/utils/utils.date").addInterval;
-        var findLessOrEqualValueIndex = function(values, value) {
-                if (!values || values.length === 0)
-                    return -1;
-                var minIndex = 0,
-                    maxIndex = values.length - 1;
-                while (maxIndex - minIndex > 1) {
-                    var index = minIndex + maxIndex >> 1;
-                    if (values[index] > value)
-                        maxIndex = index;
-                    else
-                        minIndex = index
-                }
-                return values[maxIndex] <= value ? maxIndex : minIndex
-            };
-        var findLessOrEqualValue = function(values, value) {
-                var index = findLessOrEqualValueIndex(values, value);
-                if (values && index >= 0 && index < values.length)
-                    return values[index];
-                return value
-            };
-        var findNearValue = function(values, value) {
-                var index = findLessOrEqualValueIndex(values, value);
-                if (values && index >= 0 && index < values.length) {
-                    if (index + 1 < values.length)
-                        if (commonUtils.isDate(value)) {
-                            if (values[index + 1].getTime() - value.getTime() < value.getTime() - values[index].getTime())
-                                index++
-                        }
-                        else if (values[index + 1] - value < value - values[index])
-                            index++;
-                    return values[index]
-                }
-                return value
-            };
-        var findGreaterOrEqualValue = function(values, value) {
-                var index = findLessOrEqualValueIndex(values, value);
-                if (values && index >= 0 && index < values.length) {
-                    if (values[index] < value && index + 1 < values.length)
-                        index++;
-                    return values[index]
-                }
-                return value
-            };
-        var getEventPageX = function(eventArgs) {
-                var result = 0;
-                if (eventArgs.pageX)
-                    result = eventArgs.pageX;
-                else if (eventArgs.originalEvent && eventArgs.originalEvent.pageX)
-                    result = eventArgs.originalEvent.pageX;
-                if (eventArgs.originalEvent && eventArgs.originalEvent.touches)
-                    if (eventArgs.originalEvent.touches.length > 0)
-                        result = eventArgs.originalEvent.touches[0].pageX;
-                    else if (eventArgs.originalEvent.changedTouches.length > 0)
-                        result = eventArgs.originalEvent.changedTouches[0].pageX;
-                return result
-            };
-        var truncateSelectedRange = function(value, scaleOptions) {
-                var isDiscrete = scaleOptions.type === "discrete",
-                    categories = isDiscrete ? scaleOptions.categories || scaleOptions._categoriesInfo.categories : undefined,
-                    startValue = scaleOptions.startValue,
-                    endValue = scaleOptions.endValue,
-                    min,
-                    max,
-                    valueIndex;
-                if (categories)
-                    categories = DX.viz.utils.map(categories, function(category) {
-                        return commonUtils.isDefined(category) ? category.valueOf() : null
-                    });
-                if (isDiscrete) {
-                    valueIndex = $.inArray(value.valueOf(), categories);
-                    return valueIndex < 0 ? startValue : value
-                }
-                else {
-                    min = startValue > endValue ? endValue : startValue;
-                    max = startValue > endValue ? startValue : endValue
-                }
-                if (value < min)
-                    value = min;
-                if (value > max)
-                    value = max;
-                return value
-            };
-        var canvasOptionsToRenderOptions = function(canvasOptions) {
-                return {
-                        x: canvasOptions.left,
-                        y: canvasOptions.top,
-                        width: canvasOptions.width,
-                        height: canvasOptions.height
-                    }
-            };
-        DX.viz.rangeSelector.utils = {
-            findLessOrEqualValue: findLessOrEqualValue,
-            findNearValue: findNearValue,
-            findGreaterOrEqualValue: findGreaterOrEqualValue,
-            getEventPageX: getEventPageX,
-            truncateSelectedRange: truncateSelectedRange,
-            canvasOptionsToRenderOptions: canvasOptionsToRenderOptions,
-            trackerSettings: {
-                fill: "grey",
-                stroke: "grey",
-                opacity: 0.0001
-            },
-            animationSettings: {duration: 250},
-            addInterval: function(value, interval, isNegative, scaleOptions) {
-                var result,
-                    type = scaleOptions.type,
-                    base = type === "logarithmic" && scaleOptions.logarithmBase,
-                    power;
-                if (base) {
-                    power = utilsAddInterval(mathUtils.getLog(value, base), interval, isNegative);
-                    result = Math.pow(base, power)
-                }
-                else
-                    result = utilsAddInterval(value, interval, isNegative);
-                return result
-            }
-        }
-    })(jQuery, DevExpress);
-    /*! Module viz-rangeselector, file baseVisualElementMethods.js */
-    (function(DX) {
-        DX.viz.rangeSelector.baseVisualElementMethods = {
-            init: function(renderer) {
-                this._renderer = renderer;
-                this._isDrawn = false
-            },
-            applyOptions: function(options) {
-                this._options = options || {};
-                this._applyOptions(this._options)
-            },
-            _applyOptions: function(){},
-            redraw: function(group) {
-                var that = this;
-                if (!that._isDrawn) {
-                    that._isDrawn = that._draw(group || that._group) !== false;
-                    if (group)
-                        that._group = group
-                }
-                else
-                    that._update(group || that._group)
-            },
-            isDrawn: function() {
-                return !!this._isDrawn
-            },
-            isInitialized: function() {
-                return !!this._options
-            },
-            _draw: function(){},
-            _update: function(group) {
-                group.clear();
-                this._draw(group)
-            }
-        }
-    })(DevExpress);
     /*! Module viz-rangeselector, file rangeSelector.js */
     (function($, DX, undefined) {
-        var rangeSelector = DX.viz.rangeSelector,
+        var rangeSelector = DX.viz.rangeSelector = {},
             commonUtils = DX.require("/utils/utils.common"),
             mathUtils = DX.require("/utils/utils.math"),
             dateUtils = DX.require("/utils/utils.date"),
@@ -185,7 +23,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             parseUtils = viz.parseUtils,
             _normalizeEnum = vizUtils.normalizeEnum,
             formatHelper = DX.require("/utils/utils.formatHelper"),
-            registerComponent = DX.require("/componentRegistrator"),
             HEIGHT_COMPACT_MODE = 24,
             POINTER_SIZE = 4,
             EMPTY_SLIDER_MARKER_TEXT = ". . .",
@@ -506,10 +343,83 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     height: canvas.height - canvas.top - canvas.bottom
                 }
         }
-        registerComponent("dxRangeSelector", rangeSelector, viz.BaseWidget.inherit({
+        function getSelectedRange(scaleOption, selectedRangeOption, incidentOccurred) {
+            return selectedRangeOption ? {
+                    startValue: processValue(selectedRangeOption, scaleOption, START_VALUE, incidentOccurred),
+                    endValue: processValue(selectedRangeOption, scaleOption, END_VALUE, incidentOccurred)
+                } : cloneSelectedRange(scaleOption)
+        }
+        function updateScaleOptions(scaleOptions, seriesDataSource, translatorRange, tickIntervalsInfo) {
+            var bounds,
+                isEmptyInterval,
+                categoriesInfo = scaleOptions._categoriesInfo;
+            if (seriesDataSource && !seriesDataSource.isEmpty() && !translatorRange.stubData) {
+                bounds = tickIntervalsInfo.bounds;
+                translatorRange.addRange(bounds);
+                scaleOptions.startValue = translatorRange.invert ? bounds.maxVisible : bounds.minVisible;
+                scaleOptions.endValue = translatorRange.invert ? bounds.minVisible : bounds.maxVisible
+            }
+            if (categoriesInfo) {
+                scaleOptions.startValue = categoriesInfo.start;
+                scaleOptions.endValue = categoriesInfo.end
+            }
+            if (scaleOptions.type !== DISCRETE)
+                isEmptyInterval = _isDate(scaleOptions.startValue) && _isDate(scaleOptions.endValue) && scaleOptions.startValue.getTime() === scaleOptions.endValue.getTime() || scaleOptions.startValue === scaleOptions.endValue;
+            scaleOptions.isEmpty = startEndNotDefined(scaleOptions.startValue, scaleOptions.endValue) || isEmptyInterval;
+            if (scaleOptions.isEmpty)
+                scaleOptions.startValue = scaleOptions.endValue = undefined;
+            else {
+                scaleOptions.minorTickInterval = tickIntervalsInfo.minorTickInterval;
+                scaleOptions.tickInterval = tickIntervalsInfo.tickInterval;
+                if (scaleOptions.valueType === DATETIME && !_isDefined(scaleOptions.label.format))
+                    if (scaleOptions.type === DISCRETE)
+                        scaleOptions.label.format = formatHelper.getDateFormatByTicks(tickIntervalsInfo.ticks);
+                    else if (!scaleOptions.marker.visible)
+                        scaleOptions.label.format = formatHelper.getDateFormatByTickInterval(scaleOptions.startValue, scaleOptions.endValue, scaleOptions.tickInterval);
+                    else
+                        scaleOptions.label.format = dateUtils.getDateUnitInterval(scaleOptions.tickInterval)
+            }
+        }
+        function prepareScaleOptions(scaleOption, seriesDataSource, incidentOccurred) {
+            var parsedValue = 0,
+                valueType = parseUtils.correctValueType(_normalizeEnum(scaleOption.valueType)),
+                parser,
+                validateStartEndValues = function(field, parser) {
+                    var messageToIncidentOccured = field === START_VALUE ? "start" : "end";
+                    if (_isDefined(scaleOption[field])) {
+                        parsedValue = parser(scaleOption[field]);
+                        if (_isDefined(parsedValue))
+                            scaleOption[field] = parsedValue;
+                        else {
+                            scaleOption[field] = undefined;
+                            incidentOccurred("E2202", [messageToIncidentOccured])
+                        }
+                    }
+                };
+            if (seriesDataSource)
+                valueType = seriesDataSource.getCalculatedValueType() || valueType;
+            if (!valueType)
+                valueType = calculateValueType(scaleOption.startValue, scaleOption.endValue) || "numeric";
+            if (valueType === STRING || scaleOption.categories) {
+                scaleOption.type = DISCRETE;
+                valueType = STRING
+            }
+            scaleOption.valueType = valueType;
+            parser = parseUtils.getParser(valueType);
+            validateStartEndValues(START_VALUE, parser);
+            validateStartEndValues(END_VALUE, parser);
+            checkLogarithmicOptions(scaleOption, logarithmBase, incidentOccurred);
+            if (!scaleOption.type)
+                scaleOption.type = "continuous";
+            scaleOption.tickInterval === undefined && (scaleOption.tickInterval = scaleOption.majorTickInterval);
+            scaleOption.minorTick.visible && (scaleOption.minorTick.visible = scaleOption.showMinorTicks);
+            scaleOption.parser = parser;
+            return scaleOption
+        }
+        DX.require("/componentRegistrator")("dxRangeSelector", rangeSelector, viz.BaseWidget.inherit({
             _eventsMap: $.extend({}, viz.BaseWidget.prototype._eventsMap, {onSelectedRangeChanged: {name: SELECTED_RANGE_CHANGED}}),
             _setDeprecatedOptions: function() {
-                this.callBase();
+                this.callBase.apply(this, arguments);
                 $.extend(this._deprecatedOptions, {
                     "sliderMarker.padding": {
                         since: "15.1",
@@ -533,19 +443,18 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             _rootClass: "dxrs-range-selector",
             _invalidatingOptions: ["scale", "selectedRangeColor", "containerBackgroundColor", "sliderMarker", "sliderHandle", "shutter", "background", "behavior", "chart", "indent"],
             _dataIsReady: function() {
-                return this._dataSource.isLoaded()
+                return !this._hasChart || this._dataSource.isLoaded()
             },
             _init: function() {
-                var that = this;
-                that.callBase();
-                that._updateDataSource()
+                this.callBase.apply(this, arguments);
+                this._updateDataSource()
             },
             _initCore: function() {
                 this._renderer.root.css({
                     "touch-action": "pan-y",
                     "-ms-touch-action": "pan-y"
                 });
-                this.rangeContainer = new rangeSelector.RangeContainer(this._renderer)
+                this._rangeContainer = new rangeSelector.RangeContainer({renderer: this._renderer})
             },
             _getDefaultSize: function() {
                 return {
@@ -554,56 +463,54 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     }
             },
             _disposeCore: function() {
-                var that = this,
-                    disposeObject = function(propName) {
-                        that[propName] && that[propName].dispose();
-                        that[propName] = null
-                    };
-                that.callBase();
-                disposeObject("renderer");
-                that.translators = null;
-                disposeObject("rangeContainer")
+                this._rangeContainer.dispose();
+                this._rangeContainer = null
             },
             _createThemeManager: function() {
                 return new rangeSelector.ThemeManager
             },
-            _render: function(isResizing) {
+            _render: function() {
                 var that = this,
-                    currentAnimationEnabled,
-                    renderer = that._renderer;
-                isResizing = isResizing || that.__isResizing;
+                    renderer = that._renderer,
+                    currentAnimationEnabled;
                 renderer.lock();
-                that._applyOptions();
-                if (isResizing) {
+                if (that.__isResizing) {
                     currentAnimationEnabled = renderer.animationEnabled();
-                    renderer.updateAnimationOptions({enabled: false});
-                    that.rangeContainer.redraw();
-                    renderer.updateAnimationOptions({enabled: currentAnimationEnabled})
+                    renderer.updateAnimationOptions({enabled: false})
                 }
-                else
-                    that.rangeContainer.redraw();
+                that._updateRangeContainer();
+                if (that.__isResizing)
+                    renderer.updateAnimationOptions({enabled: currentAnimationEnabled});
                 renderer.unlock();
-                if (!isResizing && that._dataSource.isLoaded())
+                if (!that.__isResizing && that._dataIsReady())
                     that.hideLoadingIndicator();
                 that._drawn();
                 that.__rendered && that.__rendered()
             },
             _handleChangedOptions: function(options) {
-                var that = this;
+                var that = this,
+                    oldSelectedRange = that._options[SELECTED_RANGE],
+                    newSelectedRange = $.extend({}, options[SELECTED_RANGE]);
                 that.callBase.apply(that, arguments);
-                if ("dataSource" in options)
-                    that._updateDataSource();
+                if ("dataSource" in options) {
+                    that._options[SELECTED_RANGE] = null;
+                    that._updateDataSource()
+                }
                 if (SELECTED_RANGE in options)
-                    that.setSelectedRange(options[SELECTED_RANGE])
+                    that.setSelectedRange($.extend({}, oldSelectedRange, options[SELECTED_RANGE], newSelectedRange))
             },
-            _resize: function() {
-                this._render(true)
+            _applySize: function() {
+                if (this._initialized) {
+                    this.__isResizing = true;
+                    this._render(true);
+                    this.__isResizing = false
+                }
             },
             _dataSourceChangedHandler: function() {
                 if (this._initialized)
                     this._render()
             },
-            _applyOptions: function() {
+            _updateRangeContainer: function() {
                 var that = this,
                     rangeContainerCanvas,
                     seriesDataSource,
@@ -622,40 +529,43 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     max,
                     argTranslatorRange,
                     tickIntervalsInfo,
-                    chartThemeManager;
+                    chartThemeManager,
+                    translators;
                 that._isUpdating = true;
                 seriesDataSource = that._createSeriesDataSource(chartOptions);
-                isCompactMode = !(seriesDataSource && seriesDataSource.isShowChart() || background && background.image && background.image.url);
+                that._hasChart = seriesDataSource && seriesDataSource.isShowChart();
+                isCompactMode = !(that._hasChart || background && background.image && background.image.url);
                 if (seriesDataSource) {
                     chartThemeManager = seriesDataSource.getThemeManager();
                     checkLogarithmicOptions(chartOptions && chartOptions.valueAxis, chartThemeManager.getOptions("valueAxis").logarithmBase, that._incidentOccured)
                 }
-                scaleOptions = that._scaleOptions = that._prepareScaleOptions(seriesDataSource);
+                scaleOptions = that._scaleOptions = prepareScaleOptions(that._getOption("scale"), seriesDataSource, that._incidentOccured);
                 translatorRange = calculateTranslatorRange(seriesDataSource, scaleOptions);
                 argTranslatorRange = translatorRange.arg;
                 min = _isDefined(argTranslatorRange.minVisible) ? argTranslatorRange.minVisible : argTranslatorRange.min;
                 max = _isDefined(argTranslatorRange.maxVisible) ? argTranslatorRange.maxVisible : argTranslatorRange.max;
                 tickIntervalsInfo = updateTickIntervals(scaleOptions, sizeOptions.width, this._incidentOccured, argTranslatorRange.stick, min, max);
-                that._updateScaleOptions(seriesDataSource, translatorRange.arg, tickIntervalsInfo);
+                updateScaleOptions(that._scaleOptions, seriesDataSource, translatorRange.arg, tickIntervalsInfo);
                 updateTranslatorRangeInterval(translatorRange, scaleOptions);
                 sliderMarkerOptions = that._prepareSliderMarkersOptions(sizeOptions.width, tickIntervalsInfo);
-                selectedRange = that._initSelection();
+                selectedRange = getSelectedRange(that._scaleOptions, that.option(SELECTED_RANGE), that._incidentOccured);
                 indents = calculateIndents(that._renderer, sizeOptions, scaleOptions, sliderMarkerOptions, that.option("indent"));
                 scaleLabelsAreaHeight = calculateScaleAreaHeight(that._renderer, scaleOptions, showScaleMarkers(scaleOptions));
                 rangeContainerCanvas = calculateRangeContainerCanvas(that._canvas, sizeOptions, indents, scaleLabelsAreaHeight, that._title, isCompactMode);
                 that._applyTitleLayout(rangeContainerCanvas, indents);
-                that.translators = createTranslator(translatorRange, createTranslatorCanvas(sizeOptions, rangeContainerCanvas, scaleLabelsAreaHeight));
+                translators = createTranslator(translatorRange, createTranslatorCanvas(sizeOptions, rangeContainerCanvas, scaleLabelsAreaHeight));
+                that._TESTS_translators = translators;
                 that._selectedRange = selectedRange;
                 if (seriesDataSource)
-                    seriesDataSource.adjustSeriesDimensions(that.translators);
+                    seriesDataSource.adjustSeriesDimensions(translators);
                 shutterOptions.color = shutterOptions.color || that._getOption(CONTAINER_BACKGROUND_COLOR, true);
                 scaleOptions.minorTickInterval = scaleOptions.isEmpty ? 0 : that._getOption('scale').minorTickInterval;
-                that.rangeContainer.applyOptions({
+                that._rangeContainer.update({
                     canvas: rangeContainerCanvas,
                     isCompactMode: isCompactMode,
                     scaleLabelsAreaHeight: scaleLabelsAreaHeight,
                     indents: indents,
-                    translators: that.translators,
+                    translators: translators,
                     selectedRange: selectedRange,
                     scale: scaleOptions,
                     behavior: that._getOption("behavior"),
@@ -694,19 +604,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         }}
                 })
             },
-            _initSelection: function() {
-                var that = this,
-                    scaleOptions = that._scaleOptions,
-                    selectedRangeOptions = that.option(SELECTED_RANGE),
-                    incidentOccured = that._incidentOccured;
-                if (!selectedRangeOptions)
-                    return cloneSelectedRange(scaleOptions);
-                else
-                    return {
-                            startValue: processValue(selectedRangeOptions, scaleOptions, START_VALUE, incidentOccured),
-                            endValue: processValue(selectedRangeOptions, scaleOptions, END_VALUE, incidentOccured)
-                        }
-            },
             _createSeriesDataSource: function(chartOptions) {
                 var that = this,
                     seriesDataSource,
@@ -731,44 +628,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     })
                 }
                 return seriesDataSource
-            },
-            _prepareScaleOptions: function(seriesDataSource) {
-                var that = this,
-                    scaleOptions = that._getOption("scale"),
-                    parsedValue = 0,
-                    valueType = parseUtils.correctValueType(_normalizeEnum(scaleOptions.valueType)),
-                    parser,
-                    validateStartEndValues = function(field, parser) {
-                        var messageToIncidentOccured = field === START_VALUE ? "start" : "end";
-                        if (_isDefined(scaleOptions[field])) {
-                            parsedValue = parser(scaleOptions[field]);
-                            if (_isDefined(parsedValue))
-                                scaleOptions[field] = parsedValue;
-                            else {
-                                scaleOptions[field] = undefined;
-                                that._incidentOccured("E2202", [messageToIncidentOccured])
-                            }
-                        }
-                    };
-                if (seriesDataSource)
-                    valueType = seriesDataSource.getCalculatedValueType() || valueType;
-                if (!valueType)
-                    valueType = calculateValueType(scaleOptions.startValue, scaleOptions.endValue) || "numeric";
-                if (valueType === STRING || scaleOptions.categories) {
-                    scaleOptions.type = DISCRETE;
-                    valueType = STRING
-                }
-                scaleOptions.valueType = valueType;
-                parser = parseUtils.getParser(valueType);
-                validateStartEndValues(START_VALUE, parser);
-                validateStartEndValues(END_VALUE, parser);
-                checkLogarithmicOptions(scaleOptions, logarithmBase, that._incidentOccured);
-                if (!scaleOptions.type)
-                    scaleOptions.type = "continuous";
-                scaleOptions.tickInterval === undefined && (scaleOptions.tickInterval = scaleOptions.majorTickInterval);
-                scaleOptions.minorTick.visible && (scaleOptions.minorTick.visible = scaleOptions.showMinorTicks);
-                scaleOptions.parser = parser;
-                return scaleOptions
             },
             _prepareSliderMarkersOptions: function(screenDelta, tickIntervalsInfo) {
                 var that = this,
@@ -803,77 +662,164 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     sliderMarkerOptions.paddingLeftRight = sliderMarkerOptions.paddingTopBottom = sliderMarkerUserOption.padding;
                 return sliderMarkerOptions
             },
-            _updateScaleOptions: function(seriesDataSource, translatorRange, tickIntervalsInfo) {
-                var scaleOptions = this._scaleOptions,
-                    bounds,
-                    isEmptyInterval,
-                    categoriesInfo = scaleOptions._categoriesInfo;
-                if (seriesDataSource && !seriesDataSource.isEmpty() && !translatorRange.stubData) {
-                    bounds = tickIntervalsInfo.bounds;
-                    translatorRange.addRange(bounds);
-                    scaleOptions.startValue = translatorRange.invert ? bounds.maxVisible : bounds.minVisible;
-                    scaleOptions.endValue = translatorRange.invert ? bounds.minVisible : bounds.maxVisible
-                }
-                if (categoriesInfo) {
-                    scaleOptions.startValue = categoriesInfo.start;
-                    scaleOptions.endValue = categoriesInfo.end
-                }
-                if (scaleOptions.type !== DISCRETE)
-                    isEmptyInterval = _isDate(scaleOptions.startValue) && _isDate(scaleOptions.endValue) && scaleOptions.startValue.getTime() === scaleOptions.endValue.getTime() || scaleOptions.startValue === scaleOptions.endValue;
-                scaleOptions.isEmpty = startEndNotDefined(scaleOptions.startValue, scaleOptions.endValue) || isEmptyInterval;
-                if (scaleOptions.isEmpty)
-                    scaleOptions.startValue = scaleOptions.endValue = undefined;
-                else {
-                    scaleOptions.minorTickInterval = tickIntervalsInfo.minorTickInterval;
-                    scaleOptions.tickInterval = tickIntervalsInfo.tickInterval;
-                    if (scaleOptions.valueType === DATETIME && !_isDefined(scaleOptions.label.format))
-                        if (scaleOptions.type === DISCRETE)
-                            scaleOptions.label.format = formatHelper.getDateFormatByTicks(tickIntervalsInfo.ticks);
-                        else if (!scaleOptions.marker.visible)
-                            scaleOptions.label.format = formatHelper.getDateFormatByTickInterval(scaleOptions.startValue, scaleOptions.endValue, scaleOptions.tickInterval);
-                        else
-                            scaleOptions.label.format = dateUtils.getDateUnitInterval(scaleOptions.tickInterval)
-                }
-            },
             getSelectedRange: function() {
-                return cloneSelectedRange(this.rangeContainer.getSlidersContainer().getSelectedRange())
+                return cloneSelectedRange(this._rangeContainer.getSlidersContainer().getSelectedRange())
             },
-            setSelectedRange: function(selectedRange) {
-                var that = this;
-                if (that._isUpdating || !selectedRange)
-                    return;
-                var oldSelectedRange = that.rangeContainer.getSlidersContainer().getSelectedRange();
-                if (oldSelectedRange && oldSelectedRange.startValue === selectedRange.startValue && oldSelectedRange.endValue === selectedRange.endValue)
-                    return;
-                that.rangeContainer.getSlidersContainer().setSelectedRange(selectedRange)
+            setSelectedRange: function(range) {
+                var current;
+                if (!this._isUpdating && range) {
+                    current = this._rangeContainer.getSlidersContainer().getSelectedRange();
+                    if (!current || current.startValue !== range.startValue || current.endValue !== range.endValue)
+                        this._rangeContainer.getSlidersContainer().setSelectedRange(range)
+                }
             },
-            resetSelectedRange: function(blockSelectedRangeChanged) {
+            resetSelectedRange: function(_blockSelectedRangeChanged) {
                 var data = cloneSelectedRange(this._scaleOptions);
-                data.blockSelectedRangeChanged = blockSelectedRangeChanged;
+                data.blockSelectedRangeChanged = _blockSelectedRangeChanged;
                 this.setSelectedRange(data)
             },
             render: function(isResizing) {
                 var that = this;
                 that.__isResizing = isResizing;
                 that.callBase.apply(that, arguments);
-                that.__isResizing = null;
+                that.__isResizing = false;
                 return that
             },
-            _applySize: _noop,
             _initTooltip: _noop,
             _setTooltipRendererOptions: _noop,
             _setTooltipOptions: _noop,
             _hideTooltip: _noop
         }))
     })(jQuery, DevExpress);
+    /*! Module viz-rangeselector, file utils.js */
+    (function($, DX, undefined) {
+        var commonUtils = DX.require("/utils/utils.common"),
+            mathUtils = DX.require("/utils/utils.math"),
+            utilsAddInterval = DX.require("/utils/utils.date").addInterval;
+        var findLessOrEqualValueIndex = function(values, value) {
+                if (!values || values.length === 0)
+                    return -1;
+                var minIndex = 0,
+                    maxIndex = values.length - 1;
+                while (maxIndex - minIndex > 1) {
+                    var index = minIndex + maxIndex >> 1;
+                    if (values[index] > value)
+                        maxIndex = index;
+                    else
+                        minIndex = index
+                }
+                return values[maxIndex] <= value ? maxIndex : minIndex
+            };
+        var findLessOrEqualValue = function(values, value) {
+                var index = findLessOrEqualValueIndex(values, value);
+                if (values && index >= 0 && index < values.length)
+                    return values[index];
+                return value
+            };
+        var findNearValue = function(values, value) {
+                var index = findLessOrEqualValueIndex(values, value);
+                if (values && index >= 0 && index < values.length) {
+                    if (index + 1 < values.length)
+                        if (commonUtils.isDate(value)) {
+                            if (values[index + 1].getTime() - value.getTime() < value.getTime() - values[index].getTime())
+                                index++
+                        }
+                        else if (values[index + 1] - value < value - values[index])
+                            index++;
+                    return values[index]
+                }
+                return value
+            };
+        var findGreaterOrEqualValue = function(values, value) {
+                var index = findLessOrEqualValueIndex(values, value);
+                if (values && index >= 0 && index < values.length) {
+                    if (values[index] < value && index + 1 < values.length)
+                        index++;
+                    return values[index]
+                }
+                return value
+            };
+        var getEventPageX = function(eventArgs) {
+                var result = 0;
+                if (eventArgs.pageX)
+                    result = eventArgs.pageX;
+                else if (eventArgs.originalEvent && eventArgs.originalEvent.pageX)
+                    result = eventArgs.originalEvent.pageX;
+                if (eventArgs.originalEvent && eventArgs.originalEvent.touches)
+                    if (eventArgs.originalEvent.touches.length > 0)
+                        result = eventArgs.originalEvent.touches[0].pageX;
+                    else if (eventArgs.originalEvent.changedTouches.length > 0)
+                        result = eventArgs.originalEvent.changedTouches[0].pageX;
+                return result
+            };
+        var truncateSelectedRange = function(value, scaleOptions) {
+                var isDiscrete = scaleOptions.type === "discrete",
+                    categories = isDiscrete ? scaleOptions.categories || scaleOptions._categoriesInfo.categories : undefined,
+                    startValue = scaleOptions.startValue,
+                    endValue = scaleOptions.endValue,
+                    min,
+                    max,
+                    valueIndex;
+                if (categories)
+                    categories = DX.viz.utils.map(categories, function(category) {
+                        return commonUtils.isDefined(category) ? category.valueOf() : null
+                    });
+                if (isDiscrete) {
+                    valueIndex = $.inArray(value.valueOf(), categories);
+                    return valueIndex < 0 ? startValue : value
+                }
+                else {
+                    min = startValue > endValue ? endValue : startValue;
+                    max = startValue > endValue ? startValue : endValue
+                }
+                if (value < min)
+                    value = min;
+                if (value > max)
+                    value = max;
+                return value
+            };
+        var canvasOptionsToRenderOptions = function(canvasOptions) {
+                return {
+                        x: canvasOptions.left,
+                        y: canvasOptions.top,
+                        width: canvasOptions.width,
+                        height: canvasOptions.height
+                    }
+            };
+        DX.viz.rangeSelector.utils = {
+            findLessOrEqualValue: findLessOrEqualValue,
+            findNearValue: findNearValue,
+            findGreaterOrEqualValue: findGreaterOrEqualValue,
+            getEventPageX: getEventPageX,
+            truncateSelectedRange: truncateSelectedRange,
+            canvasOptionsToRenderOptions: canvasOptionsToRenderOptions,
+            trackerSettings: {
+                fill: "grey",
+                stroke: "grey",
+                opacity: 0.0001
+            },
+            animationSettings: {duration: 250},
+            addInterval: function(value, interval, isNegative, scaleOptions) {
+                var result,
+                    type = scaleOptions.type,
+                    base = type === "logarithmic" && scaleOptions.logarithmBase,
+                    power;
+                if (base) {
+                    power = utilsAddInterval(mathUtils.getLog(value, base), interval, isNegative);
+                    result = Math.pow(base, power)
+                }
+                else
+                    result = utilsAddInterval(value, interval, isNegative);
+                return result
+            }
+        }
+    })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file rangeContainer.js */
     (function($, DX, undefined) {
         var rangeSelector = DX.viz.rangeSelector,
             canvasOptionsToRenderOptions = rangeSelector.utils.canvasOptionsToRenderOptions,
-            baseVisualElementMethods = rangeSelector.baseVisualElementMethods,
             dateUtils = DX.require("/utils/utils.date"),
-            _extend = $.extend,
-            RangeContainer;
+            _extend = $.extend;
         function createClipRectCanvas(canvas, indents) {
             return {
                     left: canvas.left - indents.left,
@@ -882,17 +828,60 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     height: canvas.height + indents.bottom + indents.top
                 }
         }
-        RangeContainer = function(renderer) {
-            var that = this;
-            baseVisualElementMethods.init.apply(that, arguments);
+        function createDateMarkersEvent(scaleOptions, markerTrackers, setSelectedRange) {
+            $.each(markerTrackers, function(_, value) {
+                value.on("dxpointerdown", onPointerDown)
+            });
+            function onPointerDown(e) {
+                var range = e.target.range,
+                    minRange = scaleOptions.minRange ? dateUtils.addInterval(range.startValue, scaleOptions.minRange) : undefined,
+                    maxRange = scaleOptions.maxRange ? dateUtils.addInterval(range.startValue, scaleOptions.maxRange) : undefined;
+                if (!(minRange && minRange > range.endValue || maxRange && maxRange < range.endValue))
+                    setSelectedRange(range)
+            }
+        }
+        function prepareScaleOptions(options, axisPosition) {
+            var scaleOptions = options.scale;
+            scaleOptions.label.overlappingBehavior = {mode: scaleOptions.useTicksAutoArrangement ? "enlargeTickInterval" : "ignore"};
+            scaleOptions.marker.label.font = scaleOptions.label.font;
+            scaleOptions.color = scaleOptions.marker.color = scaleOptions.tick.color;
+            scaleOptions.opacity = scaleOptions.marker.opacity = scaleOptions.tick.opacity;
+            scaleOptions.width = scaleOptions.marker.width = scaleOptions.tick.width;
+            scaleOptions.placeholderSize = (scaleOptions.placeholderHeight || 0) + axisPosition;
+            scaleOptions.argumentType = scaleOptions.valueType;
+            scaleOptions.visible = options.isCompactMode;
+            scaleOptions.minorTick.showCalculatedTicks = scaleOptions.isHorizontal = scaleOptions.withoutOverlappingBehavior = scaleOptions.stick = true;
+            if (!options.isCompactMode)
+                scaleOptions.minorTick.length = scaleOptions.tick.length = options.canvas.height - options.scaleLabelsAreaHeight;
+            scaleOptions.label.indentFromAxis = scaleOptions.label.topIndent + axisPosition;
+            scaleOptions.setSelectedRange = options.setSelectedRange;
+            return scaleOptions
+        }
+        function RangeContainer(params) {
+            var that = this,
+                renderer = params.renderer,
+                root;
             that._clipRect = renderer.clipRect();
-            that._root = renderer.g().attr({
-                'class': 'rangeContainer',
+            root = renderer.g().attr({
+                "class": "rangeContainer",
                 clipId: that._clipRect.id
-            }).linkOn(renderer.root, "range-container");
-            that._createGroups();
-            that._slidersContainer = new rangeSelector.SlidersContainer(renderer);
-            that._rangeView = new rangeSelector.RangeView(renderer);
+            }).append(renderer.root);
+            that._viewClipRect = renderer.clipRect();
+            that._rangeViewGroup = renderer.g().attr({
+                "class": "dxrs-view",
+                clipId: that._viewClipRect.id
+            }).append(root);
+            that._slidersGroup = renderer.g().attr({"class": "dxrs-slidersContainer"}).append(root);
+            that._scaleGroup = renderer.g().attr({"class": "dxrs-scale"}).append(root);
+            that._trackersGroup = renderer.g().attr({"class": "dxrs-trackers"}).append(root);
+            that._slidersContainer = new rangeSelector.SlidersContainer({
+                renderer: renderer,
+                root: that._slidersGroup
+            });
+            that._rangeView = new rangeSelector.RangeView({
+                renderer: renderer,
+                root: that._rangeViewGroup
+            });
             that._axis = new DX.viz.axes.Axis({
                 axesContainerGroup: that._scaleGroup,
                 renderer: renderer,
@@ -901,157 +890,80 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 widgetClass: "dxrs",
                 axisClass: "range-selector"
             })
-        };
-        RangeContainer.prototype = _extend({}, baseVisualElementMethods, {
+        }
+        RangeContainer.prototype = {
             constructor: RangeContainer,
             dispose: function() {
                 var that = this;
                 that._slidersContainer.dispose();
                 that._axis.dispose();
-                that._root.linkOff();
-                that._slidersContainer = that._root = that._rangeView = that._axis = null
+                that._slidersContainer = that._rangeView = that._axis = null
             },
             getSlidersContainer: function() {
                 return this._slidersContainer
             },
-            _applyOptions: function(options) {
-                var scaleLabelsAreaHeight = options.scaleLabelsAreaHeight,
-                    canvas = options.canvas,
-                    height = canvas.height;
-                this._viewCanvas = {
-                    left: canvas.left,
-                    top: canvas.top,
-                    width: canvas.width,
-                    height: height >= scaleLabelsAreaHeight ? height - scaleLabelsAreaHeight : 0
-                };
-                this._options = options
-            },
-            _updateClipRect: function() {
-                this._clipRect.attr(canvasOptionsToRenderOptions(createClipRectCanvas(this._options.canvas, this._options.indents)))
-            },
-            _createViewClipRect: function() {
-                var that = this,
-                    viewCanvas = that._viewCanvas;
-                if (that._viewClipRect)
-                    that._viewClipRect.attr(canvasOptionsToRenderOptions(viewCanvas));
-                else {
-                    that._viewClipRect = that._renderer.clipRect(viewCanvas.left, viewCanvas.top, viewCanvas.width, viewCanvas.height);
-                    that._rangeViewGroup.attr({clipId: that._viewClipRect.id})
-                }
-            },
-            _createGroups: function() {
-                var that = this,
-                    renderer = that._renderer;
-                that._rangeViewGroup = renderer.g().attr({"class": "dxrs-view"});
-                that._slidersGroup = renderer.g().attr({"class": "dxrs-slidersContainer"});
-                that._scaleGroup = renderer.g().attr({"class": "dxrs-scale"});
-                that._trackersGroup = renderer.g().attr({"class": "dxrs-trackers"})
-            },
-            _draw: function() {
-                var that = this,
-                    containerGroup = that._root;
-                containerGroup.linkAppend();
-                that._rangeViewGroup.append(containerGroup);
-                if (that._options.isCompactMode) {
-                    that._scaleGroup.append(containerGroup);
-                    that._slidersGroup.append(containerGroup)
-                }
-                else {
-                    that._slidersGroup.append(containerGroup);
-                    that._scaleGroup.append(containerGroup)
-                }
-                that._trackersGroup.append(containerGroup);
-                that._update()
-            },
-            _update: function() {
+            _updateClipRects: function(options, viewCanvas) {
                 var that = this;
-                that._updateClipRect();
-                that._createViewClipRect();
-                that._drawRangeView();
-                that._drawAxis();
-                that._drawSliderContainer();
-                that._slidersContainer.appendTrackers(that._trackersGroup)
+                that._clipRect.attr(canvasOptionsToRenderOptions(createClipRectCanvas(options.canvas, options.indents)));
+                that._viewClipRect.attr(canvasOptionsToRenderOptions(viewCanvas))
             },
-            _prepareScaleOptions: function(axisPosition) {
-                var options = this._options,
-                    scaleOptions = options.scale;
-                scaleOptions.label.overlappingBehavior = {mode: scaleOptions.useTicksAutoArrangement ? "enlargeTickInterval" : "ignore"};
-                scaleOptions.marker.label.font = scaleOptions.label.font;
-                scaleOptions.color = scaleOptions.marker.color = scaleOptions.tick.color;
-                scaleOptions.opacity = scaleOptions.marker.opacity = scaleOptions.tick.opacity;
-                scaleOptions.width = scaleOptions.marker.width = scaleOptions.tick.width;
-                scaleOptions.placeholderSize = (scaleOptions.placeholderHeight || 0) + axisPosition;
-                scaleOptions.argumentType = scaleOptions.valueType;
-                scaleOptions.visible = options.isCompactMode;
-                scaleOptions.isHorizontal = scaleOptions.withoutOverlappingBehavior = scaleOptions.stick = true;
-                if (!options.isCompactMode)
-                    scaleOptions.minorTick.length = scaleOptions.tick.length = options.canvas.height - options.scaleLabelsAreaHeight;
-                scaleOptions.label.indentFromAxis = scaleOptions.label.topIndent + axisPosition;
-                scaleOptions.setSelectedRange = options.setSelectedRange;
-                return scaleOptions
-            },
-            _drawAxis: function() {
+            update: function(options) {
                 var that = this,
-                    options = that._options,
+                    scaleLabelsAreaHeight = options.scaleLabelsAreaHeight,
+                    canvas = options.canvas,
+                    height = canvas.height,
+                    viewCanvas = {
+                        left: canvas.left,
+                        top: canvas.top,
+                        width: canvas.width,
+                        height: height >= scaleLabelsAreaHeight ? height - scaleLabelsAreaHeight : 0
+                    };
+                that._updateClipRects(options, viewCanvas);
+                that._updateRangeView(options, viewCanvas);
+                that._updateAxis(options, viewCanvas);
+                that._updateSliderContainer(options, viewCanvas)
+            },
+            _updateAxis: function(options, viewCanvas) {
+                var that = this,
                     canvas = options.canvas,
                     translators = options.translators,
                     centerY = (2 * canvas.top + canvas.height - options.scaleLabelsAreaHeight) / 2,
                     markerTrackers;
-                that._axis.updateOptions(that._prepareScaleOptions(this._viewCanvas.height + canvas.top - centerY - Math.ceil(options.scale.width / 2)));
+                that._axis.updateOptions(prepareScaleOptions(options, viewCanvas.height + canvas.top - centerY - Math.ceil(options.scale.width / 2)));
                 that._axis.delta = {bottom: centerY - translators.y.translateSpecialCase("canvas_position_bottom")};
                 that._axis.setTranslator(translators.x, translators.y);
                 that._axis.draw();
-                markerTrackers = this._axis.getMarkerTrackers();
-                markerTrackers && that._initializeDateMarkersEvent(markerTrackers)
+                markerTrackers = that._axis.getMarkerTrackers();
+                if (markerTrackers)
+                    createDateMarkersEvent(options.scale, markerTrackers, options.setSelectedRange)
             },
-            _drawSliderContainer: function() {
+            _updateSliderContainer: function(options, viewCanvas) {
                 var that = this,
                     translator = that._axis.getTranslator(),
                     range = translator.getBusinessRange(),
                     inverted = range.invert,
-                    options = that._options,
-                    scaleOptions = options.scale,
-                    newOptions = _extend({
-                        type: range.axisType,
-                        startValue: inverted ? range.maxVisible : range.minVisible,
-                        endValue: inverted ? range.minVisible : range.maxVisible,
-                        categories: range.categories,
-                        inverted: inverted,
-                        fullTicks: that._axis.getFullTicks(),
-                        maxRange: scaleOptions.maxRange,
-                        minRange: scaleOptions.minRange,
-                        isEmpty: scaleOptions.isEmpty
-                    }, options);
-                newOptions.canvas = that._viewCanvas;
-                newOptions.translator = translator;
-                that._slidersContainer.applyOptions(newOptions);
-                that._slidersContainer.redraw(that._slidersGroup)
+                    scaleOptions = options.scale;
+                that._slidersContainer.update(_extend({
+                    type: range.axisType,
+                    startValue: inverted ? range.maxVisible : range.minVisible,
+                    endValue: inverted ? range.minVisible : range.maxVisible,
+                    categories: range.categories,
+                    inverted: inverted,
+                    fullTicks: that._axis.getFullTicks(),
+                    maxRange: scaleOptions.maxRange,
+                    minRange: scaleOptions.minRange,
+                    isEmpty: scaleOptions.isEmpty
+                }, options, {
+                    canvas: viewCanvas,
+                    translator: translator
+                }));
+                that._slidersContainer.appendTrackers(that._trackersGroup)
             },
-            _drawRangeView: function() {
-                var that = this,
-                    options = _extend({}, that._options);
-                options.canvas = that._viewCanvas;
-                if (!options.isCompactMode) {
-                    that._rangeView.applyOptions(options);
-                    that._rangeView.redraw(that._rangeViewGroup)
-                }
-            },
-            _initializeDateMarkersEvent: function(markerTrackers) {
-                var that = this;
-                $.each(markerTrackers, function(_, value) {
-                    value.on("dxpointerdown", function(e) {
-                        var range = e.target.range,
-                            options = that._options,
-                            scaleOptions = options.scale,
-                            minRange = scaleOptions.minRange ? dateUtils.addInterval(range.startValue, scaleOptions.minRange) : undefined,
-                            maxRange = scaleOptions.maxRange ? dateUtils.addInterval(range.startValue, scaleOptions.maxRange) : undefined;
-                        if (minRange && minRange > range.endValue || maxRange && maxRange < range.endValue)
-                            return;
-                        options.setSelectedRange(range)
-                    })
-                })
+            _updateRangeView: function(options, viewCanvas) {
+                if (!options.isCompactMode)
+                    this._rangeView.update(_extend({}, options, {canvas: viewCanvas}))
             }
-        });
+        };
         rangeSelector.RangeContainer = RangeContainer
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file slidersContainer.js */
@@ -1060,7 +972,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             msPointerEnabled = DX.require("/utils/utils.support").pointer,
             _normalizeEnum = DX.viz.utils.normalizeEnum,
             rangeSelectorUtils = rangeSelector.utils,
-            baseVisualElementMethods = rangeSelector.baseVisualElementMethods,
             trackerAttributes = rangeSelectorUtils.trackerSettings;
         function checkRangeEquality(selectedRange, lastSelectedRange) {
             var lastStartValue = lastSelectedRange.startValue && lastSelectedRange.startValue.valueOf(),
@@ -1069,27 +980,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 endValue = selectedRange.endValue && selectedRange.endValue.valueOf();
             return lastEndValue === endValue && lastStartValue === startValue
         }
-        function SlidersContainer() {
+        function validateSelectedRange(options, field, value) {
+            if (value === undefined || $.type(options[field]) === $.type(value))
+                options.selectedRange[field] = value
+        }
+        function SlidersContainer(params) {
             var that = this;
-            baseVisualElementMethods.init.apply(that, arguments);
-            that._controller = new rangeSelector.SlidersController(that._renderer);
-            that._eventsManager = new rangeSelector.SlidersEventsManager(that._renderer, that._controller, function(moving) {
+            that._params = params;
+            that._controller = new rangeSelector.SlidersController(params);
+            that._eventsManager = new rangeSelector.SlidersEventsManager(params.renderer, that._controller, function(moving) {
                 that._processSelectionChanged(moving)
             });
             that._lastSelectedRange = {}
         }
-        SlidersContainer.prototype = $.extend({}, baseVisualElementMethods, {
+        SlidersContainer.prototype = {
             constructor: SlidersContainer,
-            _drawAreaTracker: function(group) {
-                var that = this,
-                    areaTracker,
-                    selectedAreaTracker,
-                    canvas = that._options.canvas,
-                    renderer = that._renderer;
-                areaTracker = renderer.rect(canvas.left, canvas.top, canvas.width, canvas.height).attr(trackerAttributes).append(group);
-                selectedAreaTracker = renderer.rect(canvas.left, canvas.top, canvas.width, canvas.height).attr(trackerAttributes).css({cursor: 'pointer'}).append(group);
-                that._controller.setAreaTrackers(areaTracker, selectedAreaTracker)
-            },
             _processSelectionChanged: function(moving, blockSelectedRangeChanged) {
                 var that = this,
                     selectedRange = that.getSelectedRange(),
@@ -1101,31 +1006,39 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
             },
             _updateLastSelectedRange: function(selectedRange) {
-                selectedRange = selectedRange || this._options.selectedRange;
+                var _selectedRange = selectedRange || this._options.selectedRange;
                 this._lastSelectedRange = {
-                    startValue: selectedRange.startValue,
-                    endValue: selectedRange.endValue
+                    startValue: _selectedRange.startValue,
+                    endValue: _selectedRange.endValue
                 }
             },
-            _applyOptions: function(options) {
-                this._controller.applyOptions(options);
-                this._eventsManager.applyOptions({behavior: options.behavior})
-            },
-            _draw: function(group) {
+            update: function(options) {
                 var that = this,
-                    rootElement;
-                if (msPointerEnabled) {
-                    rootElement = that._renderer.root;
-                    rootElement && rootElement.css({msTouchAction: "pinch-zoom"})
-                }
-                that._controller.redraw(group);
-                that._drawAreaTracker(group);
+                    isEmpty = options.isEmpty;
+                that._options = options;
+                that._controller.applyOptions(options);
+                that._eventsManager.applyOptions({behavior: options.behavior});
+                if (msPointerEnabled)
+                    that._params.renderer.root.css({msTouchAction: "pinch-zoom"});
+                that._drawAreaTracker(options);
                 that._eventsManager.initialize();
-                that._update(group, false)
+                that._eventsManager.setEnabled(!isEmpty);
+                if (!isEmpty)
+                    that._updateSelectedView(options);
+                that._controller.applySelectedRange(isEmpty ? {} : options.selectedRange);
+                that._controller.applyPosition();
+                that._processSelectionChanged(false, options.selectedRange.blockSelectedRangeChanged)
             },
-            _updateSelectedView: function(group) {
+            _drawAreaTracker: function(options) {
+                var canvas = options.canvas,
+                    renderer = this._params.renderer,
+                    group = this._params.root,
+                    areaTracker = renderer.rect(canvas.left, canvas.top, canvas.width, canvas.height).attr(trackerAttributes).append(group),
+                    selectedAreaTracker = renderer.rect(canvas.left, canvas.top, canvas.width, canvas.height).attr(trackerAttributes).css({cursor: 'pointer'}).append(group);
+                this._controller.setAreaTrackers(areaTracker, selectedAreaTracker)
+            },
+            _updateSelectedView: function(options) {
                 var that = this,
-                    options = that._options,
                     canvas = options.canvas,
                     lineOptions = {
                         "stroke-width": 3,
@@ -1141,40 +1054,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         selectedView.remove();
                         that._selectedViewAppended = false
                     }
-                    controller.createShutters()
+                    controller.appendShutters()
                 }
                 else {
                     if (!selectedView) {
-                        that._selectedView = selectedView = that._renderer.path([canvas.left, center, canvas.left, center], "line").attr(lineOptions);
+                        that._selectedView = selectedView = that._params.renderer.path([canvas.left, center, canvas.left, center], "line").attr(lineOptions);
                         controller.setSelectedView(selectedView)
                     }
                     else
                         selectedView.attr(lineOptions);
                     if (!selectedViewAppended) {
-                        selectedView.append(group);
+                        selectedView.append(that._params.root);
                         controller.removeShutters();
                         that._selectedViewAppended = true
                     }
                 }
-            },
-            _update: function(group, withSelectionChanged) {
-                var that = this,
-                    isEmpty = that._options.isEmpty,
-                    controller = that._controller,
-                    selectedRange = that._options.selectedRange;
-                that._eventsManager.setEnabled(!isEmpty);
-                !isEmpty && that._updateSelectedView(group);
-                controller.applySelectedRange(isEmpty ? {} : selectedRange);
-                controller.applyPosition(that.isDrawn());
-                if (withSelectionChanged === false)
-                    that._updateLastSelectedRange(selectedRange);
-                else
-                    that._processSelectionChanged(false, selectedRange.blockSelectedRangeChanged);
-                controller.redraw(group)
-            },
-            _validateSelectedRange: function(field, value) {
-                if (value === undefined || $.type(this._options[field]) === $.type(value))
-                    this._options.selectedRange[field] = value
             },
             dispose: function() {
                 this._eventsManager.dispose();
@@ -1194,8 +1088,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     startValue = selectedRange.startValue;
                     endValue = selectedRange.endValue
                 }
-                that._validateSelectedRange("startValue", startValue);
-                that._validateSelectedRange("endValue", endValue);
+                validateSelectedRange(options, "startValue", startValue);
+                validateSelectedRange(options, "endValue", endValue);
                 currentSelectedRange.startValue = rangeSelectorUtils.truncateSelectedRange(currentSelectedRange.startValue, options);
                 currentSelectedRange.endValue = rangeSelectorUtils.truncateSelectedRange(currentSelectedRange.endValue, options);
                 that._controller.applySelectedRange(currentSelectedRange);
@@ -1208,24 +1102,22 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             getController: function() {
                 return this._controller
             }
-        });
+        };
         rangeSelector.SlidersContainer = SlidersContainer
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file slidersController.js */
     (function($, DX, undefined) {
         var rangeSelector = DX.viz.rangeSelector,
-            _SliderController,
             START_VALUE_INDEX = 0,
             END_VALUE_INDEX = 1,
             DISCRETE = "discrete";
-        _SliderController = rangeSelector.SlidersController = function(renderer) {
-            var sliders = [new rangeSelector.Slider(renderer, START_VALUE_INDEX), new rangeSelector.Slider(renderer, END_VALUE_INDEX)];
+        function SlidersController(params) {
+            var sliders = this._sliders = [new rangeSelector.Slider(params, START_VALUE_INDEX), new rangeSelector.Slider(params, END_VALUE_INDEX)];
             sliders[START_VALUE_INDEX].setAnotherSlider(sliders[END_VALUE_INDEX]);
-            sliders[END_VALUE_INDEX].setAnotherSlider(sliders[START_VALUE_INDEX]);
-            this._sliders = sliders
-        };
-        _SliderController.prototype = {
-            constructor: _SliderController,
+            sliders[END_VALUE_INDEX].setAnotherSlider(sliders[START_VALUE_INDEX])
+        }
+        SlidersController.prototype = {
+            constructor: SlidersController,
             _callMethodForBothSliders: function(methodName, params) {
                 this._sliders[START_VALUE_INDEX][methodName](params);
                 this._sliders[END_VALUE_INDEX][methodName](params)
@@ -1254,7 +1146,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 var that = this,
                     values = null;
                 that._options = options;
-                that._callMethodForBothSliders("applyOptions", options);
+                that._foregroundSliderIndex = END_VALUE_INDEX;
+                that._callMethodForBothSliders("update", options);
                 if (options.behavior.snapToTicks && options.type !== DISCRETE) {
                     values = options.fullTicks;
                     values[0] > values[values.length - 1] && values.reverse()
@@ -1392,10 +1285,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 that.applyAreaTrackersPosition();
                 that._applySelectedRangePosition(disableAnimation)
             },
-            redraw: function(group) {
-                this._callMethodForBothSliders("redraw", group);
-                this._foregroundSliderIndex = END_VALUE_INDEX
-            },
             toForeground: function(slider) {
                 var sliderIndex = slider.getIndex();
                 if (this._foregroundSliderIndex !== sliderIndex) {
@@ -1425,8 +1314,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 this._selectedAreaTracker.css(style);
                 this._areaTracker.css(style)
             },
-            createShutters: function() {
-                this._callMethodForBothSliders("createShutter")
+            appendShutters: function() {
+                this._callMethodForBothSliders("appendShutter")
             },
             removeShutters: function() {
                 this._callMethodForBothSliders("removeShutter")
@@ -1434,7 +1323,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             dispose: function() {
                 this._callMethodForBothSliders("dispose")
             }
-        }
+        };
+        rangeSelector.SlidersController = SlidersController
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file slidersEventsManager.js */
     (function($, DX, undefined) {
@@ -1696,66 +1586,72 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             START_VALUE_INDEX = 0,
             END_VALUE_INDEX = 1,
             DISCRETE = "discrete",
-            baseVisualElementMethods = rangeSelector.baseVisualElementMethods,
             addInterval = rangeSelectorUtils.addInterval;
         function checkItemsSpacing(firstSliderPosition, secondSliderPosition, distance) {
             return Math.abs(secondSliderPosition - firstSliderPosition) < distance
         }
-        function Slider(renderer, index) {
-            baseVisualElementMethods.init.apply(this, arguments);
-            this._index = index
+        function createSlider(renderer, group) {
+            var sliderGroup = renderer.g().attr({"class": "slider"}).append(group),
+                sliderHandle = renderer.path([], "line").append(sliderGroup);
+            sliderGroup.setColors = function(validColor, invalidColor) {
+                sliderHandle._colors = [invalidColor, validColor]
+            };
+            sliderGroup.setValid = function(correct) {
+                sliderHandle.attr({stroke: sliderHandle._colors[Number(!!correct)]})
+            };
+            sliderGroup.setCanvasHeight = function(height) {
+                sliderHandle._height = height
+            };
+            sliderGroup.updateHeight = function() {
+                sliderHandle.attr({points: [0, 0, 0, sliderHandle._height]})
+            };
+            sliderGroup.applyOptions = function(options) {
+                sliderHandle.attr(options)
+            };
+            sliderGroup.__line = sliderHandle;
+            return sliderGroup
         }
-        Slider.prototype = $.extend({}, baseVisualElementMethods, {
+        function createSliderTracker(renderer) {
+            var sliderTrackerGroup = renderer.g().attr({"class": "sliderTracker"}),
+                sliderTracker = renderer.rect().attr(rangeSelectorUtils.trackerSettings).css({cursor: "w-resize"}).append(sliderTrackerGroup);
+            sliderTrackerGroup.setHandleWidth = function(width) {
+                var splitterWidth = SPLITTER_WIDTH < width ? width : SPLITTER_WIDTH,
+                    sliderWidth = touchSupport || msPointerEnabled ? TOUCH_SPLITTER_WIDTH : splitterWidth;
+                sliderTracker.attr({
+                    x: -sliderWidth / 2,
+                    y: 0,
+                    width: sliderWidth,
+                    height: sliderTracker._height
+                })
+            };
+            sliderTrackerGroup.setCanvasHeight = function(height) {
+                sliderTracker._height = height
+            };
+            sliderTrackerGroup.updateHeight = function() {
+                sliderTracker.attr({height: sliderTracker._height})
+            };
+            return sliderTrackerGroup
+        }
+        function correctByAvailableValues(values, businessValue, skipCorrection) {
+            return !skipCorrection && values ? rangeSelectorUtils.findNearValue(values, businessValue) : businessValue
+        }
+        function Slider(params, index) {
+            var that = this,
+                renderer = params.renderer;
+            that._params = params;
+            that._index = index;
+            that._container = renderer.g().attr({"class": "sliderArea"}).append(params.root);
+            that._slider = createSlider(renderer, that._container);
+            that._marker = new rangeSelector.SliderMarker({
+                renderer: renderer,
+                root: that._slider,
+                isLeftPointer: index === END_VALUE_INDEX
+            });
+            that._shutter = renderer.rect();
+            that._sliderTracker = createSliderTracker(renderer)
+        }
+        Slider.prototype = {
             constructor: Slider,
-            _createSlider: function(group) {
-                var that = this,
-                    sliderHandle,
-                    sliderGroup,
-                    sliderHandleOptions = that._options.sliderHandle,
-                    canvas = that._options.canvas,
-                    renderer = that._renderer;
-                sliderGroup = renderer.g().attr({
-                    "class": "slider",
-                    translateX: canvas.left,
-                    translateY: canvas.top
-                }).append(group);
-                sliderHandle = renderer.path([0, 0, 0, canvas.height], "line").attr({
-                    "stroke-width": sliderHandleOptions.width,
-                    stroke: sliderHandleOptions.color,
-                    "stroke-opacity": sliderHandleOptions.opacity,
-                    sharp: "h"
-                }).append(sliderGroup);
-                sliderGroup.setValid = function(correct) {
-                    sliderHandle.attr({stroke: correct ? that._options.sliderHandle.color : that._options.sliderMarker.invalidRangeColor})
-                };
-                sliderGroup.updateHeight = function() {
-                    sliderHandle.attr({points: [0, 0, 0, that._options.canvas.height]})
-                };
-                sliderGroup.applyOptions = function(options) {
-                    sliderHandle.attr(options)
-                };
-                sliderGroup.__line = sliderHandle;
-                return sliderGroup
-            },
-            _createSliderTracker: function(group) {
-                var that = this,
-                    sliderHandleWidth = that._options.sliderHandle.width,
-                    splitterWidth = SPLITTER_WIDTH < sliderHandleWidth ? sliderHandleWidth : SPLITTER_WIDTH,
-                    sliderWidth = touchSupport || msPointerEnabled ? TOUCH_SPLITTER_WIDTH : splitterWidth,
-                    sliderTracker,
-                    canvas = that._options.canvas,
-                    renderer = that._renderer,
-                    sliderTrackerGroup = renderer.g().attr({
-                        "class": "sliderTracker",
-                        translateX: 0,
-                        translateY: canvas.top
-                    }).append(group);
-                sliderTracker = renderer.rect(-sliderWidth / 2, 0, sliderWidth, canvas.height).attr(rangeSelectorUtils.trackerSettings).css({cursor: "w-resize"}).append(sliderTrackerGroup);
-                sliderTrackerGroup.updateHeight = function() {
-                    sliderTracker.attr({height: that._options.canvas.height})
-                };
-                return sliderTrackerGroup
-            },
             _setPosition: function(position, correctByMinMaxRange) {
                 var that = this,
                     correctedPosition = that._correctPosition(position),
@@ -1797,11 +1693,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     endPosition = that._correctBounds(endPosition);
                 if (that._values)
                     if (!options.inverted ? startValue < that._values[0] : startValue > that._values[that._values.length - 1]) {
-                        startValue = that._correctByAvailableValues(startValue, false);
+                        startValue = correctByAvailableValues(that._values, startValue, false);
                         endValue = getNextValue(startValue)
                     }
                     else {
-                        endValue = that._correctByAvailableValues(endValue, false);
+                        endValue = correctByAvailableValues(that._values, endValue, false);
                         startValue = getNextValue(endValue, true)
                     }
                 anotherSlider.setValue(endValue, undefined, false);
@@ -1828,16 +1724,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             _correctValue: function(businessValue, correctByMinMaxRange, skipCorrection) {
                 var that = this,
-                    result = that._correctByAvailableValues(businessValue, skipCorrection);
+                    result = correctByAvailableValues(that._values, businessValue, skipCorrection);
                 if (correctByMinMaxRange)
                     result = that._correctByMinMaxRange(result);
                 if (that._options.type !== DISCRETE)
                     result = that._correctByMinRange(result);
                 return result
-            },
-            _correctByAvailableValues: function(businessValue, skipCorrection) {
-                var values = this._values;
-                return !skipCorrection && values ? rangeSelectorUtils.findNearValue(values, businessValue) : businessValue
             },
             _correctByMinMaxRange: function(businessValue) {
                 var that = this,
@@ -1919,7 +1811,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         translateY: options.canvas.top
                     },
                     animationSettings = rangeSelectorUtils.animationSettings;
-                that._marker && that._marker.setPosition(position);
+                that._marker.setPosition(position);
                 if (isAnimation) {
                     slider.animate(attrs, animationSettings);
                     sliderTracker.animate(attrs, animationSettings)
@@ -1935,14 +1827,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 var that = this,
                     shutterSettings,
                     options = that._options,
-                    shutter = that._shutter,
                     isAnimation = options.behavior.animationEnabled && !disableAnimation,
                     sliderIndex = that._index,
                     canvas = options.canvas,
                     halfSliderHandleWidth = options.sliderHandle.width / 2,
                     width;
-                if (!shutter)
-                    return;
                 if (sliderIndex === START_VALUE_INDEX) {
                     width = position - canvas.left - Math.floor(halfSliderHandleWidth);
                     if (width < 0)
@@ -1962,64 +1851,57 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         height: canvas.height
                     };
                 if (isAnimation)
-                    shutter.animate(shutterSettings, rangeSelectorUtils.animationSettings);
+                    that._shutter.animate(shutterSettings, rangeSelectorUtils.animationSettings);
                 else
-                    shutter.stopAnimation().attr(shutterSettings)
+                    that._shutter.stopAnimation().attr(shutterSettings)
             },
             _setValid: function(isValid) {
-                this._marker && this._marker.setValid(isValid);
+                this._marker.setValid(isValid);
                 this._slider.setValid(isValid)
             },
             _setText: function(text) {
-                this._marker && this._marker.setText(text)
+                this._marker.setText(text)
             },
-            _update: function() {
+            update: function(options) {
                 var that = this,
-                    options = that._options,
+                    canvas = options.canvas,
+                    sliderMarkerOptions = options.sliderMarker,
                     shutterOptions = options.shutter,
-                    sliderHandleOptions = options.sliderHandle,
-                    marker = that._marker;
-                if (marker) {
-                    marker.applyOptions(options.sliderMarker);
-                    marker.setCanvas(that._options.canvas)
-                }
-                that._shutter && that._shutter.attr({
+                    sliderHandleOptions = options.sliderHandle;
+                that._options = options;
+                that._lastPosition = null;
+                that._marker.setCanvas(canvas);
+                that._marker.applyOptions(sliderMarkerOptions);
+                that._shutter.attr({
+                    x: canvas.left,
+                    y: canvas.top,
+                    width: that._index === START_VALUE_INDEX ? 0 : canvas.width,
+                    height: canvas.height,
                     fill: shutterOptions.color,
                     "fill-opacity": shutterOptions.opacity
                 });
-                that._slider && that._slider.applyOptions({
+                that._slider.attr({
+                    translateX: canvas.left,
+                    translateY: canvas.top
+                });
+                that._slider.setCanvasHeight(canvas.height);
+                that._slider.updateHeight();
+                that._slider.setColors(sliderHandleOptions.color, sliderMarkerOptions.invalidRangeColor);
+                that._slider.applyOptions({
                     "stroke-width": sliderHandleOptions.width,
                     stroke: sliderHandleOptions.color,
-                    "stroke-opacity": sliderHandleOptions.opacity
-                })
-            },
-            _draw: function(group) {
-                var that = this,
-                    slider,
-                    marker,
-                    sliderAreaGroup,
-                    options = that._options,
-                    renderer = that._renderer;
-                that._container = sliderAreaGroup = renderer.g().attr({"class": "sliderArea"}).append(group);
-                slider = that._createSlider(sliderAreaGroup);
-                if (options.sliderMarker.visible) {
-                    marker = new rangeSelector.SliderMarker({
-                        renderer: renderer,
-                        isLeftPointer: that._index === END_VALUE_INDEX,
-                        sliderMarkerOptions: options.sliderMarker
-                    });
-                    marker.setCanvas(options.canvas);
-                    marker.draw(slider)
-                }
-                that._slider = slider;
-                that._marker = marker;
-                that._sliderTracker = that._createSliderTracker(group)
+                    "stroke-opacity": sliderHandleOptions.opacity,
+                    sharp: "h"
+                });
+                that._sliderTracker.attr({
+                    translateX: 0,
+                    translateY: canvas.top
+                });
+                that._sliderTracker.setCanvasHeight(canvas.height);
+                that._sliderTracker.setHandleWidth(sliderHandleOptions.width)
             },
             toForeground: function() {
                 this._container.toForeground()
-            },
-            _applyOptions: function() {
-                this._lastPosition = null
             },
             getIndex: function() {
                 return this._index
@@ -2034,15 +1916,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 return this._anotherSlider
             },
             appendTrackers: function(group) {
-                this._sliderTracker && this._sliderTracker.append(group)
+                this._sliderTracker.append(group)
             },
             getSliderTracker: function() {
                 return this._sliderTracker
             },
             changeLocation: function() {
                 var that = this;
-                that._marker && that._marker.changeLocation();
-                that._index = +!that._index;
+                that._marker.changeLocation();
+                that._index = 1 - that._index;
                 that._options.type === DISCRETE && that.setPosition(that._position);
                 that._lastPosition = null
             },
@@ -2079,7 +1961,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 that._valuePosition = that._position = position
             },
             setOverlapped: function(isOverlapped) {
-                this._marker && this._marker.setOverlapped(isOverlapped)
+                this._marker.setOverlapped(isOverlapped)
             },
             getValue: function() {
                 return this._value
@@ -2109,10 +1991,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 return false
             },
             processDocking: function() {
-                var that = this;
-                that._position = that._valuePosition;
-                that.applyPosition(false);
-                that._setValid(true)
+                this._position = this._valuePosition;
+                this.applyPosition(false);
+                this._setValid(true)
             },
             applyPosition: function(disableAnimation) {
                 var that = this,
@@ -2124,46 +2005,34 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
             },
             on: function(event, handler) {
-                var that = this,
-                    marker = that._marker,
-                    tracker = marker && marker.getTracker(),
-                    sliderTracker = that._sliderTracker;
-                sliderTracker && sliderTracker.on(event, handler);
-                tracker && tracker.on(event, handler)
+                this._sliderTracker.on(event, handler);
+                this._marker.getTracker().on(event, handler)
             },
-            createShutter: function() {
-                var that = this,
-                    canvas = that._options.canvas,
-                    width = that._index === START_VALUE_INDEX ? 0 : canvas.width;
-                if (!that._shutter)
-                    that._shutter = that._renderer.rect(canvas.left, canvas.top, width, canvas.height);
-                that._shutter.append(that._container)
+            appendShutter: function() {
+                this._shutter.append(this._container)
             },
             removeShutter: function() {
-                this._shutter && this._shutter.remove()
+                this._shutter.remove()
             },
             getCloudBorder: function() {
-                return this._marker ? this._marker.getBorderPosition() : 0
+                return this._marker.getBorderPosition()
             },
             dispose: function() {
-                this._marker && this._marker.dispose()
+                this._marker.dispose()
             },
             getText: function() {
-                if (this._marker)
-                    return this._marker.getText()
+                return this._marker.getText()
             },
             getAvailableValues: function() {
                 return this._values
             }
-        });
+        };
         rangeSelector.Slider = Slider
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file sliderMarker.js */
     (function($, DX, undefined) {
-        var viz = DX.viz,
-            patchFontOptions = viz.utils.patchFontOptions,
-            rangeSelector = viz.rangeSelector,
-            SliderMarker,
+        var rangeSelector = DX.viz.rangeSelector,
+            patchFontOptions = DX.viz.utils.patchFontOptions,
             SLIDER_MARKER_UPDATE_DELAY = 75,
             POINTER_SIZE = rangeSelector.consts.pointerSize;
         var getRectSize = function(that, textSize) {
@@ -2238,16 +2107,18 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         y: textSize.y
                     }
             };
-        SliderMarker = rangeSelector.SliderMarker = function(options) {
-            var that = this;
-            that._renderer = options.renderer;
-            that._text = options.text;
-            that._isLeftPointer = options.isLeftPointer;
-            that._options = $.extend(true, {}, options.sliderMarkerOptions);
-            that._options.textFontStyles = patchFontOptions(that._options.font);
+        function SliderMarker(params) {
+            var that = this,
+                renderer = params.renderer;
+            that._isLeftPointer = params.isLeftPointer;
             that._isValid = true;
-            that._isOverlapped = false
-        };
+            that._isOverlapped = false;
+            that._sliderMarkerGroup = renderer.g().attr({"class": "sliderMarker"}).append(params.root);
+            that._area = renderer.path([], "area").append(that._sliderMarkerGroup);
+            that._label = renderer.text().attr({align: "left"}).append(that._sliderMarkerGroup);
+            that._tracker = renderer.rect().attr(rangeSelector.utils.trackerSettings).css({cursor: "pointer"}).append(that._sliderMarkerGroup);
+            that._border = renderer.rect(0, 0, 1, 0)
+        }
         SliderMarker.prototype = {
             constructor: SliderMarker,
             _update: function() {
@@ -2257,8 +2128,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     currentTextSize,
                     rectSize;
                 clearTimeout(that._timeout);
-                if (!that._drawn)
-                    return;
                 that._label.attr({text: that._text || ""});
                 currentTextSize = getTextSize(that);
                 rectSize = getRectSize(that, currentTextSize);
@@ -2294,62 +2163,54 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
                 updateSliderMarker(textSize)
             },
-            draw: function(group) {
-                var that = this,
-                    options = that._options,
-                    renderer = that._renderer,
-                    sliderMarkerGroup = that._sliderMarkerGroup = renderer.g().attr({"class": "sliderMarker"}).append(group);
-                that._area = renderer.path([], "area").attr({fill: options.color}).append(sliderMarkerGroup);
-                that._label = renderer.text(that._text, 0, 0).attr({align: "left"}).css(options.textFontStyles).append(sliderMarkerGroup);
-                that._tracker = renderer.rect(0, 0, 2 * options.paddingLeftRight, 2 * options.paddingTopBottom + POINTER_SIZE).attr(rangeSelector.utils.trackerSettings).css({cursor: "pointer"}).append(sliderMarkerGroup);
-                that._border = renderer.rect(0, 0, 1, 0).attr({fill: options.borderColor});
-                that._drawn = true;
-                that._update()
-            },
             setText: function(value) {
-                if (this._text !== value)
-                    this._text = value
+                this._text = value
             },
             setPosition: function(position) {
                 this._position = position;
                 this._update()
             },
             changeLocation: function() {
-                var that = this;
-                that._isLeftPointer = !that._isLeftPointer;
-                that._update()
+                this._isLeftPointer = !this._isLeftPointer;
+                this._update()
             },
             applyOptions: function(options) {
                 var that = this;
+                that._options = options;
                 that._textHeight = null;
                 that._area.attr({fill: options.color});
                 that._border.attr({fill: options.borderColor});
                 that._label.css(patchFontOptions(options.font));
+                that._tracker.attr({
+                    x: 0,
+                    y: 0,
+                    width: 2 * options.paddingLeftRight,
+                    height: 2 * options.paddingTopBottom + POINTER_SIZE
+                });
                 that._update()
             },
             getTracker: function() {
                 return this._tracker
             },
             setValid: function(isValid) {
-                var that = this,
-                    options = that._options;
-                if (that._isValid !== isValid) {
-                    that._isValid = isValid;
-                    that._area.attr({fill: isValid ? options.color : options.invalidRangeColor})
+                var options = this._options;
+                if (this._isValid !== isValid) {
+                    this._isValid = isValid;
+                    this._area.attr({fill: isValid ? options.color : options.invalidRangeColor})
                 }
             },
             dispose: function() {
                 clearTimeout(this._timeout)
             },
             setOverlapped: function(isOverlapped) {
-                var border = this._border;
-                if (this._isOverlapped === isOverlapped)
-                    return;
-                if (isOverlapped)
-                    border.append(this._sliderMarkerGroup);
-                else
-                    this._isOverlapped && border.remove();
-                this._isOverlapped = isOverlapped
+                var that = this;
+                if (that._isOverlapped !== isOverlapped) {
+                    if (isOverlapped)
+                        that._border.append(that._sliderMarkerGroup);
+                    else
+                        that._isOverlapped && that._border.remove();
+                    that._isOverlapped = isOverlapped
+                }
             },
             getBorderPosition: function() {
                 return this._borderPosition
@@ -2358,6 +2219,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 this._canvas = canvas
             }
         };
+        rangeSelector.SliderMarker = SliderMarker;
         SliderMarker.prototype.updateDelay = SLIDER_MARKER_UPDATE_DELAY;
         SliderMarker.prototype.getText = function() {
             return this._text
@@ -2365,22 +2227,18 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file rangeView.js */
     (function($, DX, undefined) {
-        var rangeSelector = DX.viz.rangeSelector,
-            RangeView,
-            baseVisualElementMethods = rangeSelector.baseVisualElementMethods;
-        RangeView = function() {
-            baseVisualElementMethods.init.apply(this, arguments)
-        };
-        RangeView.prototype = $.extend({}, baseVisualElementMethods, {
+        function RangeView(params) {
+            this._params = params
+        }
+        RangeView.prototype = {
             constructor: RangeView,
-            _draw: function(group) {
-                var that = this,
+            update: function(options) {
+                var renderer = this._params.renderer,
+                    group = this._params.root,
                     series,
                     i,
-                    options = that._options,
                     canvas = options.canvas,
                     isEmpty = options.scale.isEmpty,
-                    renderer = that._renderer,
                     seriesDataSource = options.seriesDataSource,
                     showChart = seriesDataSource && seriesDataSource.isShowChart() && !isEmpty,
                     background = options.background,
@@ -2388,6 +2246,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     backgroundImage = background.image,
                     backgroundIsVisible = background.visible,
                     animationEnabled;
+                group.clear();
                 if (backgroundIsVisible && !isEmpty && backgroundColor)
                     renderer.rect(canvas.left, canvas.top, canvas.width + 1, canvas.height).attr({
                         fill: backgroundColor,
@@ -2406,8 +2265,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     }
                 }
             }
-        });
-        rangeSelector.RangeView = RangeView
+        };
+        DX.viz.rangeSelector.RangeView = RangeView
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file seriesDataSource.js */
     (function($, DX, undefined) {

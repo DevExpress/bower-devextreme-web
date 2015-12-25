@@ -1,16 +1,12 @@
 /*! 
 * DevExtreme
-* Version: 15.2.4
-* Build date: Dec 8, 2015
+* Version: 15.2.5-pre
+* Build date: Dec 25, 2015
 *
 * Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 
-.dx-invalid-message .dx-tooltip-wrapper .dx-overlay-content .dx-popup-content
-{
-  color: #fff;
-}
 .dx-colorview-palette-handle
 {
   background: -webkit-gradient(transparent 5px,rgba(0,0,0,.2) 6px,#fff 7px,#fff 12px,rgba(0,0,0,.2) 13px);
@@ -350,10 +346,6 @@
   text-align: center;
   line-height: 16px;
 }
-.dx-pivotgrid .dx-icon-field-chooser
-{
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAQklEQVQoz2O4/R8/ZAASDHjgoFFAwBcEIBEKcBsPV4BLtzH+kDTGFdQgYWOY9G1j7Apg0BibG4yRpbH5Ama8MUQDAA9rNuceT+EYAAAAAElFTkSuQmCC) no-repeat center center;
-}
 .dx-pivotgrid .dx-icon-collapse-all
 {
   background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAALElEQVQoz2P4z4AfAtHt/7ghVAEu3eQogBhLIwWY7idVAR0cSVlIEogs/BAA8xtDgN6BqQAAAAAASUVORK5CYII=) no-repeat center center;
@@ -583,6 +575,15 @@
 .dx-rtl .dx-pivotgrid-border .dx-area-column-cell, .dx-rtl .dx-pivotgrid-border .dx-area-data-cell
 {
   border-left: 1px solid #555;
+}
+.dx-validationsummary-item
+{
+  color: #ea4444;
+}
+.dx-invalid-message>.dx-overlay-content
+{
+  color: #fff;
+  background-color: #ea4444;
 }
 .dx-scheduler-pseudo-cell:before
 {
@@ -1558,7 +1559,7 @@
   -moz-box-shadow: 7px 7px 15px 0 rgba(50,50,50,.2),inset 0 -2px 0 0 rgba(0,0,0,.3),inset 0 2px 0 0 rgba(0,0,0,.3);
   box-shadow: 7px 7px 15px 0 rgba(50,50,50,.2),inset 0 -2px 0 0 rgba(0,0,0,.3),inset 0 2px 0 0 rgba(0,0,0,.3);
 }
-.dx-scheduler-appointment.dx-state-active, .dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-appointment.dx-draggable-dragging
+.dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-appointment.dx-draggable-dragging
 {
   z-index: 1000;
   filter: alpha(opacity=70);
@@ -1601,6 +1602,12 @@
   -moz-box-shadow: inset 2px 0 0 0 rgba(0,0,0,.3);
   box-shadow: inset 2px 0 0 0 rgba(0,0,0,.3);
 }
+.dx-rtl .dx-scheduler-timeline .dx-scheduler-appointment, .dx-rtl .dx-scheduler-work-space-month .dx-scheduler-appointment, .dx-rtl .dx-scheduler-all-day-appointment
+{
+  -webkit-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3);
+  -moz-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3);
+  box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3);
+}
 .dx-scheduler-timeline .dx-scheduler-appointment.dx-state-active, .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-state-active, .dx-scheduler-all-day-appointment.dx-state-active, .dx-scheduler-timeline .dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-resizable-resizing, .dx-scheduler-all-day-appointment.dx-resizable-resizing
 {
   -webkit-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
@@ -1633,6 +1640,12 @@
   -moz-box-shadow: inset 5px 0 0 0 rgba(0,0,0,.3),inset -2px 0 0 0 rgba(0,0,0,.3);
   box-shadow: inset 5px 0 0 0 rgba(0,0,0,.3),inset -2px 0 0 0 rgba(0,0,0,.3);
 }
+.dx-rtl .dx-scheduler-timeline .dx-scheduler-appointment.dx-state-hover, .dx-rtl .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-state-hover, .dx-rtl .dx-scheduler-all-day-appointment.dx-state-hover
+{
+  -webkit-box-shadow: inset -5px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
+  -moz-box-shadow: inset -5px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
+  box-shadow: inset -5px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3);
+}
 .dx-scheduler-timeline .dx-scheduler-appointment.dx-draggable-dragging, .dx-scheduler-work-space-month .dx-scheduler-appointment.dx-draggable-dragging, .dx-scheduler-all-day-appointment.dx-draggable-dragging
 {
   -webkit-box-shadow: inset -2px 0 0 0 rgba(0,0,0,.3),inset 2px 0 0 0 rgba(0,0,0,.3),7px 7px 15px 0 rgba(50,50,50,.2);
@@ -1647,6 +1660,24 @@
 .dx-scheduler-appointment.dx-scheduler-appointment-body, .dx-scheduler-appointment.dx-scheduler-appointment-tail
 {
   box-shadow: none;
+}
+.dx-scheduler-timeline .dx-scheduler-group-header
+{
+  padding: 0;
+}
+.dx-scheduler-timeline .dx-scheduler-group-header .dx-scheduler-group-header-content
+{
+  overflow: hidden;
+}
+.dx-scheduler-timeline .dx-scheduler-group-header .dx-scheduler-group-header-content div
+{
+  position: relative;
+  top: 50%;
+  -webkit-transform: translate(0,-50%);
+  -moz-transform: translate(0,-50%);
+  -ms-transform: translate(0,-50%);
+  -o-transform: translate(0,-50%);
+  transform: translate(0,-50%);
 }
 .dx-scheduler-appointment-recurrence-icon
 {
@@ -5850,10 +5881,7 @@
 .dx-popup-title .dx-closebutton
 {
   display: block;
-  width: 23px;
-  height: 23px;
   padding: 0;
-  margin: 0 -4px 0 4px;
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
   -ms-border-radius: 3px;
@@ -5871,26 +5899,15 @@
   box-shadow: none;
   background: transparent;
   border-color: transparent;
-}
-.dx-rtl .dx-popup-title .dx-closebutton
-{
-  margin: 0 4px 0 -4px;
+  width: 23px;
+  height: 23px;
+  margin: 0 -4px 0 4px;
 }
 .dx-popup-title .dx-closebutton .dx-icon
 {
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
   box-sizing: border-box;
-  width: 21px;
-  height: 21px;
-  background-position: 3px 3px;
-  -webkit-background-size: 15px 15px;
-  -moz-background-size: 15px 15px;
-  background-size: 15px 15px;
-  padding: 3px;
-  font-size: 15px;
-  text-align: center;
-  line-height: 15px;
 }
 .dx-popup-title .dx-closebutton.dx-state-hover
 {
@@ -5954,6 +5971,46 @@
 .dx-popup-title .dx-closebutton.dx-state-active .dx-icon
 {
   color: #c5c5c5;
+}
+.dx-rtl .dx-popup-title .dx-closebutton
+{
+  margin: 0 4px 0 -4px;
+}
+.dx-popup-title .dx-closebutton .dx-icon
+{
+  width: 21px;
+  height: 21px;
+  background-position: 3px 3px;
+  -webkit-background-size: 15px 15px;
+  -moz-background-size: 15px 15px;
+  background-size: 15px 15px;
+  padding: 3px;
+  font-size: 15px;
+  text-align: center;
+  line-height: 15px;
+}
+.dx-device-mobile .dx-popup-title .dx-closebutton
+{
+  width: 37px;
+  height: 37px;
+  margin: 0 -11px 0 11px;
+}
+.dx-rtl .dx-device-mobile .dx-popup-title .dx-closebutton
+{
+  margin: 0 11px 0 -11px;
+}
+.dx-device-mobile .dx-popup-title .dx-closebutton .dx-icon
+{
+  width: 35px;
+  height: 35px;
+  background-position: 10px 10px;
+  -webkit-background-size: 15px 15px;
+  -moz-background-size: 15px 15px;
+  background-size: 15px 15px;
+  padding: 10px;
+  font-size: 15px;
+  text-align: center;
+  line-height: 15px;
 }
 .dx-popup-content
 {
@@ -6216,10 +6273,6 @@
   border: 1px solid #555;
   background: #303030;
 }
-.dx-invalid-message .dx-tooltip-wrapper .dx-overlay-content .dx-popup-content
-{
-  background-color: #ea4444;
-}
 .dx-slider .dx-tooltip-wrapper .dx-overlay-content
 {
   -webkit-box-shadow: none;
@@ -6338,7 +6391,7 @@
   width: 34%;
   height: 100%;
   background: #fff;
-  background: rgba(255,255,255,.01);
+  background: transparent;
   -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0.1)";
   cursor: pointer;
   font-size: 32px;
@@ -6801,10 +6854,6 @@
   right: 15%;
   left: 0;
 }
-.dx-loadpanel-wrapper.dx-overlay-shader
-{
-  background-color: transparent;
-}
 .dx-loadpanel-content
 {
   border: 1px solid #555;
@@ -6854,12 +6903,19 @@
 }
 .dx-tagbox:not(.dx-texteditor-empty) .dx-texteditor-input
 {
-  padding-left: 5px;
+  padding-left: 0;
+  margin-left: 5px;
 }
 .dx-rtl .dx-tagbox:not(.dx-texteditor-empty) .dx-texteditor-input, .dx-rtl.dx-tagbox:not(.dx-texteditor-empty) .dx-texteditor-input
 {
   padding: 7px 9px 8px;
-  padding-right: 5px;
+  padding-right: 0;
+  margin-right: 5px;
+  margin-left: 0;
+}
+.dx-tagbox
+{
+  color: #303030;
 }
 .dx-tag-container
 {
@@ -6886,14 +6942,12 @@
 }
 .dx-tag-remove-button
 {
-  top: 6px;
-  margin: 0 2px;
-  width: 1em;
-  height: 1em;
+  width: 25px;
+  height: 100%;
 }
 .dx-tag-remove-button:before, .dx-tag-remove-button:after
 {
-  left: 4px;
+  right: 9px;
   margin-top: -5px;
   width: 3px;
   height: 11px;
@@ -6901,7 +6955,7 @@
 }
 .dx-tag-remove-button:after
 {
-  left: 0;
+  right: 5px;
   margin-top: -1px;
   width: 11px;
   height: 3px;
@@ -6925,13 +6979,13 @@
 }
 .dx-rtl .dx-tag-remove-button:before
 {
-  right: 4px;
-  left: auto;
+  right: auto;
+  left: 9px;
 }
 .dx-rtl .dx-tag-remove-button:after
 {
-  right: 0;
-  left: auto;
+  right: auto;
+  left: 5px;
 }
 .dx-rtl .dx-tag-container
 {
@@ -7370,7 +7424,7 @@
 }
 .dx-colorview-hue-scale-wrapper
 {
-  height: 303px;
+  height: 301px;
 }
 .dx-colorview-color-preview
 {
@@ -7390,6 +7444,7 @@
 {
   padding: 1px;
   margin: 1px;
+  margin-top: 0;
   background-color: #303030;
   box-shadow: 0 0 0 1px #555;
 }
@@ -7697,6 +7752,24 @@
 .dx-datagrid-headers .dx-dropdowneditor-button-visible.dx-show-clear-button .dx-texteditor-input, .dx-datagrid-rowsview .dx-dropdowneditor-button-visible.dx-show-clear-button .dx-texteditor-input
 {
   padding-right: 64px;
+}
+.dx-datagrid-headers .dx-dropdowneditor-button-visible.dx-show-clear-button.dx-invalid .dx-texteditor-input, .dx-datagrid-rowsview .dx-dropdowneditor-button-visible.dx-show-clear-button.dx-invalid .dx-texteditor-input
+{
+  padding-right: 90px;
+}
+.dx-datagrid-headers .dx-dropdowneditor-button-visible.dx-show-clear-button.dx-invalid.dx-rtl .dx-texteditor-input, .dx-datagrid-rowsview .dx-dropdowneditor-button-visible.dx-show-clear-button.dx-invalid.dx-rtl .dx-texteditor-input
+{
+  padding: 7px 9px 8px;
+  padding-left: 90px;
+}
+.dx-datagrid-headers .dx-dropdowneditor-button-visible.dx-invalid .dx-texteditor-input, .dx-datagrid-rowsview .dx-dropdowneditor-button-visible.dx-invalid .dx-texteditor-input
+{
+  padding-right: 60px;
+}
+.dx-datagrid-headers .dx-dropdowneditor-button-visible.dx-invalid.dx-rtl .dx-texteditor-input, .dx-datagrid-rowsview .dx-dropdowneditor-button-visible.dx-invalid.dx-rtl .dx-texteditor-input
+{
+  padding: 7px 9px 8px;
+  padding-left: 60px;
 }
 .dx-datagrid-headers .dx-dropdowneditor-button-visible .dx-texteditor-input, .dx-datagrid-rowsview .dx-dropdowneditor-button-visible .dx-texteditor-input
 {
@@ -8141,7 +8214,7 @@
 {
   border: 1px solid #ea4444;
 }
-.dx-datagrid-rowsview .dx-data-row .dx-invalid-message .dx-popup-content
+.dx-datagrid-rowsview .dx-data-row .dx-invalid-message .dx-overlay-content
 {
   padding: 9px 17px 9px;
 }
@@ -9285,10 +9358,6 @@
 .dx-fileuploader-file-size
 {
   padding-bottom: 3.5px;
-}
-.dx-validationsummary-item
-{
-  color: #ea4444;
 }
 .dx-timeview
 {
