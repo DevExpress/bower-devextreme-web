@@ -1,9 +1,9 @@
 /*! 
 * DevExtreme (Visualization Core Library)
-* Version: 15.2.5-pre
-* Build date: Dec 25, 2015
+* Version: 15.2.5
+* Build date: Jan 27, 2016
 *
-* Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
+* Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 
@@ -2523,7 +2523,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 if (that._options.border.visible || (isInside || color) && color !== NONE)
                     that._background = that._renderer.rect(0, 0, 0, 0).attr({
                         fill: fill,
-                        'class': that._backgroundClass
+                        "class": that._backgroundClass
                     }).append(that._insideLegendGroup)
             },
             _locateRowsColumns: function() {
@@ -2735,10 +2735,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 if (that._options.visible)
                     return function(act) {
-                            var pointType = point.type,
-                                seriesType = pointType || point.series.type;
-                            if (pointType || seriesType === "pie" || seriesType === "doughnut" || seriesType === "donut")
-                                that[act] && that[act](point.index)
+                            that[act](point.index)
                         };
                 else
                     return $.noop
@@ -3187,83 +3184,68 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         }
     })(jQuery, DevExpress);
     /*! Module viz-core, file dataSource.js */
-    (function($, DX, undefined) {
-        var NONE_TYPE = 0,
-            ARRAY_TYPE = 1,
-            DX_DATA_SOURCE_TYPE = 2,
-            CUSTOM_TYPE = 3,
-            dxData = DX.data,
-            commonUtils = DX.require("/utils/utils.common");
-        function DataSource(dataSourceOnLoadCallback) {
-            this._type = NONE_TYPE;
-            this._changedCallback = dataSourceOnLoadCallback
+    (function(DX, undefined) {
+        var data = DX.data,
+            _isArray = DX.require("/utils/utils.common").isArray;
+        function createDataSource(options) {
+            var ops = data.utils.normalizeDataSourceOptions(options);
+            "paginate" in ops || (ops.paginate = false);
+            return new data.DataSource(ops)
+        }
+        function DataSource(callback) {
+            this._callback = callback;
+            this._items = this._ds = null;
+            this._isShared = false
         }
         DataSource.prototype = {
             constructor: DataSource,
+            dispose: function() {
+                this._reset()
+            },
             isLoaded: function() {
-                var isLoaded = false;
-                switch (this._type) {
-                    case NONE_TYPE:
-                        isLoaded = false;
-                        break;
-                    case ARRAY_TYPE:
-                        isLoaded = true;
-                        break;
-                    case CUSTOM_TYPE:
-                    case DX_DATA_SOURCE_TYPE:
-                        isLoaded = this._dxDataSource.isLoaded();
-                        break
-                }
-                return isLoaded
+                return !this._ds || this._ds.isLoaded()
             },
             items: function() {
-                var type = this._type;
-                return type === DX_DATA_SOURCE_TYPE || type === CUSTOM_TYPE ? this._dxDataSource.items() : this._items
+                return this._ds ? this._ds.items() : this._items
             },
-            update: function(data) {
-                var that = this,
-                    dataSource,
-                    changedCallback = that._changedCallback;
-                that._clean();
-                if (commonUtils.isDefined(data))
-                    if (commonUtils.isArray(data)) {
-                        that._items = data;
-                        that._type = ARRAY_TYPE;
-                        changedCallback()
-                    }
-                    else {
-                        if (data instanceof dxData.DataSource) {
-                            that._type = DX_DATA_SOURCE_TYPE;
-                            dataSource = data
-                        }
-                        else {
-                            that._type = CUSTOM_TYPE;
-                            dataSource = new dxData.DataSource($.extend({paginate: false}, dxData.utils.normalizeDataSourceOptions(data)))
-                        }
-                        that._dxDataSource = dataSource;
-                        dataSource.on("changed", changedCallback);
-                        if (dataSource.isLoaded())
-                            changedCallback();
-                        else
-                            dataSource.load()
-                    }
+            _reset: function() {
+                var that = this;
+                that._items = null;
+                if (that._ds) {
+                    if (that._isShared)
+                        that._ds.off({
+                            changed: that._callback,
+                            loadError: that._callback
+                        });
+                    else
+                        that._ds.dispose();
+                    that._ds = null;
+                    that._isShared = false
+                }
             },
-            dispose: function() {
-                this._clean();
-                this._changedCallback = null
-            },
-            _clean: function() {
-                var that = this,
-                    dxDataSource = that._dxDataSource;
-                if (that._type === DX_DATA_SOURCE_TYPE)
-                    dxDataSource.off("changed", that._changedCallback);
-                else if (that._type === CUSTOM_TYPE)
-                    dxDataSource.dispose();
-                that._dxDataSource = that._items = that._type = null
+            update: function(value) {
+                var that = this;
+                that._reset();
+                if (!value || _isArray(value)) {
+                    that._items = value || null;
+                    that._callback()
+                }
+                else {
+                    that._isShared = value instanceof data.DataSource;
+                    that._ds = that._isShared ? value : createDataSource(value);
+                    that._ds.on({
+                        changed: that._callback,
+                        loadError: that._callback
+                    });
+                    if (that._ds.isLoaded())
+                        that._callback();
+                    else
+                        that._ds.load()
+                }
             }
         };
         DX.viz.DataSource = DataSource
-    })(jQuery, DevExpress);
+    })(DevExpress);
     /*! Module viz-core, file numericTickManager.js */
     (function($, DX, undefined) {
         var viz = DX.viz,
@@ -9151,15 +9133,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     states: {
                         hover: "hover",
                         normal: "normal",
-                        selected: "selected",
+                        selection: "selection",
                         normalMark: 0,
                         hoverMark: 1,
-                        selectedMark: 2
-                    },
-                    animations: {
-                        showDuration: {duration: 400},
-                        hideGroup: {opacity: 0.0001},
-                        showGroup: {opacity: 1}
+                        selectedMark: 2,
+                        applyHover: "applyHover",
+                        applySelected: "applySelected",
+                        resetItem: "resetItem"
                     },
                     pieLabelIndent: 30,
                     pieLabelSpacing: 10,
@@ -9506,7 +9486,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             var that = this;
             that.type = _normalizeEnum(options.type);
             that.pane = options.pane;
-            that.rotated = !!(options.rotated && options.sortSeriesPointsByAxis);
+            that.rotated = options.rotated;
             that.series = [];
             that.updateOptions(options);
             switch (that.type) {
@@ -9602,23 +9582,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             _normalizeEnum = viz.utils.normalizeEnum,
             _Event = $.Event,
             _noop = $.noop,
-            SELECTED_STATE = 2,
-            HOVER_STATE = 1,
+            _inArray = $.inArray,
+            states = seriesNS.helpers.consts.states,
+            DISCRETE = "discrete",
+            SELECTED_STATE = states.selectedMark,
+            HOVER_STATE = states.hoverMark,
+            HOVER = states.hover,
+            NORMAL = states.normal,
+            SELECTION = states.selection,
+            APPLY_SELECTED = states.applySelected,
+            APPLY_HOVER = states.applyHover,
+            RESET_ITEM = states.resetItem,
             NONE_MODE = "none",
             INCLUDE_POINTS = "includepoints",
             EXLUDE_POINTS = "excludepoints",
             NEAREST_POINT = "nearestpoint",
-            APPLY_SELECTED = "applySelected",
-            APPLY_HOVER = "applyHover",
             SYMBOL_POINT = "symbolPoint",
             POLAR_SYMBOL_POINT = "polarSymbolPoint",
             BAR_POINT = "barPoint",
             POLAR_BAR_POINT = "polarBarPoint",
             PIE_POINT = "piePoint",
-            HOVER = "hover",
-            NORMAL = "normal",
-            SELECTION = "selection",
-            RESET_ITEM = "resetItem",
             getEmptyBusinessRange = function() {
                 return {
                         arg: {},
@@ -9955,7 +9938,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     min = originalPoints[minI - 1].argument;
                     max = originalPoints[maxI].argument;
                     sizePoint = that._getPointSize();
-                    if (that.argumentAxisType !== "discrete" && that.valueAxisType !== "discrete") {
+                    if (that.argumentAxisType !== DISCRETE && that.valueAxisType !== DISCRETE) {
                         tickObject = that._getTicksForAggregation(min, max, argTranslator.canvasLength, sizePoint);
                         ticks = tickObject.ticks;
                         tickInterval = tickObject.tickInterval;
@@ -9966,7 +9949,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
                     else
                         ticks = argTranslator.canvasLength / sizePoint;
-                    that._points = that._resample(ticks, tickInterval, argTranslator)
+                    that._points = that._resample(ticks, tickInterval, argTranslator.getBusinessRange().categories, min, max)
                 }
             },
             _removeOldSegments: function(startIndex) {
@@ -10081,7 +10064,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that.lastSelectionMode = _normalizeEnum(mode || that._options.selectionMode);
                 if (state && !that.isSelected()) {
                     that.fullState = that.fullState | SELECTED_STATE;
-                    that._nearestPoint && applyPointStyle(that._nearestPoint, "normal");
+                    that._nearestPoint && applyPointStyle(that._nearestPoint, NORMAL);
                     that._nearestPoint = null;
                     that._changeStyle(legendCallback, APPLY_SELECTED)
                 }
@@ -10134,7 +10117,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     pointStyle;
                 if (style.mode === NONE_MODE)
                     return;
-                legendCallBack && legendCallBack(legendAction);
+                legendCallBack(legendAction);
                 if (includePointsMode(style.mode)) {
                     pointStyle = style.pointStyle;
                     _each(that._points || [], function(_, p) {
@@ -10148,7 +10131,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     styles = that._styles,
                     pointNormalState = false,
                     result;
-                switch (that.fullState & 3) {
+                switch (that.fullState) {
                     case 0:
                         result = {
                             pointStyle: NORMAL,
@@ -10157,7 +10140,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         };
                         break;
                     case 1:
-                        pointNormalState = prevStyle === SELECTION && that.lastHoverMode === EXLUDE_POINTS || that.lastHoverMode === NEAREST_POINT && includePointsMode(that.lastSelectionMode);
+                        pointNormalState = prevStyle && that.lastHoverMode === EXLUDE_POINTS || that.lastHoverMode === NEAREST_POINT && includePointsMode(that.lastSelectionMode);
                         result = {
                             pointStyle: pointNormalState ? NORMAL : HOVER,
                             mode: pointNormalState ? INCLUDE_POINTS : that.lastHoverMode,
@@ -10186,9 +10169,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     currentNearestPoint = that._nearestPoint,
                     point = that.isHovered() && that.lastHoverMode === NEAREST_POINT && that.getNeighborPoint(x, y);
                 if (point !== currentNearestPoint && !that.isSelected()) {
-                    currentNearestPoint && applyPointStyle(currentNearestPoint, "normal");
+                    currentNearestPoint && applyPointStyle(currentNearestPoint, NORMAL);
                     if (point) {
-                        applyPointStyle(point, "hover");
+                        applyPointStyle(point, HOVER);
                         that._nearestPoint = point
                     }
                 }
@@ -10281,20 +10264,29 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         selectionStyle: {}
                     })
             },
-            _resample: function(ticks, ticksInterval, argTranslator) {
+            _resample: function(ticks, ticksInterval, categories, min, max) {
                 var that = this,
                     fusPoints = [],
                     arrayFusPoints,
                     nowIndexTicks = 0,
                     lastPointIndex = 0,
                     originalPoints = that.getAllPoints(),
-                    visibleArea;
-                if (that.argumentAxisType === "discrete" || that.valueAxisType === "discrete") {
-                    visibleArea = argTranslator.getCanvasVisibleArea();
+                    discreteMin = min !== undefined ? min : -Infinity,
+                    discreteMax = max !== undefined ? max : Infinity,
+                    isArgumentDiscrete = that.argumentAxisType === DISCRETE;
+                if (isArgumentDiscrete || that.valueAxisType === DISCRETE) {
+                    if (isArgumentDiscrete) {
+                        discreteMin = _inArray(min, categories);
+                        discreteMax = _inArray(max, categories);
+                        if (discreteMin === -1)
+                            discreteMin = 0;
+                        if (discreteMax === -1)
+                            discreteMax = categories.length - 1
+                    }
                     originalPoints = _map(originalPoints, function(p) {
-                        var pos = argTranslator.translate(p.argument),
-                            result = null;
-                        if (pos >= visibleArea.min && pos <= visibleArea.max)
+                        var result = null,
+                            argument = isArgumentDiscrete ? _inArray(p.argument, categories) : p.argument;
+                        if (argument >= discreteMin && argument <= discreteMax)
                             result = p;
                         else
                             p.setInvisibility();
@@ -10361,61 +10353,45 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 return (this._drawedPoints || []).slice()
             },
             setPointHoverState: function(data) {
-                var point = data.point,
-                    legendCallback = data.legendCallback;
+                var point = data.point;
                 if (data.setState)
-                    point.fullState = point.fullState | HOVER_STATE;
-                if (!(this.isSelected() && includePointsMode(this.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView) {
-                    point.applyStyle(HOVER);
-                    legendCallback && legendCallback("applyHover")
-                }
+                    point.fullState |= HOVER_STATE;
+                if (!(this.isSelected() && includePointsMode(this.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView)
+                    point.applyStyle(HOVER)
             },
             releasePointHoverState: function(data) {
                 var that = this,
-                    point = data.point,
-                    legendCallback = data.legendCallback;
-                if (data.setState)
-                    point.fullState = point.fullState & ~HOVER_STATE;
-                if (!(that.isSelected() && includePointsMode(that.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView)
-                    if (!(that.isHovered() && includePointsMode(that.lastHoverMode)) || that.isSelected() && that.lastSelectionMode === EXLUDE_POINTS) {
-                        point.applyStyle(NORMAL);
-                        legendCallback && legendCallback(RESET_ITEM)
-                    }
-            },
-            setPointSelectedState: function(data) {
-                var legendCallback = data.legendCallback,
                     point = data.point;
                 if (data.setState)
-                    point.fullState = point.fullState | SELECTED_STATE;
+                    point.fullState &= ~HOVER_STATE;
+                if (!(that.isSelected() && includePointsMode(that.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView)
+                    if (!(that.isHovered() && includePointsMode(that.lastHoverMode)) || that.isSelected() && that.lastSelectionMode === EXLUDE_POINTS)
+                        point.applyStyle(NORMAL);
+                point.releaseHoverState()
+            },
+            setPointSelectedState: function(data) {
+                var point = data.point;
+                if (data.setState)
+                    point.fullState |= SELECTED_STATE;
                 else
                     point.hasSelectedView = true;
-                point.applyStyle(SELECTION);
-                legendCallback && legendCallback("applySelected")
+                point.applyStyle(SELECTION)
             },
             releasePointSelectedState: function(data) {
                 var that = this,
                     pointStyle,
-                    point = data.point,
-                    legendCallback = data.legendCallback,
-                    legendAction;
+                    point = data.point;
                 if (data.setState)
-                    point.fullState = point.fullState & ~SELECTED_STATE;
+                    point.fullState &= ~SELECTED_STATE;
                 else
                     point.hasSelectedView = false;
-                if (that.isHovered() && includePointsMode(that.lastHoverMode) || point.isHovered()) {
+                if (that.isHovered() && includePointsMode(that.lastHoverMode) || point.isHovered())
                     pointStyle = HOVER;
-                    legendAction = "applyHover"
-                }
-                else if (that.isSelected() && includePointsMode(that.lastSelectionMode)) {
+                else if (that.isSelected() && includePointsMode(that.lastSelectionMode))
                     pointStyle = SELECTION;
-                    legendAction = "applySelected"
-                }
-                else {
+                else
                     pointStyle = NORMAL;
-                    legendAction = RESET_ITEM
-                }
-                point.applyStyle(pointStyle);
-                legendCallback && legendCallback(legendAction)
+                point.applyStyle(pointStyle)
             },
             selectPoint: function(point) {
                 triggerEvent(this._extGroups.seriesGroup, new _Event("selectpoint"), point)
@@ -12859,6 +12835,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             seiresMixins = seriesNS.mixins,
             _noop = $.noop;
         function Point(series, dataItem, options) {
+            this.fullState = statesConsts.normalMark;
             this.series = series;
             this.update(dataItem, options);
             this._emptySettings = {
@@ -12874,20 +12851,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 return this._styles.normal.fill || this.series.getColor()
             },
             _getStyle: function() {
-                var that = this,
-                    styles = that._styles,
-                    style;
-                if (that._currentStyle)
-                    style = that._currentStyle;
-                else if (that.isSelected())
-                    style = styles.selection;
-                else if (that.isHovered())
-                    style = styles.hover;
-                else {
-                    that.fullState = statesConsts.normalMark;
-                    style = styles.normal
-                }
-                return style
+                return this._styles[this._currentStyle || 'normal']
             },
             update: function(dataItem, options) {
                 this.updateOptions(options);
@@ -12932,6 +12896,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             },
             applyStyle: function(style) {
                 var that = this;
+                that._currentStyle = style;
                 if (that.graphic) {
                     if (style === "normal") {
                         if (that.isHovered()) {
@@ -12942,38 +12907,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
                     else
                         that.graphic.toForeground();
-                    that._currentStyle = that._styles[style];
                     that._updateMarker(true, that._styles[style])
                 }
                 return that
             },
-            setHoverState: function() {
-                this.series.setPointHoverState({
-                    point: this,
-                    setState: true
-                })
-            },
-            releaseHoverState: function(callback) {
+            releaseHoverState: function() {
                 var that = this;
-                that.series.releasePointHoverState({
-                    point: that,
-                    legendCallback: callback,
-                    setState: true
-                });
-                if (that.graphic)
-                    !that.isSelected() && that.graphic.toBackground()
-            },
-            setSelectedState: function() {
-                this.series.setPointSelectedState({
-                    point: this,
-                    setState: true
-                })
-            },
-            releaseSelectedState: function() {
-                this.series.releasePointSelectedState({
-                    point: this,
-                    setState: true
-                })
+                if (that.graphic && !that.isSelected())
+                    that.graphic.toBackground()
             },
             select: function() {
                 this.series.selectPoint(this)
@@ -13941,7 +13882,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
             },
             getPointRadius: function() {
-                var style = this._currentStyle || this._getStyle(),
+                var style = this._getStyle(),
                     options = this._options,
                     r = style.r,
                     extraSpace,
@@ -17803,15 +17744,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             var createThemeManager = function(options, groupName) {
                     return new charts.ThemeManager(options, groupName)
                 };
-            var createTracker = function(options, name) {
-                    return name === "dxPieChart" ? new charts.PieTracker(options) : new charts.ChartTracker(options)
-                };
             var createCrosshair = function(renderer, options, params, group) {
                     return new charts.Crosshair(renderer, options, params, group)
                 };
             return {
                     createThemeManager: createThemeManager,
-                    createTracker: createTracker,
                     createCrosshair: createCrosshair,
                     createScrollBar: function(renderer, group) {
                         return new DevExpress.viz.charts.ScrollBar(renderer, group)
@@ -18272,9 +18209,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             },
             createTickManager: function(types, data, options) {
                 return new viz.tickManager.TickManager(types, data, options)
-            },
-            createLegend: function(settings) {
-                return new viz.Legend(settings)
             },
             createSeriesFamily: function(options) {
                 return new seriesNS.helpers.SeriesFamily(options)

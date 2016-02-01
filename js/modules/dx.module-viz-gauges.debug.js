@@ -1,9 +1,9 @@
 /*! 
 * DevExtreme (Gauges)
-* Version: 15.2.5-pre
-* Build date: Dec 25, 2015
+* Version: 15.2.5
+* Build date: Jan 27, 2016
 *
-* Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
+* Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 

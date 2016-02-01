@@ -1,9 +1,9 @@
 /*! 
 * DevExtreme (Core Library)
-* Version: 15.2.5-pre
-* Build date: Dec 25, 2015
+* Version: 15.2.5
+* Build date: Jan 27, 2016
 *
-* Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
+* Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 
@@ -39,27 +39,27 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             }
                     }();
                 var deferModules = {};
-                var requireSingle = function(name) {
+                var requireModule = function(name) {
                         var module = deferModules[name];
                         if (!module)
                             throw"'" + name + "' module definition is absent";
                         return module.load()
                     };
+                var requireSingle = function(dependency) {
+                        switch (dependency) {
+                            case"jquery":
+                            case"domReady":
+                                return $;
+                            case"domReady!":
+                                return dependency;
+                            case"require":
+                                return require;
+                            default:
+                                return requireModule(dependency)
+                        }
+                    };
                 var mapDependencies = function(dependencies) {
-                        dependencies = dependencies || [];
-                        return $.map(dependencies, function(name) {
-                                switch (name) {
-                                    case"jquery":
-                                    case"domReady":
-                                        return $;
-                                    case"domReady!":
-                                        return name;
-                                    case"require":
-                                        return require;
-                                    default:
-                                        return requireSingle(name)
-                                }
-                            })
+                        return $.map(dependencies || [], requireSingle)
                     };
                 var require = function(dependencies, callback) {
                         if (!$.isArray(dependencies))
@@ -337,11 +337,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 $.each(items, function(index, itemSrc) {
                     var matchCount = 0,
                         item = mapFn ? mapFn(itemSrc) : itemSrc;
-                    $.each(targetFilter, function(paramName) {
+                    $.each(targetFilter, function(paramName, targetValue) {
                         var value = item[paramName];
                         if (value === undefined)
                             return;
-                        if (value === targetFilter[paramName]) {
+                        if (match(value, targetValue)) {
                             matchCount++;
                             return
                         }
@@ -357,6 +357,23 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     bestMatches.push(itemSrc)
                 });
                 return bestMatches
+            };
+        var match = function(value, targetValue) {
+                if ($.isArray(value) && $.isArray(targetValue)) {
+                    var mismatch = false;
+                    $.each(value, function(index, valueItem) {
+                        if (valueItem !== targetValue[index]) {
+                            mismatch = true;
+                            return false
+                        }
+                    });
+                    if (mismatch)
+                        return false;
+                    return true
+                }
+                if (value === targetValue)
+                    return true;
+                return false
             };
         var splitPair = function(raw) {
                 switch (typeof raw) {
@@ -965,7 +982,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     $(".dx-viewport").css(support.styleProp("user-select"), "none");
                 $(metaSelector).attr("content", metaVerbs.join());
                 $("html").css("-ms-touch-action", msTouchVerbs.join(" ") || "none");
-                if (support.touch)
+                realDevice = devices.real();
+                if (support.touch && !(realDevice.platform === "win" && realDevice.version[0] === 10))
                     $(document).off(".dxInitMobileViewport").on("dxpointermove.dxInitMobileViewport", function(e) {
                         var count = e.pointers.length,
                             isTouchEvent = e.pointerType === "touch",
@@ -974,7 +992,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         if (isTouchEvent && (zoomDisabled || panDisabled))
                             e.preventDefault()
                     });
-                realDevice = devices.real();
                 if (realDevice.ios) {
                     var isPhoneGap = document.location.protocol === "file:";
                     if (!isPhoneGap)
@@ -2143,7 +2160,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             }
     });
     /*! Module core, file utils.position.js */
-    DevExpress.define("/utils/utils.position", ["/utils/utils.translator", "/utils/utils.string", "/utils/utils.support", "/utils/utils.common"], function(translator, stringUtils, support, commonUtils) {
+    DevExpress.define("/utils/utils.position", function(module, exports, require) {
+        var $ = require("jquery");
+        var translator = require("/utils/utils.translator");
+        var stringUtils = require("/utils/utils.string");
+        var support = require("/utils/utils.support");
+        var commonUtils = require("/utils/utils.common");
         var horzRe = /left|right/,
             vertRe = /top|bottom/,
             collisionRe = /fit|flip|none/;
@@ -2434,11 +2456,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             inverseAlign: inverseAlign,
             normalizeAlign: normalizeAlign
         });
-        return {
-                calculateScrollbarWidth: calculateScrollbarWidth,
-                calculate: calculatePosition,
-                setup: position
-            }
+        module.exports = {
+            calculateScrollbarWidth: calculateScrollbarWidth,
+            calculate: calculatePosition,
+            setup: position
+        }
     });
     /*! Module core, file utils.proxyUrlFormatter.js */
     DevExpress.define("/utils/utils.proxyUrlFormatter", ["jquery"], function($) {
@@ -2805,7 +2827,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var getDateByAsciiString = function(string) {
                 if (typeof string !== "string")
                     return string;
-                var date = Globalize.parseDate(string, "yyyyMMddThhmmss");
+                var date = Globalize.parseDate(string, "yyyyMMddTHHmmss");
                 if (!date)
                     date = Globalize.parseDate(string, "yyyyMMdd");
                 return date
@@ -2982,12 +3004,19 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         return text.replace(new RegExp("(" + preg_quote(searchToken) + ")", "gi"), replacementToken)
                     }
             }();
+        var isEmpty = function(text) {
+                var SPACE_REGEXP = /\s/g;
+                return function(text) {
+                        return !text || !text.replace(SPACE_REGEXP, "")
+                    }
+            }();
         return {
                 encodeHtml: encodeHtml,
                 pairToObject: pairToObject,
                 quadToObject: quadToObject,
                 format: stringFormat,
-                replaceAll: replaceAll
+                replaceAll: replaceAll,
+                isEmpty: isEmpty
             }
     });
     /*! Module core, file utils.support.js */
@@ -3698,7 +3727,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         return registerComponent
     });
     /*! Module core, file component.js */
-    DevExpress.define("/component", ["/class", "/eventsMixin", "/action", "/errors", "/utils/utils.inflector", "/utils/utils.common", "/utils/utils.publicComponent", "/devices"], function(Class, EventsMixin, Action, errors, inflector, commonUtils, publicComponentUtils, devices) {
+    DevExpress.define("/component", ["jquery", "/class", "/eventsMixin", "/action", "/errors", "/utils/utils.inflector", "/utils/utils.common", "/utils/utils.publicComponent", "/devices"], function($, Class, EventsMixin, Action, errors, inflector, commonUtils, publicComponentUtils, devices) {
         var dataUtils = DevExpress.data.utils;
         var cachedGetters = {};
         var cachedSetters = {};
@@ -4244,7 +4273,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.4"
+        return "15.2.5"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -4999,6 +5028,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 plum: 'dda0dd',
                 powderblue: 'b0e0e6',
                 purple: '800080',
+                rebeccapurple: '663399',
                 red: 'ff0000',
                 rosybrown: 'bc8f8f',
                 royalblue: '4169e1',
@@ -7127,6 +7157,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             Guid = data.Guid,
             errors = DevExpress.require("/data/data.errors"),
             objectUtils = DX.require("/utils/utils.object");
+        var hasKey = function(target, keyOrKeys) {
+                var key,
+                    keys = $.makeArray(keyOrKeys);
+                while (keys.length) {
+                    key = keys.shift();
+                    if (key in target)
+                        return true
+                }
+                return false
+            };
         var trivialPromise = function() {
                 var d = $.Deferred();
                 return d.resolve.apply(d, arguments).promise()
@@ -7180,12 +7220,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return trivialPromise(values, keyValue)
             },
             _updateImpl: function(key, values) {
-                var target,
-                    index;
-                if (this.key()) {
-                    if (this.keyOf(values))
-                        if (!data.utils.keysEqual(this.key(), key, this.keyOf(values)))
-                            return rejectedPromise(errors.Error("E4017"));
+                var index,
+                    target,
+                    keyExpr = this.key();
+                if (keyExpr) {
+                    if (hasKey(values, keyExpr) && !data.utils.keysEqual(keyExpr, key, this.keyOf(values)))
+                        return rejectedPromise(errors.Error("E4017"));
                     index = this._indexByKey(key);
                     if (index < 0)
                         return rejectedPromise(errors.Error("E4009"));
@@ -7672,6 +7712,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var storeTypeRegistry = {
                 jaydata: "JayDataStore",
                 breeze: "BreezeStore",
+                parse: "ParseStore",
                 odata: "ODataStore",
                 local: "LocalStore",
                 array: "ArrayStore"
@@ -8229,8 +8270,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             current(options)
         }
         function current(options) {
-            if (!arguments.length)
-                return currentThemeName || readThemeMarker();
+            if (!arguments.length) {
+                currentThemeName = currentThemeName || readThemeMarker();
+                return currentThemeName
+            }
             detachCssClasses(viewPort(), currentThemeName);
             options = options || {};
             if (typeof options === "string")
@@ -8375,14 +8418,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._handler = options.handler;
                     this._context = options.context;
                     this._childProcessors = [];
-                    if (this._element)
-                        this._element.on(this._keydown, function(e) {
+                    if (this._element) {
+                        this._processFunction = function(e) {
                             _this.process(e)
-                        })
+                        };
+                        this._element.on(this._keydown, this._processFunction)
+                    }
                 },
                 dispose: function() {
                     if (this._element)
-                        this._element.off(this._keydown);
+                        this._element.off(this._keydown, this._processFunction);
                     this._element = undefined;
                     this._handler = undefined;
                     this._context = undefined;
@@ -9033,9 +9078,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._valueChangeActionSuppressed = false
                 },
                 _render: function() {
+                    this.callBase();
                     this._renderValidationState();
-                    this._toggleReadOnlyState();
-                    this.callBase()
+                    this._toggleReadOnlyState()
                 },
                 _raiseValueChangeAction: function(value, previousValue, extraArguments) {
                     if (!this._valueChangeAction)
@@ -9077,7 +9122,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             animation: null,
                             visible: true
                         });
-                        this._$validationMessage.toggleClass(INVALID_MESSAGE_AUTO, validationMessageMode === "auto").toggleClass(INVALID_MESSAGE_ALWAYS, validationMessageMode === "always")
+                        this._$validationMessage.toggleClass(INVALID_MESSAGE_AUTO, validationMessageMode === "auto").toggleClass(INVALID_MESSAGE_ALWAYS, validationMessageMode === "always").width($element.outerWidth())
                     }
                 },
                 _getValidationMessageTarget: function() {
@@ -9133,6 +9178,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                     value: args.value,
                                     editor: this
                                 });
+                            break;
+                        case"width":
+                            this.callBase(args);
+                            this._$validationMessage && this._$validationMessage.width(this.element().outerWidth());
                             break;
                         default:
                             this.callBase(args)
@@ -9824,7 +9873,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         return BaseStrategy
     });
     /*! Module core, file ui.events.pointer.observer.js */
-    DevExpress.define("/ui/events/pointer/ui.events.pointer.observer", [], function() {
+    DevExpress.define("/ui/events/pointer/ui.events.pointer.observer", ["jquery"], function($) {
         var addEventsListener = function(events, handler) {
                 events = events.split(" ");
                 $.each(events, function(_, event) {
@@ -10475,6 +10524,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 if (!supportPointerEvents() || !isDesktop)
                     return $.noop;
                 var $cover = $("<div>").addClass(GESTURE_COVER_CLASS).css("pointerEvents", "none");
+                $cover.on("dxmousewheel", function(e) {
+                    e.preventDefault()
+                });
                 $(function() {
                     $cover.appendTo("body")
                 });
@@ -12694,7 +12746,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     });
     /*! Module core, file ko.components.js */
-    DevExpress.define("/integration/knockout/ko.components", ["/utils/utils.icon", "/utils/utils.inflector", "/action"], function(iconUtils, inflector, Action) {
+    DevExpress.define("/integration/knockout/ko.components", ["jquery", "/utils/utils.icon", "/utils/utils.inflector", "/action"], function($, iconUtils, inflector, Action) {
         var ko = window.ko;
         ko.bindingHandlers.dxAction = {update: function(element, valueAccessor, allBindingsAccessor, viewModel) {
                 var $element = $(element);
@@ -13542,7 +13594,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     });
     /*! Module core, file ng.components.js */
-    DevExpress.define("/integration/angular/ng.components", ["/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function(ngModule, iconUtils, inflector) {
+    DevExpress.define("/integration/angular/ng.components", ["jquery", "/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function($, ngModule, iconUtils, inflector) {
         ngModule.filter('dxGlobalize', function() {
             return function(input, param) {
                     return Globalize.format(input, param)
@@ -13892,7 +13944,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     DevExpress.require(["/integration/jquery/jquery"]);
     /*! Module core, file ko.js */
-    DevExpress.define("/integration/knockout/ko", ["/utils/utils.support", "/errors", "/utils/utils.version", "require"], function(support, errors, versionUtils, require) {
+    DevExpress.define("/integration/knockout/ko", ["jquery", "/utils/utils.support", "/errors", "/utils/utils.version", "require"], function($, support, errors, versionUtils, require) {
         if (!support.hasKo)
             return;
         var ko = window.ko;
@@ -13913,7 +13965,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     DevExpress.require(["/integration/angular/ng"]);
     /*! Module core, file ui.events.emitter.click.js */
-    (function($, DX, wnd, undefined) {
+    (function($, DX, undefined) {
         var abs = Math.abs,
             events = DX.ui.events,
             devices = DX.require("/devices"),
@@ -13940,7 +13992,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         $element.attr("onclick", "void(0)")
                 },
                 start: function(e) {
-                    this._blurPrevented = e.dxPreventBlur;
+                    this._blurPrevented = e.isDefaultPrevented();
                     this._startTarget = e.target;
                     this._startEventData = eventUtils.eventData(e)
                 },
@@ -14026,7 +14078,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     blurPrevented = false;
                 var pointerDownHandler = function(e) {
                         startTarget = e.target;
-                        blurPrevented = e.dxPreventBlur
+                        blurPrevented = e.isDefaultPrevented()
                     };
                 var clickHandler = function(e) {
                         var $target = $(e.target);
@@ -14048,7 +14100,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             useFastClick: !events.__internals.useNativeClick && !events.__internals.fixBuggyInertia,
             misc: misc
         })
-    })(jQuery, DevExpress, window);
+    })(jQuery, DevExpress);
     /*! Module core, file ui.events.emitter.hold.js */
     (function($, DX, undefined) {
         var eventUtils = DX.require("/ui/events/ui.events.utils"),
@@ -14096,10 +14148,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     })(jQuery, DevExpress);
     /*! Module core, file ui.events.emitter.gesture.scroll.js */
-    (function($, DX, undefined) {
-        var eventUtils = DX.require("/ui/events/ui.events.utils"),
-            GestureEmitter = DX.require("/ui/events/ui.events.emitter.gesture"),
-            registerEmitter = DX.require("/ui/events/ui.events.emitterRegistrator");
+    DevExpress.define("/ui/events/ui.events.emitter.scroll", function(module, exports, require) {
+        var $ = require("jquery"),
+            eventUtils = require("/ui/events/ui.events.utils"),
+            GestureEmitter = require("/ui/events/ui.events.emitter.gesture"),
+            registerEmitter = require("/ui/events/ui.events.emitterRegistrator");
         var SCROLL_INIT_EVENT = "dxscrollinit",
             SCROLL_START_EVENT = "dxscrollstart",
             SCROLL_MOVE_EVENT = "dxscroll",
@@ -14211,8 +14264,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         registerEmitter({
             emitter: ScrollEmitter,
             events: [SCROLL_INIT_EVENT, SCROLL_START_EVENT, SCROLL_MOVE_EVENT, SCROLL_END_EVENT, SCROLL_STOP_EVENT, SCROLL_CANCEL_EVENT]
-        })
-    })(jQuery, DevExpress);
+        });
+        module.exports = {
+            init: SCROLL_INIT_EVENT,
+            start: SCROLL_START_EVENT,
+            move: SCROLL_MOVE_EVENT,
+            end: SCROLL_END_EVENT,
+            stop: SCROLL_STOP_EVENT,
+            cancel: SCROLL_CANCEL_EVENT
+        }
+    });
     /*! Module core, file ui.events.emitter.gesture.swipe.js */
     (function($, DX, undefined) {
         var eventUtils = DX.require("/ui/events/ui.events.utils"),
@@ -16222,7 +16283,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return $loading.dxLoadPanel("show")
                 },
                 hide: function() {
-                    if (!$loading)
+                    if (!$loading || !$loading.length)
                         return $.when();
                     return $loading.dxLoadPanel("hide").done(removeLoadPanel).promise()
                 }

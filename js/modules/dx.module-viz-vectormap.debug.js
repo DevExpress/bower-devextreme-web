@@ -1,9 +1,9 @@
 /*! 
 * DevExtreme (Vector Map)
-* Version: 15.2.5-pre
-* Build date: Dec 25, 2015
+* Version: 15.2.5
+* Build date: Jan 27, 2016
 *
-* Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
+* Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 
@@ -499,7 +499,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
         }
     })(DevExpress, jQuery);
     /*! Module viz-vectormap, file eventEmitter.js */
-    (function(DX, undefined) {
+    (function(DX, $, undefined) {
         var eventEmitterMethods = {
                 _initEvents: function() {
                     var names = this._eventNames,
@@ -538,7 +538,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 prot[name] = eventEmitterMethods[name]
         };
         DX.viz.map._tests.eventEmitterMethods = eventEmitterMethods
-    })(DevExpress);
+    })(DevExpress, jQuery);
     /*! Module viz-vectormap, file projection.js */
     (function(DX, $, undefined) {
         var _Number = Number,

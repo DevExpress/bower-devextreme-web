@@ -1,9 +1,9 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.5-pre
-* Build date: Dec 25, 2015
+* Version: 15.2.5
+* Build date: Jan 27, 2016
 *
-* Copyright (c) 2012 - 2015 Developer Express Inc. ALL RIGHTS RESERVED
+* Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
 */
 
@@ -40,27 +40,27 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             }
                     }();
                 var deferModules = {};
-                var requireSingle = function(name) {
+                var requireModule = function(name) {
                         var module = deferModules[name];
                         if (!module)
                             throw"'" + name + "' module definition is absent";
                         return module.load()
                     };
+                var requireSingle = function(dependency) {
+                        switch (dependency) {
+                            case"jquery":
+                            case"domReady":
+                                return $;
+                            case"domReady!":
+                                return dependency;
+                            case"require":
+                                return require;
+                            default:
+                                return requireModule(dependency)
+                        }
+                    };
                 var mapDependencies = function(dependencies) {
-                        dependencies = dependencies || [];
-                        return $.map(dependencies, function(name) {
-                                switch (name) {
-                                    case"jquery":
-                                    case"domReady":
-                                        return $;
-                                    case"domReady!":
-                                        return name;
-                                    case"require":
-                                        return require;
-                                    default:
-                                        return requireSingle(name)
-                                }
-                            })
+                        return $.map(dependencies || [], requireSingle)
                     };
                 var require = function(dependencies, callback) {
                         if (!$.isArray(dependencies))
@@ -338,11 +338,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 $.each(items, function(index, itemSrc) {
                     var matchCount = 0,
                         item = mapFn ? mapFn(itemSrc) : itemSrc;
-                    $.each(targetFilter, function(paramName) {
+                    $.each(targetFilter, function(paramName, targetValue) {
                         var value = item[paramName];
                         if (value === undefined)
                             return;
-                        if (value === targetFilter[paramName]) {
+                        if (match(value, targetValue)) {
                             matchCount++;
                             return
                         }
@@ -358,6 +358,23 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     bestMatches.push(itemSrc)
                 });
                 return bestMatches
+            };
+        var match = function(value, targetValue) {
+                if ($.isArray(value) && $.isArray(targetValue)) {
+                    var mismatch = false;
+                    $.each(value, function(index, valueItem) {
+                        if (valueItem !== targetValue[index]) {
+                            mismatch = true;
+                            return false
+                        }
+                    });
+                    if (mismatch)
+                        return false;
+                    return true
+                }
+                if (value === targetValue)
+                    return true;
+                return false
             };
         var splitPair = function(raw) {
                 switch (typeof raw) {
@@ -966,7 +983,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     $(".dx-viewport").css(support.styleProp("user-select"), "none");
                 $(metaSelector).attr("content", metaVerbs.join());
                 $("html").css("-ms-touch-action", msTouchVerbs.join(" ") || "none");
-                if (support.touch)
+                realDevice = devices.real();
+                if (support.touch && !(realDevice.platform === "win" && realDevice.version[0] === 10))
                     $(document).off(".dxInitMobileViewport").on("dxpointermove.dxInitMobileViewport", function(e) {
                         var count = e.pointers.length,
                             isTouchEvent = e.pointerType === "touch",
@@ -975,7 +993,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         if (isTouchEvent && (zoomDisabled || panDisabled))
                             e.preventDefault()
                     });
-                realDevice = devices.real();
                 if (realDevice.ios) {
                     var isPhoneGap = document.location.protocol === "file:";
                     if (!isPhoneGap)
@@ -2144,7 +2161,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             }
     });
     /*! Module core, file utils.position.js */
-    DevExpress.define("/utils/utils.position", ["/utils/utils.translator", "/utils/utils.string", "/utils/utils.support", "/utils/utils.common"], function(translator, stringUtils, support, commonUtils) {
+    DevExpress.define("/utils/utils.position", function(module, exports, require) {
+        var $ = require("jquery");
+        var translator = require("/utils/utils.translator");
+        var stringUtils = require("/utils/utils.string");
+        var support = require("/utils/utils.support");
+        var commonUtils = require("/utils/utils.common");
         var horzRe = /left|right/,
             vertRe = /top|bottom/,
             collisionRe = /fit|flip|none/;
@@ -2435,11 +2457,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             inverseAlign: inverseAlign,
             normalizeAlign: normalizeAlign
         });
-        return {
-                calculateScrollbarWidth: calculateScrollbarWidth,
-                calculate: calculatePosition,
-                setup: position
-            }
+        module.exports = {
+            calculateScrollbarWidth: calculateScrollbarWidth,
+            calculate: calculatePosition,
+            setup: position
+        }
     });
     /*! Module core, file utils.proxyUrlFormatter.js */
     DevExpress.define("/utils/utils.proxyUrlFormatter", ["jquery"], function($) {
@@ -2806,7 +2828,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var getDateByAsciiString = function(string) {
                 if (typeof string !== "string")
                     return string;
-                var date = Globalize.parseDate(string, "yyyyMMddThhmmss");
+                var date = Globalize.parseDate(string, "yyyyMMddTHHmmss");
                 if (!date)
                     date = Globalize.parseDate(string, "yyyyMMdd");
                 return date
@@ -2983,12 +3005,19 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         return text.replace(new RegExp("(" + preg_quote(searchToken) + ")", "gi"), replacementToken)
                     }
             }();
+        var isEmpty = function(text) {
+                var SPACE_REGEXP = /\s/g;
+                return function(text) {
+                        return !text || !text.replace(SPACE_REGEXP, "")
+                    }
+            }();
         return {
                 encodeHtml: encodeHtml,
                 pairToObject: pairToObject,
                 quadToObject: quadToObject,
                 format: stringFormat,
-                replaceAll: replaceAll
+                replaceAll: replaceAll,
+                isEmpty: isEmpty
             }
     });
     /*! Module core, file utils.support.js */
@@ -3699,7 +3728,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         return registerComponent
     });
     /*! Module core, file component.js */
-    DevExpress.define("/component", ["/class", "/eventsMixin", "/action", "/errors", "/utils/utils.inflector", "/utils/utils.common", "/utils/utils.publicComponent", "/devices"], function(Class, EventsMixin, Action, errors, inflector, commonUtils, publicComponentUtils, devices) {
+    DevExpress.define("/component", ["jquery", "/class", "/eventsMixin", "/action", "/errors", "/utils/utils.inflector", "/utils/utils.common", "/utils/utils.publicComponent", "/devices"], function($, Class, EventsMixin, Action, errors, inflector, commonUtils, publicComponentUtils, devices) {
         var dataUtils = DevExpress.data.utils;
         var cachedGetters = {};
         var cachedSetters = {};
@@ -4245,7 +4274,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.4"
+        return "15.2.5"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -5000,6 +5029,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 plum: 'dda0dd',
                 powderblue: 'b0e0e6',
                 purple: '800080',
+                rebeccapurple: '663399',
                 red: 'ff0000',
                 rosybrown: 'bc8f8f',
                 royalblue: '4169e1',
@@ -7128,6 +7158,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             Guid = data.Guid,
             errors = DevExpress.require("/data/data.errors"),
             objectUtils = DX.require("/utils/utils.object");
+        var hasKey = function(target, keyOrKeys) {
+                var key,
+                    keys = $.makeArray(keyOrKeys);
+                while (keys.length) {
+                    key = keys.shift();
+                    if (key in target)
+                        return true
+                }
+                return false
+            };
         var trivialPromise = function() {
                 var d = $.Deferred();
                 return d.resolve.apply(d, arguments).promise()
@@ -7181,12 +7221,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return trivialPromise(values, keyValue)
             },
             _updateImpl: function(key, values) {
-                var target,
-                    index;
-                if (this.key()) {
-                    if (this.keyOf(values))
-                        if (!data.utils.keysEqual(this.key(), key, this.keyOf(values)))
-                            return rejectedPromise(errors.Error("E4017"));
+                var index,
+                    target,
+                    keyExpr = this.key();
+                if (keyExpr) {
+                    if (hasKey(values, keyExpr) && !data.utils.keysEqual(keyExpr, key, this.keyOf(values)))
+                        return rejectedPromise(errors.Error("E4017"));
                     index = this._indexByKey(key);
                     if (index < 0)
                         return rejectedPromise(errors.Error("E4009"));
@@ -7673,6 +7713,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var storeTypeRegistry = {
                 jaydata: "JayDataStore",
                 breeze: "BreezeStore",
+                parse: "ParseStore",
                 odata: "ODataStore",
                 local: "LocalStore",
                 array: "ArrayStore"
@@ -8230,8 +8271,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             current(options)
         }
         function current(options) {
-            if (!arguments.length)
-                return currentThemeName || readThemeMarker();
+            if (!arguments.length) {
+                currentThemeName = currentThemeName || readThemeMarker();
+                return currentThemeName
+            }
             detachCssClasses(viewPort(), currentThemeName);
             options = options || {};
             if (typeof options === "string")
@@ -8376,14 +8419,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._handler = options.handler;
                     this._context = options.context;
                     this._childProcessors = [];
-                    if (this._element)
-                        this._element.on(this._keydown, function(e) {
+                    if (this._element) {
+                        this._processFunction = function(e) {
                             _this.process(e)
-                        })
+                        };
+                        this._element.on(this._keydown, this._processFunction)
+                    }
                 },
                 dispose: function() {
                     if (this._element)
-                        this._element.off(this._keydown);
+                        this._element.off(this._keydown, this._processFunction);
                     this._element = undefined;
                     this._handler = undefined;
                     this._context = undefined;
@@ -9034,9 +9079,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._valueChangeActionSuppressed = false
                 },
                 _render: function() {
+                    this.callBase();
                     this._renderValidationState();
-                    this._toggleReadOnlyState();
-                    this.callBase()
+                    this._toggleReadOnlyState()
                 },
                 _raiseValueChangeAction: function(value, previousValue, extraArguments) {
                     if (!this._valueChangeAction)
@@ -9078,7 +9123,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             animation: null,
                             visible: true
                         });
-                        this._$validationMessage.toggleClass(INVALID_MESSAGE_AUTO, validationMessageMode === "auto").toggleClass(INVALID_MESSAGE_ALWAYS, validationMessageMode === "always")
+                        this._$validationMessage.toggleClass(INVALID_MESSAGE_AUTO, validationMessageMode === "auto").toggleClass(INVALID_MESSAGE_ALWAYS, validationMessageMode === "always").width($element.outerWidth())
                     }
                 },
                 _getValidationMessageTarget: function() {
@@ -9134,6 +9179,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                     value: args.value,
                                     editor: this
                                 });
+                            break;
+                        case"width":
+                            this.callBase(args);
+                            this._$validationMessage && this._$validationMessage.width(this.element().outerWidth());
                             break;
                         default:
                             this.callBase(args)
@@ -9825,7 +9874,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         return BaseStrategy
     });
     /*! Module core, file ui.events.pointer.observer.js */
-    DevExpress.define("/ui/events/pointer/ui.events.pointer.observer", [], function() {
+    DevExpress.define("/ui/events/pointer/ui.events.pointer.observer", ["jquery"], function($) {
         var addEventsListener = function(events, handler) {
                 events = events.split(" ");
                 $.each(events, function(_, event) {
@@ -10476,6 +10525,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 if (!supportPointerEvents() || !isDesktop)
                     return $.noop;
                 var $cover = $("<div>").addClass(GESTURE_COVER_CLASS).css("pointerEvents", "none");
+                $cover.on("dxmousewheel", function(e) {
+                    e.preventDefault()
+                });
                 $(function() {
                     $cover.appendTo("body")
                 });
@@ -12695,7 +12747,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     });
     /*! Module core, file ko.components.js */
-    DevExpress.define("/integration/knockout/ko.components", ["/utils/utils.icon", "/utils/utils.inflector", "/action"], function(iconUtils, inflector, Action) {
+    DevExpress.define("/integration/knockout/ko.components", ["jquery", "/utils/utils.icon", "/utils/utils.inflector", "/action"], function($, iconUtils, inflector, Action) {
         var ko = window.ko;
         ko.bindingHandlers.dxAction = {update: function(element, valueAccessor, allBindingsAccessor, viewModel) {
                 var $element = $(element);
@@ -13543,7 +13595,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     });
     /*! Module core, file ng.components.js */
-    DevExpress.define("/integration/angular/ng.components", ["/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function(ngModule, iconUtils, inflector) {
+    DevExpress.define("/integration/angular/ng.components", ["jquery", "/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function($, ngModule, iconUtils, inflector) {
         ngModule.filter('dxGlobalize', function() {
             return function(input, param) {
                     return Globalize.format(input, param)
@@ -13893,7 +13945,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     DevExpress.require(["/integration/jquery/jquery"]);
     /*! Module core, file ko.js */
-    DevExpress.define("/integration/knockout/ko", ["/utils/utils.support", "/errors", "/utils/utils.version", "require"], function(support, errors, versionUtils, require) {
+    DevExpress.define("/integration/knockout/ko", ["jquery", "/utils/utils.support", "/errors", "/utils/utils.version", "require"], function($, support, errors, versionUtils, require) {
         if (!support.hasKo)
             return;
         var ko = window.ko;
@@ -13914,7 +13966,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     DevExpress.require(["/integration/angular/ng"]);
     /*! Module core, file ui.events.emitter.click.js */
-    (function($, DX, wnd, undefined) {
+    (function($, DX, undefined) {
         var abs = Math.abs,
             events = DX.ui.events,
             devices = DX.require("/devices"),
@@ -13941,7 +13993,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         $element.attr("onclick", "void(0)")
                 },
                 start: function(e) {
-                    this._blurPrevented = e.dxPreventBlur;
+                    this._blurPrevented = e.isDefaultPrevented();
                     this._startTarget = e.target;
                     this._startEventData = eventUtils.eventData(e)
                 },
@@ -14027,7 +14079,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     blurPrevented = false;
                 var pointerDownHandler = function(e) {
                         startTarget = e.target;
-                        blurPrevented = e.dxPreventBlur
+                        blurPrevented = e.isDefaultPrevented()
                     };
                 var clickHandler = function(e) {
                         var $target = $(e.target);
@@ -14049,7 +14101,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             useFastClick: !events.__internals.useNativeClick && !events.__internals.fixBuggyInertia,
             misc: misc
         })
-    })(jQuery, DevExpress, window);
+    })(jQuery, DevExpress);
     /*! Module core, file ui.events.emitter.hold.js */
     (function($, DX, undefined) {
         var eventUtils = DX.require("/ui/events/ui.events.utils"),
@@ -14097,10 +14149,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     })(jQuery, DevExpress);
     /*! Module core, file ui.events.emitter.gesture.scroll.js */
-    (function($, DX, undefined) {
-        var eventUtils = DX.require("/ui/events/ui.events.utils"),
-            GestureEmitter = DX.require("/ui/events/ui.events.emitter.gesture"),
-            registerEmitter = DX.require("/ui/events/ui.events.emitterRegistrator");
+    DevExpress.define("/ui/events/ui.events.emitter.scroll", function(module, exports, require) {
+        var $ = require("jquery"),
+            eventUtils = require("/ui/events/ui.events.utils"),
+            GestureEmitter = require("/ui/events/ui.events.emitter.gesture"),
+            registerEmitter = require("/ui/events/ui.events.emitterRegistrator");
         var SCROLL_INIT_EVENT = "dxscrollinit",
             SCROLL_START_EVENT = "dxscrollstart",
             SCROLL_MOVE_EVENT = "dxscroll",
@@ -14212,8 +14265,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         registerEmitter({
             emitter: ScrollEmitter,
             events: [SCROLL_INIT_EVENT, SCROLL_START_EVENT, SCROLL_MOVE_EVENT, SCROLL_END_EVENT, SCROLL_STOP_EVENT, SCROLL_CANCEL_EVENT]
-        })
-    })(jQuery, DevExpress);
+        });
+        module.exports = {
+            init: SCROLL_INIT_EVENT,
+            start: SCROLL_START_EVENT,
+            move: SCROLL_MOVE_EVENT,
+            end: SCROLL_END_EVENT,
+            stop: SCROLL_STOP_EVENT,
+            cancel: SCROLL_CANCEL_EVENT
+        }
+    });
     /*! Module core, file ui.events.emitter.gesture.swipe.js */
     (function($, DX, undefined) {
         var eventUtils = DX.require("/ui/events/ui.events.utils"),
@@ -16223,7 +16284,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return $loading.dxLoadPanel("show")
                 },
                 hide: function() {
-                    if (!$loading)
+                    if (!$loading || !$loading.length)
                         return $.when();
                     return $loading.dxLoadPanel("hide").done(removeLoadPanel).promise()
                 }
@@ -18747,7 +18808,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 if (that._options.border.visible || (isInside || color) && color !== NONE)
                     that._background = that._renderer.rect(0, 0, 0, 0).attr({
                         fill: fill,
-                        'class': that._backgroundClass
+                        "class": that._backgroundClass
                     }).append(that._insideLegendGroup)
             },
             _locateRowsColumns: function() {
@@ -18959,10 +19020,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 if (that._options.visible)
                     return function(act) {
-                            var pointType = point.type,
-                                seriesType = pointType || point.series.type;
-                            if (pointType || seriesType === "pie" || seriesType === "doughnut" || seriesType === "donut")
-                                that[act] && that[act](point.index)
+                            that[act](point.index)
                         };
                 else
                     return $.noop
@@ -19411,83 +19469,68 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         }
     })(jQuery, DevExpress);
     /*! Module viz-core, file dataSource.js */
-    (function($, DX, undefined) {
-        var NONE_TYPE = 0,
-            ARRAY_TYPE = 1,
-            DX_DATA_SOURCE_TYPE = 2,
-            CUSTOM_TYPE = 3,
-            dxData = DX.data,
-            commonUtils = DX.require("/utils/utils.common");
-        function DataSource(dataSourceOnLoadCallback) {
-            this._type = NONE_TYPE;
-            this._changedCallback = dataSourceOnLoadCallback
+    (function(DX, undefined) {
+        var data = DX.data,
+            _isArray = DX.require("/utils/utils.common").isArray;
+        function createDataSource(options) {
+            var ops = data.utils.normalizeDataSourceOptions(options);
+            "paginate" in ops || (ops.paginate = false);
+            return new data.DataSource(ops)
+        }
+        function DataSource(callback) {
+            this._callback = callback;
+            this._items = this._ds = null;
+            this._isShared = false
         }
         DataSource.prototype = {
             constructor: DataSource,
+            dispose: function() {
+                this._reset()
+            },
             isLoaded: function() {
-                var isLoaded = false;
-                switch (this._type) {
-                    case NONE_TYPE:
-                        isLoaded = false;
-                        break;
-                    case ARRAY_TYPE:
-                        isLoaded = true;
-                        break;
-                    case CUSTOM_TYPE:
-                    case DX_DATA_SOURCE_TYPE:
-                        isLoaded = this._dxDataSource.isLoaded();
-                        break
-                }
-                return isLoaded
+                return !this._ds || this._ds.isLoaded()
             },
             items: function() {
-                var type = this._type;
-                return type === DX_DATA_SOURCE_TYPE || type === CUSTOM_TYPE ? this._dxDataSource.items() : this._items
+                return this._ds ? this._ds.items() : this._items
             },
-            update: function(data) {
-                var that = this,
-                    dataSource,
-                    changedCallback = that._changedCallback;
-                that._clean();
-                if (commonUtils.isDefined(data))
-                    if (commonUtils.isArray(data)) {
-                        that._items = data;
-                        that._type = ARRAY_TYPE;
-                        changedCallback()
-                    }
-                    else {
-                        if (data instanceof dxData.DataSource) {
-                            that._type = DX_DATA_SOURCE_TYPE;
-                            dataSource = data
-                        }
-                        else {
-                            that._type = CUSTOM_TYPE;
-                            dataSource = new dxData.DataSource($.extend({paginate: false}, dxData.utils.normalizeDataSourceOptions(data)))
-                        }
-                        that._dxDataSource = dataSource;
-                        dataSource.on("changed", changedCallback);
-                        if (dataSource.isLoaded())
-                            changedCallback();
-                        else
-                            dataSource.load()
-                    }
+            _reset: function() {
+                var that = this;
+                that._items = null;
+                if (that._ds) {
+                    if (that._isShared)
+                        that._ds.off({
+                            changed: that._callback,
+                            loadError: that._callback
+                        });
+                    else
+                        that._ds.dispose();
+                    that._ds = null;
+                    that._isShared = false
+                }
             },
-            dispose: function() {
-                this._clean();
-                this._changedCallback = null
-            },
-            _clean: function() {
-                var that = this,
-                    dxDataSource = that._dxDataSource;
-                if (that._type === DX_DATA_SOURCE_TYPE)
-                    dxDataSource.off("changed", that._changedCallback);
-                else if (that._type === CUSTOM_TYPE)
-                    dxDataSource.dispose();
-                that._dxDataSource = that._items = that._type = null
+            update: function(value) {
+                var that = this;
+                that._reset();
+                if (!value || _isArray(value)) {
+                    that._items = value || null;
+                    that._callback()
+                }
+                else {
+                    that._isShared = value instanceof data.DataSource;
+                    that._ds = that._isShared ? value : createDataSource(value);
+                    that._ds.on({
+                        changed: that._callback,
+                        loadError: that._callback
+                    });
+                    if (that._ds.isLoaded())
+                        that._callback();
+                    else
+                        that._ds.load()
+                }
             }
         };
         DX.viz.DataSource = DataSource
-    })(jQuery, DevExpress);
+    })(DevExpress);
     /*! Module viz-core, file numericTickManager.js */
     (function($, DX, undefined) {
         var viz = DX.viz,
@@ -25375,15 +25418,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     states: {
                         hover: "hover",
                         normal: "normal",
-                        selected: "selected",
+                        selection: "selection",
                         normalMark: 0,
                         hoverMark: 1,
-                        selectedMark: 2
-                    },
-                    animations: {
-                        showDuration: {duration: 400},
-                        hideGroup: {opacity: 0.0001},
-                        showGroup: {opacity: 1}
+                        selectedMark: 2,
+                        applyHover: "applyHover",
+                        applySelected: "applySelected",
+                        resetItem: "resetItem"
                     },
                     pieLabelIndent: 30,
                     pieLabelSpacing: 10,
@@ -25730,7 +25771,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             var that = this;
             that.type = _normalizeEnum(options.type);
             that.pane = options.pane;
-            that.rotated = !!(options.rotated && options.sortSeriesPointsByAxis);
+            that.rotated = options.rotated;
             that.series = [];
             that.updateOptions(options);
             switch (that.type) {
@@ -25826,23 +25867,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             _normalizeEnum = viz.utils.normalizeEnum,
             _Event = $.Event,
             _noop = $.noop,
-            SELECTED_STATE = 2,
-            HOVER_STATE = 1,
+            _inArray = $.inArray,
+            states = seriesNS.helpers.consts.states,
+            DISCRETE = "discrete",
+            SELECTED_STATE = states.selectedMark,
+            HOVER_STATE = states.hoverMark,
+            HOVER = states.hover,
+            NORMAL = states.normal,
+            SELECTION = states.selection,
+            APPLY_SELECTED = states.applySelected,
+            APPLY_HOVER = states.applyHover,
+            RESET_ITEM = states.resetItem,
             NONE_MODE = "none",
             INCLUDE_POINTS = "includepoints",
             EXLUDE_POINTS = "excludepoints",
             NEAREST_POINT = "nearestpoint",
-            APPLY_SELECTED = "applySelected",
-            APPLY_HOVER = "applyHover",
             SYMBOL_POINT = "symbolPoint",
             POLAR_SYMBOL_POINT = "polarSymbolPoint",
             BAR_POINT = "barPoint",
             POLAR_BAR_POINT = "polarBarPoint",
             PIE_POINT = "piePoint",
-            HOVER = "hover",
-            NORMAL = "normal",
-            SELECTION = "selection",
-            RESET_ITEM = "resetItem",
             getEmptyBusinessRange = function() {
                 return {
                         arg: {},
@@ -26179,7 +26223,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     min = originalPoints[minI - 1].argument;
                     max = originalPoints[maxI].argument;
                     sizePoint = that._getPointSize();
-                    if (that.argumentAxisType !== "discrete" && that.valueAxisType !== "discrete") {
+                    if (that.argumentAxisType !== DISCRETE && that.valueAxisType !== DISCRETE) {
                         tickObject = that._getTicksForAggregation(min, max, argTranslator.canvasLength, sizePoint);
                         ticks = tickObject.ticks;
                         tickInterval = tickObject.tickInterval;
@@ -26190,7 +26234,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
                     else
                         ticks = argTranslator.canvasLength / sizePoint;
-                    that._points = that._resample(ticks, tickInterval, argTranslator)
+                    that._points = that._resample(ticks, tickInterval, argTranslator.getBusinessRange().categories, min, max)
                 }
             },
             _removeOldSegments: function(startIndex) {
@@ -26305,7 +26349,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that.lastSelectionMode = _normalizeEnum(mode || that._options.selectionMode);
                 if (state && !that.isSelected()) {
                     that.fullState = that.fullState | SELECTED_STATE;
-                    that._nearestPoint && applyPointStyle(that._nearestPoint, "normal");
+                    that._nearestPoint && applyPointStyle(that._nearestPoint, NORMAL);
                     that._nearestPoint = null;
                     that._changeStyle(legendCallback, APPLY_SELECTED)
                 }
@@ -26358,7 +26402,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     pointStyle;
                 if (style.mode === NONE_MODE)
                     return;
-                legendCallBack && legendCallBack(legendAction);
+                legendCallBack(legendAction);
                 if (includePointsMode(style.mode)) {
                     pointStyle = style.pointStyle;
                     _each(that._points || [], function(_, p) {
@@ -26372,7 +26416,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     styles = that._styles,
                     pointNormalState = false,
                     result;
-                switch (that.fullState & 3) {
+                switch (that.fullState) {
                     case 0:
                         result = {
                             pointStyle: NORMAL,
@@ -26381,7 +26425,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         };
                         break;
                     case 1:
-                        pointNormalState = prevStyle === SELECTION && that.lastHoverMode === EXLUDE_POINTS || that.lastHoverMode === NEAREST_POINT && includePointsMode(that.lastSelectionMode);
+                        pointNormalState = prevStyle && that.lastHoverMode === EXLUDE_POINTS || that.lastHoverMode === NEAREST_POINT && includePointsMode(that.lastSelectionMode);
                         result = {
                             pointStyle: pointNormalState ? NORMAL : HOVER,
                             mode: pointNormalState ? INCLUDE_POINTS : that.lastHoverMode,
@@ -26410,9 +26454,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     currentNearestPoint = that._nearestPoint,
                     point = that.isHovered() && that.lastHoverMode === NEAREST_POINT && that.getNeighborPoint(x, y);
                 if (point !== currentNearestPoint && !that.isSelected()) {
-                    currentNearestPoint && applyPointStyle(currentNearestPoint, "normal");
+                    currentNearestPoint && applyPointStyle(currentNearestPoint, NORMAL);
                     if (point) {
-                        applyPointStyle(point, "hover");
+                        applyPointStyle(point, HOVER);
                         that._nearestPoint = point
                     }
                 }
@@ -26505,20 +26549,29 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         selectionStyle: {}
                     })
             },
-            _resample: function(ticks, ticksInterval, argTranslator) {
+            _resample: function(ticks, ticksInterval, categories, min, max) {
                 var that = this,
                     fusPoints = [],
                     arrayFusPoints,
                     nowIndexTicks = 0,
                     lastPointIndex = 0,
                     originalPoints = that.getAllPoints(),
-                    visibleArea;
-                if (that.argumentAxisType === "discrete" || that.valueAxisType === "discrete") {
-                    visibleArea = argTranslator.getCanvasVisibleArea();
+                    discreteMin = min !== undefined ? min : -Infinity,
+                    discreteMax = max !== undefined ? max : Infinity,
+                    isArgumentDiscrete = that.argumentAxisType === DISCRETE;
+                if (isArgumentDiscrete || that.valueAxisType === DISCRETE) {
+                    if (isArgumentDiscrete) {
+                        discreteMin = _inArray(min, categories);
+                        discreteMax = _inArray(max, categories);
+                        if (discreteMin === -1)
+                            discreteMin = 0;
+                        if (discreteMax === -1)
+                            discreteMax = categories.length - 1
+                    }
                     originalPoints = _map(originalPoints, function(p) {
-                        var pos = argTranslator.translate(p.argument),
-                            result = null;
-                        if (pos >= visibleArea.min && pos <= visibleArea.max)
+                        var result = null,
+                            argument = isArgumentDiscrete ? _inArray(p.argument, categories) : p.argument;
+                        if (argument >= discreteMin && argument <= discreteMax)
                             result = p;
                         else
                             p.setInvisibility();
@@ -26585,61 +26638,45 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 return (this._drawedPoints || []).slice()
             },
             setPointHoverState: function(data) {
-                var point = data.point,
-                    legendCallback = data.legendCallback;
+                var point = data.point;
                 if (data.setState)
-                    point.fullState = point.fullState | HOVER_STATE;
-                if (!(this.isSelected() && includePointsMode(this.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView) {
-                    point.applyStyle(HOVER);
-                    legendCallback && legendCallback("applyHover")
-                }
+                    point.fullState |= HOVER_STATE;
+                if (!(this.isSelected() && includePointsMode(this.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView)
+                    point.applyStyle(HOVER)
             },
             releasePointHoverState: function(data) {
                 var that = this,
-                    point = data.point,
-                    legendCallback = data.legendCallback;
-                if (data.setState)
-                    point.fullState = point.fullState & ~HOVER_STATE;
-                if (!(that.isSelected() && includePointsMode(that.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView)
-                    if (!(that.isHovered() && includePointsMode(that.lastHoverMode)) || that.isSelected() && that.lastSelectionMode === EXLUDE_POINTS) {
-                        point.applyStyle(NORMAL);
-                        legendCallback && legendCallback(RESET_ITEM)
-                    }
-            },
-            setPointSelectedState: function(data) {
-                var legendCallback = data.legendCallback,
                     point = data.point;
                 if (data.setState)
-                    point.fullState = point.fullState | SELECTED_STATE;
+                    point.fullState &= ~HOVER_STATE;
+                if (!(that.isSelected() && includePointsMode(that.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView)
+                    if (!(that.isHovered() && includePointsMode(that.lastHoverMode)) || that.isSelected() && that.lastSelectionMode === EXLUDE_POINTS)
+                        point.applyStyle(NORMAL);
+                point.releaseHoverState()
+            },
+            setPointSelectedState: function(data) {
+                var point = data.point;
+                if (data.setState)
+                    point.fullState |= SELECTED_STATE;
                 else
                     point.hasSelectedView = true;
-                point.applyStyle(SELECTION);
-                legendCallback && legendCallback("applySelected")
+                point.applyStyle(SELECTION)
             },
             releasePointSelectedState: function(data) {
                 var that = this,
                     pointStyle,
-                    point = data.point,
-                    legendCallback = data.legendCallback,
-                    legendAction;
+                    point = data.point;
                 if (data.setState)
-                    point.fullState = point.fullState & ~SELECTED_STATE;
+                    point.fullState &= ~SELECTED_STATE;
                 else
                     point.hasSelectedView = false;
-                if (that.isHovered() && includePointsMode(that.lastHoverMode) || point.isHovered()) {
+                if (that.isHovered() && includePointsMode(that.lastHoverMode) || point.isHovered())
                     pointStyle = HOVER;
-                    legendAction = "applyHover"
-                }
-                else if (that.isSelected() && includePointsMode(that.lastSelectionMode)) {
+                else if (that.isSelected() && includePointsMode(that.lastSelectionMode))
                     pointStyle = SELECTION;
-                    legendAction = "applySelected"
-                }
-                else {
+                else
                     pointStyle = NORMAL;
-                    legendAction = RESET_ITEM
-                }
-                point.applyStyle(pointStyle);
-                legendCallback && legendCallback(legendAction)
+                point.applyStyle(pointStyle)
             },
             selectPoint: function(point) {
                 triggerEvent(this._extGroups.seriesGroup, new _Event("selectpoint"), point)
@@ -29083,6 +29120,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             seiresMixins = seriesNS.mixins,
             _noop = $.noop;
         function Point(series, dataItem, options) {
+            this.fullState = statesConsts.normalMark;
             this.series = series;
             this.update(dataItem, options);
             this._emptySettings = {
@@ -29098,20 +29136,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 return this._styles.normal.fill || this.series.getColor()
             },
             _getStyle: function() {
-                var that = this,
-                    styles = that._styles,
-                    style;
-                if (that._currentStyle)
-                    style = that._currentStyle;
-                else if (that.isSelected())
-                    style = styles.selection;
-                else if (that.isHovered())
-                    style = styles.hover;
-                else {
-                    that.fullState = statesConsts.normalMark;
-                    style = styles.normal
-                }
-                return style
+                return this._styles[this._currentStyle || 'normal']
             },
             update: function(dataItem, options) {
                 this.updateOptions(options);
@@ -29156,6 +29181,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             },
             applyStyle: function(style) {
                 var that = this;
+                that._currentStyle = style;
                 if (that.graphic) {
                     if (style === "normal") {
                         if (that.isHovered()) {
@@ -29166,38 +29192,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
                     else
                         that.graphic.toForeground();
-                    that._currentStyle = that._styles[style];
                     that._updateMarker(true, that._styles[style])
                 }
                 return that
             },
-            setHoverState: function() {
-                this.series.setPointHoverState({
-                    point: this,
-                    setState: true
-                })
-            },
-            releaseHoverState: function(callback) {
+            releaseHoverState: function() {
                 var that = this;
-                that.series.releasePointHoverState({
-                    point: that,
-                    legendCallback: callback,
-                    setState: true
-                });
-                if (that.graphic)
-                    !that.isSelected() && that.graphic.toBackground()
-            },
-            setSelectedState: function() {
-                this.series.setPointSelectedState({
-                    point: this,
-                    setState: true
-                })
-            },
-            releaseSelectedState: function() {
-                this.series.releasePointSelectedState({
-                    point: this,
-                    setState: true
-                })
+                if (that.graphic && !that.isSelected())
+                    that.graphic.toBackground()
             },
             select: function() {
                 this.series.selectPoint(this)
@@ -30165,7 +30167,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
             },
             getPointRadius: function() {
-                var style = this._currentStyle || this._getStyle(),
+                var style = this._getStyle(),
                     options = this._options,
                     r = style.r,
                     extraSpace,
@@ -34027,15 +34029,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             var createThemeManager = function(options, groupName) {
                     return new charts.ThemeManager(options, groupName)
                 };
-            var createTracker = function(options, name) {
-                    return name === "dxPieChart" ? new charts.PieTracker(options) : new charts.ChartTracker(options)
-                };
             var createCrosshair = function(renderer, options, params, group) {
                     return new charts.Crosshair(renderer, options, params, group)
                 };
             return {
                     createThemeManager: createThemeManager,
-                    createTracker: createTracker,
                     createCrosshair: createCrosshair,
                     createScrollBar: function(renderer, group) {
                         return new DevExpress.viz.charts.ScrollBar(renderer, group)
@@ -34497,9 +34495,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             createTickManager: function(types, data, options) {
                 return new viz.tickManager.TickManager(types, data, options)
             },
-            createLegend: function(settings) {
-                return new viz.Legend(settings)
-            },
             createSeriesFamily: function(options) {
                 return new seriesNS.helpers.SeriesFamily(options)
             }
@@ -34871,9 +34866,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
         };
         function getLegendFields(name) {
             return {
-                    nameField: name + 'Name',
-                    colorField: name + 'Color',
-                    indexField: name + 'Index'
+                    nameField: name + "Name",
+                    colorField: name + "Color",
+                    indexField: name + "Index"
                 }
         }
         function getLegendSettings(legendDataField) {
@@ -34908,12 +34903,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 onPointClick: {name: "pointClick"},
                 onArgumentAxisClick: {name: "argumentAxisClick"},
                 onLegendClick: {name: "legendClick"},
-                onSeriesSelectionChanged: {name: 'seriesSelectionChanged'},
-                onPointSelectionChanged: {name: 'pointSelectionChanged'},
-                onSeriesHoverChanged: {name: 'seriesHoverChanged'},
-                onPointHoverChanged: {name: 'pointHoverChanged'},
-                onTooltipShown: {name: 'tooltipShown'},
-                onTooltipHidden: {name: 'tooltipHidden'},
+                onSeriesSelectionChanged: {name: "seriesSelectionChanged"},
+                onPointSelectionChanged: {name: "pointSelectionChanged"},
+                onSeriesHoverChanged: {name: "seriesHoverChanged"},
+                onPointHoverChanged: {name: "pointHoverChanged"},
+                onTooltipShown: {name: "tooltipShown"},
+                onTooltipHidden: {name: "tooltipHidden"},
                 onDone: {name: "done"}
             }),
             _rootClassPrefix: "dxc",
@@ -34934,15 +34929,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 that._canvasClipRect = that._renderer.clipRect();
                 that._createHtmlStructure();
                 that._createLegend();
+                that._createTracker();
                 that._needHandleRenderComplete = true;
                 that.layoutManager = new charts.LayoutManager;
                 that._createScrollBar();
-                that._$element.on('contextmenu', function(event) {
-                    that.eventType = 'contextmenu';
+                that._$element.on("contextmenu", function(event) {
+                    that.eventType = "contextmenu";
                     if (eventUtils.isTouchEvent(event) || eventUtils.isPointerEvent(event))
                         event.preventDefault()
-                }).on('MSHoldVisual', function(event) {
-                    that.eventType = 'MSHoldVisual';
+                }).on("MSHoldVisual", function(event) {
+                    that.eventType = "MSHoldVisual";
                     event.preventDefault()
                 })
             },
@@ -34952,7 +34948,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _reinit: function(_skipRender) {
                 var that = this;
                 _setCanvasValues(that._canvas);
-                that._createTracker();
                 that._reinitAxes();
                 if (!_skipRender)
                     that._initialized = false;
@@ -34973,21 +34968,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     fill: "gray",
                     opacity: 0.0001
                 }).append(root);
-                that._panesBackgroundGroup = renderer.g().attr({'class': 'dxc-background'}).append(root);
-                that._stripsGroup = renderer.g().attr({'class': 'dxc-strips-group'}).linkOn(root, "strips");
-                that._gridGroup = renderer.g().attr({'class': 'dxc-grids-group'}).linkOn(root, "grids");
-                that._axesGroup = renderer.g().attr({'class': 'dxc-axes-group'}).linkOn(root, "axes");
-                that._constantLinesGroup = renderer.g().attr({'class': 'dxc-constant-lines-group'}).linkOn(root, "constant-lines");
-                that._labelAxesGroup = renderer.g().attr({'class': 'dxc-strips-labels-group'}).linkOn(root, "strips-labels");
-                that._panesBorderGroup = renderer.g().attr({'class': 'dxc-border'}).linkOn(root, "border");
-                that._seriesGroup = renderer.g().attr({'class': 'dxc-series-group'}).linkOn(root, "series");
-                that._labelsGroup = renderer.g().attr({'class': 'dxc-labels-group'}).linkOn(root, "labels");
-                that._crosshairCursorGroup = renderer.g().attr({'class': 'dxc-crosshair-cursor'}).linkOn(root, "crosshair");
+                that._panesBackgroundGroup = renderer.g().attr({"class": "dxc-background"}).append(root);
+                that._stripsGroup = renderer.g().attr({"class": "dxc-strips-group"}).linkOn(root, "strips");
+                that._gridGroup = renderer.g().attr({"class": "dxc-grids-group"}).linkOn(root, "grids");
+                that._axesGroup = renderer.g().attr({"class": "dxc-axes-group"}).linkOn(root, "axes");
+                that._constantLinesGroup = renderer.g().attr({"class": "dxc-constant-lines-group"}).linkOn(root, "constant-lines");
+                that._labelAxesGroup = renderer.g().attr({"class": "dxc-strips-labels-group"}).linkOn(root, "strips-labels");
+                that._panesBorderGroup = renderer.g().attr({"class": "dxc-border"}).linkOn(root, "border");
+                that._seriesGroup = renderer.g().attr({"class": "dxc-series-group"}).linkOn(root, "series");
+                that._labelsGroup = renderer.g().attr({"class": "dxc-labels-group"}).linkOn(root, "labels");
+                that._crosshairCursorGroup = renderer.g().attr({"class": "dxc-crosshair-cursor"}).linkOn(root, "crosshair");
                 that._legendGroup = renderer.g().attr({
-                    'class': 'dxc-legend',
+                    "class": "dxc-legend",
                     clipId: that._getCanvasClipRectID()
                 }).linkOn(root, "legend");
-                that._scrollBarGroup = renderer.g().attr({'class': 'dxc-scroll-bar'}).linkOn(root, "scroll-bar")
+                that._scrollBarGroup = renderer.g().attr({"class": "dxc-scroll-bar"}).linkOn(root, "scroll-bar")
             },
             _disposeObjectsInArray: function(propName, fieldNames) {
                 _each(this[propName] || [], function(_, item) {
@@ -35017,7 +35012,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 disposeObjectsInArray.call(that, "businessRanges", ["arg", "val"]);
                 that.translators = null;
                 disposeObjectsInArray.call(that, "series");
-                disposeObject("tracker");
+                disposeObject("_tracker");
                 disposeObject("_crosshair");
                 that.layoutManager = null;
                 that.paneAxis = null;
@@ -35070,34 +35065,35 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 else
                     this._render(this.__renderOptions || {
                         animate: false,
-                        isResize: true,
-                        updateTracker: false
+                        isResize: true
                     })
             },
+            _trackerType: "ChartTracker",
             _createTracker: function() {
-                var that = this,
-                    themeManager = that._themeManager;
-                if (that.tracker)
-                    that.tracker.dispose();
-                that.tracker = charts.factory.createTracker({
-                    seriesSelectionMode: themeManager.getOptions('seriesSelectionMode'),
-                    pointSelectionMode: themeManager.getOptions('pointSelectionMode'),
+                var that = this;
+                that._tracker = new charts[that._trackerType]({
                     seriesGroup: that._seriesGroup,
                     renderer: that._renderer,
                     tooltip: that._tooltip,
+                    legend: that._legend,
                     eventTrigger: that._eventTrigger
-                }, that.NAME)
+                })
             },
             _getTrackerSettings: function() {
-                var that = this;
                 return {
-                        series: that.series,
-                        legend: that.legend,
-                        legendCallback: $.proxy(that.legend.getActionCallback, that.legend)
+                        seriesSelectionMode: this._themeManager.getOptions("seriesSelectionMode"),
+                        pointSelectionMode: this._themeManager.getOptions("pointSelectionMode")
                     }
             },
-            _updateTracker: function() {
-                this.tracker.update(this._getTrackerSettings())
+            _updateTracker: function(trackerCanvases) {
+                var that = this;
+                that._tracker.update(that._getTrackerSettings());
+                that._tracker.setCanvases({
+                    left: 0,
+                    right: that._canvas.width,
+                    top: 0,
+                    bottom: that._canvas.height
+                }, trackerCanvases)
             },
             _render: function(_options) {
                 var that = this,
@@ -35169,13 +35165,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     }
                     that._scrollBar.init(argBusinessRange, layoutTargets[0].canvas).setPosition(zoomMinArg, zoomMaxArg)
                 }
-                drawOptions.updateTracker && that._updateTracker();
-                that.tracker.setCanvases({
-                    left: 0,
-                    right: that._canvas.width,
-                    top: 0,
-                    bottom: that._canvas.height
-                }, trackerCanvases);
+                that._updateTracker(trackerCanvases);
                 that._updateLegendPosition(drawOptions, isLegendInside);
                 that._renderSeries(drawOptions, isRotated, isLegendInside);
                 that._renderer.unlock()
@@ -35195,8 +35185,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 resolveLabelOverlapping !== "none" && that._resolveLabelOverlapping(resolveLabelOverlapping);
                 that._adjustSeries();
                 that._renderTrackers(isLegendInside);
-                that.tracker.repairTooltip();
-                if (that._dataSource.isLoaded())
+                that._tracker.repairTooltip();
+                if (that._dataIsReady())
                     that._fulfillLoadingIndicatorHiding();
                 that._drawn();
                 that._renderCompleteHandler()
@@ -35274,12 +35264,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 that._crosshairCursorGroup.linkRemove().clear()
             },
             _createLegend: function() {
-                var legendSettings = getLegendSettings(this._legendDataField);
-                this.legend = viz.CoreFactory.createLegend({
-                    renderer: this._renderer,
-                    group: this._legendGroup,
-                    backgroundClass: 'dxc-border',
-                    itemGroupClass: 'dxc-item',
+                var that = this,
+                    legendSettings = getLegendSettings(that._legendDataField);
+                that._legend = new viz.Legend({
+                    renderer: that._renderer,
+                    group: that._legendGroup,
+                    backgroundClass: "dxc-border",
+                    itemGroupClass: "dxc-item",
                     textField: legendSettings.textField,
                     getFormatObject: legendSettings.getFormatObject
                 })
@@ -35287,11 +35278,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _updateLegend: function() {
                 var that = this,
                     themeManager = that._themeManager,
-                    legendOptions = themeManager.getOptions('legend'),
+                    legendOptions = themeManager.getOptions("legend"),
                     legendData = that._getLegendData();
                 legendOptions.containerBackgroundColor = themeManager.getOptions("containerBackgroundColor");
                 legendOptions._incidentOccured = that._incidentOccured;
-                that.legend.update(legendData, legendOptions)
+                that._legend.update(legendData, legendOptions)
             },
             _prepareDrawOptions: function(drawOptions) {
                 var animationOptions = this._getAnimationOptions(),
@@ -35302,8 +35293,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     drawLegend: true,
                     drawTitle: true,
                     animate: animationOptions.enabled,
-                    animationPointsLimit: animationOptions.maxPointCountSupported,
-                    updateTracker: true
+                    animationPointsLimit: animationOptions.maxPointCountSupported
                 }, drawOptions, this.__renderOptions);
                 if (!_isDefined(options.recreateCanvas))
                     options.recreateCanvas = options.adjustAxes && options.drawLegend && options.drawTitle;
@@ -35459,6 +35449,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 that._repopulateSeries();
                 that._seriesPopulatedHandlerCore();
                 that._populateBusinessRange();
+                that._collectPointsByArg();
+                that._tracker.updateSeries(that._getStoredSeries());
                 that._updateLegend();
                 needRedraw && that._forceRender()
             },
@@ -35470,8 +35462,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     parsedData,
                     themeManager = that._themeManager,
                     data = that._dataSource.items(),
-                    dataValidatorOptions = themeManager.getOptions('dataPrepareSettings'),
-                    seriesTemplate = themeManager.getOptions('seriesTemplate');
+                    dataValidatorOptions = themeManager.getOptions("dataPrepareSettings"),
+                    seriesTemplate = themeManager.getOptions("seriesTemplate");
                 if (seriesTemplate) {
                     that._templatedSeries = vizUtils.processSeriesTemplate(seriesTemplate, data);
                     that._populateSeries();
@@ -35514,15 +35506,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 var that = this,
                     drawElements = [];
                 drawOptions.drawTitle && drawElements.push(that._title);
-                if (drawOptions.drawLegend && that.legend) {
+                if (drawOptions.drawLegend && that._legend) {
                     that._legendGroup.linkAppend();
-                    !legendHasInsidePosition && drawElements.push(that.legend)
+                    !legendHasInsidePosition && drawElements.push(that._legend)
                 }
                 return drawElements
             },
             _resetZoom: _noop,
             _dataIsReady: function() {
-                return this._dataSource.isLoaded()
+                return _isDefined(this.option("dataSource")) && this._dataSource.isLoaded()
             },
             _populateSeries: function() {
                 var that = this,
@@ -35541,10 +35533,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         that._populateBusinessRange();
                         that._renderer.stopAllAnimations(true);
                         that._updateLegend();
-                        that._render({
-                            force: true,
-                            updateTracker: false
-                        })
+                        that._render({force: true})
                     };
                 that._disposeSeries();
                 that.series = [];
@@ -35598,10 +35587,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 return this.series[pos]
             },
             clearSelection: function clearSelection() {
-                this.tracker.clearSelection()
+                this._tracker.clearSelection()
             },
             hideTooltip: function() {
-                this.tracker._hideTooltip()
+                this._tracker._hideTooltip()
             },
             render: function(renderOptions) {
                 var that = this;
@@ -35630,6 +35619,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _isArray = commonUtils.isArray,
             _isDefined = commonUtils.isDefined,
             _each = $.each,
+            _noop = $.noop,
             _extend = $.extend,
             _map = viz.utils.map,
             MIN = "min",
@@ -35651,9 +35641,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     disposeObjectsInArray = this._disposeObjectsInArray;
                 that.callBase();
                 that.panes = null;
-                if (that.legend) {
-                    that.legend.dispose();
-                    that.legend = null
+                if (that._legend) {
+                    that._legend.dispose();
+                    that._legend = null
                 }
                 disposeObjectsInArray.call(that, "panesBackground");
                 disposeObjectsInArray.call(that, "seriesFamilies");
@@ -35857,7 +35847,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 }
             },
             _getLegendCallBack: function(series) {
-                return this.legend && this.legend.getActionCallback(series)
+                return this._legend && this._legend.getActionCallback(series)
             },
             _appendAxesGroups: function() {
                 var that = this;
@@ -36011,7 +36001,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 return userOptions
             },
             _legendDataField: "series",
-            _adjustSeries: $.noop
+            _getStoredSeries: function() {
+                return this.series
+            },
+            _adjustSeries: _noop,
+            _collectPointsByArg: _noop
         })
     })(jQuery, DevExpress);
     /*! Module viz-charts, file chart.js */
@@ -36129,13 +36123,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             switch (visiblyOpt) {
                 case 13:
                 case 9:
-                    segmentSequence = ['left', 'top', 'right', 'bottom'];
+                    segmentSequence = ["left", "top", "right", "bottom"];
                     break;
                 case 11:
-                    segmentSequence = ['bottom', 'left', 'top', 'right'];
+                    segmentSequence = ["bottom", "left", "top", "right"];
                     break;
                 default:
-                    segmentSequence = ['top', 'right', 'bottom', 'left']
+                    segmentSequence = ["top", "right", "bottom", "left"]
             }
             _each(segmentSequence, function(_, seg) {
                 var segmentVisibility = !!borderOptions[seg];
@@ -36411,7 +36405,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 return panesBorderOptions
             },
             _isLegendInside: function() {
-                return this.legend && this.legend.getPosition() === "inside"
+                return this._legend && this._legend.getPosition() === "inside"
             },
             _renderAxes: function(drawOptions, panesBorderOptions, rotated, adjustUnits) {
                 if (drawOptions && drawOptions.recreateCanvas)
@@ -36438,7 +36432,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             },
             _updateLegendPosition: function(drawOptions, legendHasInsidePosition) {
                 var that = this;
-                if (drawOptions.drawLegend && that.legend && legendHasInsidePosition) {
+                if (drawOptions.drawLegend && that._legend && legendHasInsidePosition) {
                     var panes = that.panes,
                         newCanvas = _extend({}, panes[0].canvas),
                         layoutManager = new charts.LayoutManager;
@@ -36448,7 +36442,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         width: 0,
                         height: 0
                     });
-                    layoutManager.layoutElements([that.legend], newCanvas, $.noop, [{canvas: newCanvas}])
+                    layoutManager.layoutElements([that._legend], newCanvas, $.noop, [{canvas: newCanvas}])
                 }
             },
             _prepareTranslators: function(series, _, rotated) {
@@ -36535,7 +36529,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     layoutManager = that.layoutManager,
                     rotated = that._isRotated(),
                     adjustmentCounter = 0,
-                    synchronizeMultiAxes = that._themeManager.getOptions('synchronizeMultiAxes'),
+                    synchronizeMultiAxes = that._themeManager.getOptions("synchronizeMultiAxes"),
                     layoutTargets = that._getLayoutTargets(),
                     verticalAxes = rotated ? that._argumentAxes : that._valueAxes,
                     horizontalAxes = rotated ? that._valueAxes : that._argumentAxes,
@@ -36903,8 +36897,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     drawTitle: false,
                     drawLegend: false,
                     adjustAxes: false,
-                    animate: false,
-                    updateTracker: false
+                    animate: false
                 })
             },
             _resetZoom: function() {
@@ -36937,7 +36930,88 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
-            _getVerticallyShiftedAngularCoords = viz.utils.getVerticallyShiftedAngularCoords;
+            _getVerticallyShiftedAngularCoords = viz.utils.getVerticallyShiftedAngularCoords,
+            states = viz.series.helpers.consts.states,
+            SELECTED_STATE = states.selectedMark,
+            HOVER_STATE = states.hoverMark,
+            HOVER = states.hover,
+            NORMAL = states.normal,
+            SELECTION = states.selection,
+            APPLY_HOVER = states.applyHover,
+            RESET_ITEM = states.resetItem;
+        function AbstractSeries(index, points) {
+            var that = this;
+            that.index = index;
+            that.fullState = 0;
+            that._points = points;
+            that._selectedPointsCount = 0;
+            return that
+        }
+        AbstractSeries.prototype = {
+            isHovered: function() {
+                return !!(this.fullState & 1)
+            },
+            setHoverState: function(state, _, legendCallback) {
+                var that = this;
+                if (state && !that.isHovered()) {
+                    that._changeStyle(legendCallback, APPLY_HOVER, HOVER);
+                    that.fullState |= HOVER_STATE
+                }
+                else if (!state && that.isHovered()) {
+                    that._changeStyle(legendCallback, RESET_ITEM, NORMAL);
+                    that.fullState &= ~HOVER_STATE
+                }
+            },
+            _changeStyle: function(legendCallback, legendAction, pointAction) {
+                var that = this;
+                !that._selectedPointsCount && legendCallback(legendAction);
+                _each(that._points || [], function(_, p) {
+                    !p.isSelected() && p.applyStyle(pointAction)
+                })
+            },
+            setPointHoverState: function(data) {
+                var point = data.point;
+                point.fullState |= HOVER_STATE;
+                if (!point.isSelected()) {
+                    point.applyStyle(HOVER);
+                    if (!this._selectedPointsCount)
+                        data.legendCallback(APPLY_HOVER)
+                }
+            },
+            releasePointHoverState: function(data) {
+                var point = data.point;
+                point.fullState &= ~HOVER_STATE;
+                if (!point.isSelected()) {
+                    point.applyStyle(NORMAL);
+                    if (!this._selectedPointsCount)
+                        data.legendCallback(RESET_ITEM)
+                }
+            },
+            setPointSelectedState: function(data) {
+                var that = this,
+                    point = data.point;
+                point.fullState |= SELECTED_STATE;
+                point.applyStyle(SELECTION);
+                !that._selectedPointsCount && data.legendCallback(states.applySelected);
+                that._selectedPointsCount++
+            },
+            releasePointSelectedState: function(data) {
+                var that = this,
+                    point = data.point,
+                    action;
+                point.fullState &= ~SELECTED_STATE;
+                if (point.isHovered() || that.isHovered()) {
+                    point.applyStyle(HOVER);
+                    action = APPLY_HOVER
+                }
+                else {
+                    point.applyStyle(NORMAL);
+                    action = RESET_ITEM
+                }
+                that._selectedPointsCount--;
+                !that._selectedPointsCount && data.legendCallback(action)
+            }
+        };
         registerComponent("dxPieChart", viz.charts, charts.BaseChart.inherit({
             _setDeprecatedOptions: function() {
                 this.callBase.apply(this, arguments);
@@ -36960,9 +37034,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     }
                 })
             },
-            _chartType: 'pie',
+            _chartType: "pie",
             _layoutManagerOptions: function() {
-                var diameter = this._themeManager.getOptions('diameter');
+                var diameter = this._themeManager.getOptions("diameter");
                 if (commonUtils.isNumber(diameter)) {
                     if (diameter > 1)
                         diameter = 1;
@@ -37014,9 +37088,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _processSingleSeries: function(singleSeries) {
                 singleSeries.arrangePoints()
             },
-            _getLegendTargets: function() {
+            _collectPointsByArg: function() {
                 var that = this,
-                    points = [],
+                    points = {},
                     args = {},
                     itemIndex,
                     index = 0;
@@ -37030,14 +37104,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         itemIndex = args[argument + count];
                         if (itemIndex === undefined) {
                             point.index = args[argument + count] = index;
-                            points.push(that._getLegendOptions(point));
+                            points[index] = [point];
                             index++
                         }
                         else {
                             point.index = itemIndex;
-                            if (!points[itemIndex].visible)
-                                points[itemIndex].visible = point.isVisible()
+                            points[itemIndex].push(point)
                         }
+                    })
+                });
+                that._collectionPointsArg = points
+            },
+            _getLegendTargets: function() {
+                var that = this,
+                    points = [];
+                _each(that._collectionPointsArg, function(_, id) {
+                    _each(id, function(i, point) {
+                        if (i === 0)
+                            points.push(that._getLegendOptions(point));
+                        else if (!points[points.length - 1].visible)
+                            points[points.length - 1].visible = point.isVisible()
                     })
                 });
                 return points
@@ -37094,7 +37180,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 return this._createTranslator(this.businessRanges[i])
             },
             _getLegendCallBack: function() {
-                var legend = this.legend;
+                var legend = this._legend;
                 return function(point) {
                         return legend.getActionCallback(point)
                     }
@@ -37131,14 +37217,20 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _setCenter: function(center) {
                 this._center = center
             },
+            _getStoredSeries: function() {
+                return $.map(this._collectionPointsArg, function(points, i) {
+                        return new AbstractSeries(i, points)
+                    })
+            },
             getSeries: function() {
                 DX.require("/errors").log("W0002", "dxPieChart", "getSeries", "15.2", "Use the 'getAllSeries' method instead");
                 return this.series[0]
             },
-            _legendDataField: 'point',
+            _legendDataField: "point",
             _legendItemTextField: "argument",
             _updateLegendPosition: _noop,
             _renderTrackers: _noop,
+            _trackerType: "PieTracker",
             _createScrollBar: _noop,
             _updateAxesLayout: _noop,
             _applyClipRects: _noop,
@@ -38129,6 +38221,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
     (function($, DX, math, undefined) {
         var charts = DX.viz.charts,
             eventsConsts = DX.viz.series.helpers.consts.events,
+            mathUtils = DX.require("/utils/utils.math"),
             commonUtils = DX.require("/utils/utils.common"),
             pointerEvents = DX.require("/ui/events/pointer/ui.events.pointer"),
             wheelEvent = DX.require("/ui/events/ui.events.wheel"),
@@ -38136,11 +38229,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _normalizeEnum = DX.viz.utils.normalizeEnum,
             _floor = math.floor,
             _each = $.each,
-            MULTIPLE_MODE = 'multiple',
-            ALL_ARGUMENTS_POINTS_MODE = 'allargumentpoints',
-            ALL_SERIES_POINTS_MODE = 'allseriespoints',
-            MARK_POINT_MODE = 'markpoint',
-            NONE_MODE = 'none',
+            _inArray = $.inArray,
+            _noop = $.noop,
+            MULTIPLE_MODE = "multiple",
+            ALL_ARGUMENTS_POINTS_MODE = "allargumentpoints",
+            ALL_SERIES_POINTS_MODE = "allseriespoints",
+            NONE_MODE = "none",
             POINTER_ACTION = [pointerEvents.down, pointerEvents.move].join(" "),
             POINT_SELECTION_CHANGED = "pointSelectionChanged",
             LEGEND_CLICK = "legendClick",
@@ -38148,9 +38242,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             POINT_CLICK = "pointClick",
             RELEASE_POINT_SELECTED_STATE = "releasePointSelectedState",
             SET_POINT_SELECTED_STATE = "setPointSelectedState",
+            SET_POINT_HOVER_STATE = "setPointHoverState",
             SERIES_HOVER_CHANGED = 'seriesHoverChanged',
-            POINT_HOVER_CHANGED = 'pointHoverChanged',
-            RELEASE_POINT_HOVER_STATE = 'releasePointHoverState',
+            POINT_HOVER_CHANGED = "pointHoverChanged",
+            RELEASE_POINT_HOVER_STATE = "releasePointHoverState",
             SERIES_SELECTION_CHANGED = "seriesSelectionChanged",
             POINT_DATA = "chart-data-point",
             SERIES_DATA = "chart-data-series",
@@ -38194,6 +38289,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 ctor: function(options) {
                     var that = this,
                         data = {tracker: that};
+                    that._renderer = options.renderer;
+                    that._legend = options.legend;
+                    that._tooltip = options.tooltip;
+                    that._eventTrigger = options.eventTrigger;
+                    options.seriesGroup.off().on(eventsConsts.selectSeries, data, that._selectSeries).on(eventsConsts.deselectSeries, data, that._deselectSeries).on(eventsConsts.selectPoint, data, that._selectPoint).on(eventsConsts.deselectPoint, data, that._deselectPoint).on(eventsConsts.showPointTooltip, data, that._showPointTooltip).on(eventsConsts.hidePointTooltip, data, that._hidePointTooltip);
+                    that._renderer.root.off(POINTER_ACTION).off("dxclick dxhold").on(POINTER_ACTION, data, that._pointerHandler).on("dxclick", data, that._clickHandler).on("dxhold", {timeout: 300}, _noop)
+                },
+                update: function(options) {
+                    var that = this;
                     if (_normalizeEnum(options.pointSelectionMode) === MULTIPLE_MODE) {
                         that._setSelectedPoint = that._selectPointMultipleMode;
                         that._releaseSelectedPoint = that._releaseSelectedPointMultipleMode
@@ -38210,16 +38314,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         that._releaseSelectedSeries = that._releaseSelectedSeriesSingleMode;
                         that._setSelectedSeries = that._setSelectedSeriesSingleMode
                     }
-                    that._renderer = options.renderer;
-                    that._tooltip = options.tooltip;
-                    that._eventTrigger = options.eventTrigger;
-                    options.seriesGroup.off().on(eventsConsts.selectSeries, data, that._selectSeries).on(eventsConsts.deselectSeries, data, that._deselectSeries).on(eventsConsts.selectPoint, data, that._selectPoint).on(eventsConsts.deselectPoint, data, that._deselectPoint).on(eventsConsts.showPointTooltip, data, that._showPointTooltip).on(eventsConsts.hidePointTooltip, data, that._hidePointTooltip);
-                    that._renderer.root.off(POINTER_ACTION).off("dxclick dxhold").on(POINTER_ACTION, data, that._pointerHandler).on("dxclick", data, that._clickHandler).on("dxhold", {timeout: 300}, $.noop)
+                    that._prepare(that._renderer.root)
                 },
-                update: function(options) {
+                updateSeries: function(series) {
                     var that = this;
-                    if (that._storedSeries !== options.series) {
-                        that._storedSeries = options.series || [];
+                    if (that._storedSeries !== series) {
+                        that._storedSeries = series || [];
                         that._clean()
                     }
                     else {
@@ -38227,9 +38327,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         that._clearHover();
                         that.clearSelection()
                     }
-                    that._legend = options.legend;
-                    that.legendCallback = options.legendCallback;
-                    that._prepare(that._renderer.root)
                 },
                 setCanvases: function(mainCanvas, paneCanvases) {
                     this._mainCanvas = mainCanvas;
@@ -38250,17 +38347,17 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 _selectPointMultipleMode: function(point) {
                     var that = this;
                     that._selectedPoint = that._selectedPoint || [];
-                    if ($.inArray(point, that._selectedPoint) < 0) {
+                    if (_inArray(point, that._selectedPoint) < 0) {
                         that._selectedPoint.push(point);
-                        that._setPointState(point, SET_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that.legendCallback(point))
+                        that._setPointState(point, SET_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point))
                     }
                 },
                 _releaseSelectedPointMultipleMode: function(point) {
                     var that = this,
                         points = that._selectedPoint || [],
-                        pointIndex = $.inArray(point, points);
+                        pointIndex = _inArray(point, points);
                     if (pointIndex >= 0) {
-                        that._setPointState(point, RELEASE_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that.legendCallback(point));
+                        that._setPointState(point, RELEASE_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point));
                         points.splice(pointIndex, 1)
                     }
                     else if (!point)
@@ -38273,24 +38370,24 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     if (that._selectedPoint !== point) {
                         that._releaseSelectedPoint();
                         that._selectedPoint = point;
-                        that._setPointState(point, SET_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that.legendCallback(point))
+                        that._setPointState(point, SET_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point))
                     }
                 },
                 _releaseSelectedPointSingleMode: function() {
                     var that = this,
                         point = that._selectedPoint;
                     if (point) {
-                        that._setPointState(point, RELEASE_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that.legendCallback(point));
+                        that._setPointState(point, RELEASE_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point));
                         that._selectedPoint = null
                     }
                 },
                 _setPointState: function(point, action, mode, eventName, legendCallback) {
                     var that = this,
+                        series,
                         eventTrigger = that._eventTrigger;
                     switch (mode) {
                         case ALL_ARGUMENTS_POINTS_MODE:
-                        case MARK_POINT_MODE:
-                            that._toAllArgumentPoints(point.argument, action, eventName, point, legendCallback);
+                            that._toAllArgumentPoints(point.argument, action, eventName, point);
                             break;
                         case ALL_SERIES_POINTS_MODE:
                             setPointsSpecState(point.series.getPoints(), point, action, eventName, eventTrigger);
@@ -38298,7 +38395,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         case NONE_MODE:
                             break;
                         default:
-                            point.series[action]({
+                            series = that._getPointSeries(point);
+                            series[action]({
                                 point: point,
                                 legendCallback: legendCallback,
                                 setState: true
@@ -38309,13 +38407,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 _setHoveredPoint: function(point, mode) {
                     var that = this;
                     var debug = DX.require("/utils/utils.console").debug;
-                    debug.assert(point.series, 'series was not assigned to point or empty');
+                    debug.assert(point.series, "series was not assigned to point or empty");
                     if (that.hoveredPoint === point || !point.series)
                         return;
                     that._releaseHoveredPoint();
                     if (point && point.getOptions() && mode !== NONE_MODE) {
                         that.hoveredPoint = point;
-                        that._setPointState(point, 'setPointHoverState', mode || _normalizeEnum(point.getOptions().hoverMode), POINT_HOVER_CHANGED, that.legendCallback(point))
+                        that._setPointState(point, SET_POINT_HOVER_STATE, mode || _normalizeEnum(point.getOptions().hoverMode), POINT_HOVER_CHANGED, that._legend.getActionCallback(point))
                     }
                 },
                 _releaseHoveredPoint: function() {
@@ -38329,12 +38427,28 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         that._hideTooltip(point);
                     that.hoveredPoint = null
                 },
+                _releasePoint: function(point, eventTrigger) {
+                    var that = this,
+                        mode = _normalizeEnum(point.getOptions().hoverMode);
+                    if (mode === ALL_SERIES_POINTS_MODE)
+                        setPointsSpecState(point.series.getPoints(), point, RELEASE_POINT_HOVER_STATE, POINT_HOVER_CHANGED, eventTrigger);
+                    else if (mode === ALL_ARGUMENTS_POINTS_MODE)
+                        that._toAllArgumentPoints(point.argument, RELEASE_POINT_HOVER_STATE, POINT_HOVER_CHANGED, point);
+                    else if (mode !== "none") {
+                        that._getPointSeries(point).releasePointHoverState({
+                            point: point,
+                            setState: true,
+                            legendCallback: that._legend.getActionCallback(point)
+                        });
+                        eventTrigger(POINT_HOVER_CHANGED, {target: point})
+                    }
+                },
                 _setSelectedSeriesMultipleMode: function(series, mode) {
                     var that = this;
                     that._selectedSeries = that._selectedSeries || [];
-                    if ($.inArray(series, that._selectedSeries) < 0) {
+                    if (_inArray(series, that._selectedSeries) < 0) {
                         that._selectedSeries.push(series);
-                        series.setSelectedState(true, mode, that.legendCallback(series));
+                        series.setSelectedState(true, mode, that._legend.getActionCallback(series));
                         that._eventTrigger(SERIES_SELECTION_CHANGED, {target: series})
                     }
                 },
@@ -38343,16 +38457,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     if (series !== that._selectedSeries || series.lastSelectionMode !== mode) {
                         that._releaseSelectedSeries();
                         that._selectedSeries = series;
-                        series.setSelectedState(true, mode, that.legendCallback(series));
+                        series.setSelectedState(true, mode, that._legend.getActionCallback(series));
                         that._eventTrigger(SERIES_SELECTION_CHANGED, {target: series})
                     }
                 },
                 _releaseSelectedSeriesMultipleMode: function(series) {
                     var that = this,
                         selectedSeries = that._selectedSeries || [],
-                        seriesIndex = $.inArray(series, selectedSeries);
+                        seriesIndex = _inArray(series, selectedSeries);
                     if (seriesIndex >= 0) {
-                        series.setSelectedState(false, undefined, that.legendCallback(series));
+                        series.setSelectedState(false, undefined, that._legend.getActionCallback(series));
                         that._eventTrigger(SERIES_SELECTION_CHANGED, {target: series});
                         selectedSeries.splice(seriesIndex, 1)
                     }
@@ -38365,28 +38479,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     var that = this,
                         selectedSeries = that._selectedSeries;
                     if (selectedSeries && (!series || series === selectedSeries)) {
-                        selectedSeries.setSelectedState(false, undefined, that.legendCallback(selectedSeries));
+                        selectedSeries.setSelectedState(false, undefined, that._legend.getActionCallback(selectedSeries));
                         that._eventTrigger(SERIES_SELECTION_CHANGED, {target: selectedSeries});
                         that._selectedSeries = null
                     }
                 },
                 _setHoveredSeries: function(series, mode) {
                     var that = this;
-                    if (mode !== NONE_MODE && that.hoveredSeries !== series || series.lastHoverMode !== mode) {
+                    if (mode !== NONE_MODE && that.hoveredSeries !== series || that._isModeChanged(series, mode)) {
                         that._clearHover();
-                        series.setHoverState(true, mode, that.legendCallback(series));
-                        that._eventTrigger(SERIES_HOVER_CHANGED, {target: series})
+                        series.setHoverState(true, mode, that._legend.getActionCallback(series));
+                        that._eventTrigger(SERIES_HOVER_CHANGED, {target: series});
+                        that.hoveredSeries = series
                     }
-                    that.hoveredSeries = series;
-                    if (mode === NONE_MODE)
-                        $(series).trigger('NoneMode')
                 },
                 _releaseHoveredSeries: function(needSetHoverView, hoveredPoint) {
                     var that = this,
                         hoveredSeries = that.hoveredSeries,
                         seriesWithHoverView = that._seriesWithHoverView;
                     if (hoveredSeries) {
-                        hoveredSeries.setHoverState(false, undefined, that.legendCallback(hoveredSeries));
+                        hoveredSeries.setHoverState(false, undefined, that._legend.getActionCallback(hoveredSeries));
                         if (needSetHoverView && hoveredPoint && hoveredPoint.series === hoveredSeries)
                             that._seriesWithHoverView = hoveredSeries.setHoverView();
                         that._eventTrigger(SERIES_HOVER_CHANGED, {target: hoveredSeries});
@@ -38483,11 +38595,115 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     this._clearHover();
                     this._tooltip.isEnabled() && this._hideTooltip(this.pointAtShownTooltip)
                 },
-                _legendClick: function(eventArgs, elementClick) {
+                _trigerLegendClick: function(eventArgs, elementClick) {
                     var eventTrigger = this._eventTrigger;
                     eventTrigger(LEGEND_CLICK, eventArgs, function() {
                         !eventCanceled(eventArgs.jQueryEvent, eventArgs.target) && eventTrigger(elementClick, eventArgs)
                     })
+                },
+                _hoverLegendItem: function(x, y) {
+                    var that = this,
+                        item = that._legend.getItemByCoord(x, y),
+                        series;
+                    if (item) {
+                        series = that._storedSeries[item.id];
+                        that._setHoveredSeries(series, that._legend._options.hoverMode);
+                        that._tooltip.isEnabled() && that._hideTooltip(that.pointAtShownTooltip)
+                    }
+                    else
+                        that._clearHover()
+                },
+                _pointerHandler: function(e) {
+                    var that = e.data.tracker,
+                        rootOffset = that._renderer.getRootOffset(),
+                        x = _floor(e.pageX - rootOffset.left),
+                        y = _floor(e.pageY - rootOffset.top),
+                        canvas = that._getCanvas(x, y),
+                        series = getData(e, SERIES_DATA),
+                        point = getData(e, POINT_DATA) || series && series.getPointByCoord(x, y);
+                    that._enableOutHandler();
+                    if (that._checkGestureEvents(e, canvas, rootOffset))
+                        return;
+                    if (that._legend.coordsIn(x, y)) {
+                        that._hoverLegendItem(x, y);
+                        return
+                    }
+                    if (that.hoveredSeries && that.hoveredSeries !== that._stickedSeries)
+                        that._releaseHoveredSeries();
+                    if (that._hoverArgumentAxis(x, y, e))
+                        return;
+                    if (that._isPointerOut(canvas, point))
+                        that._pointerOut();
+                    if (!canvas && !point)
+                        return;
+                    if (series && !point) {
+                        point = series.getNeighborPoint(x, y);
+                        if (series !== that.hoveredSeries) {
+                            that._setTimeout(function() {
+                                that._setHoveredSeries(series, series.getOptions().hoverMode);
+                                that._stickedSeries = series;
+                                that._pointerComplete(point, x, y)
+                            }, series);
+                            return
+                        }
+                    }
+                    else if (point) {
+                        if (that.hoveredSeries)
+                            that._setTimeout(function() {
+                                that._pointerOnPoint(point, x, y)
+                            }, point);
+                        else {
+                            that._pointerOnPoint(point, x, y);
+                            that._setSeriesWithHoverView(point)
+                        }
+                        return
+                    }
+                    else if (that._setStickedSeries(x, y)) {
+                        series = that._stickedSeries;
+                        point = series.getNeighborPoint(x, y);
+                        that._releaseHoveredSeries();
+                        point && that._setHoveredPoint(point)
+                    }
+                    that._pointerComplete(point, x, y)
+                },
+                _pointerOnPoint: function(point, x, y) {
+                    this._setHoveredPoint(point);
+                    this._pointerComplete(point, x, y)
+                },
+                _pointerComplete: function(point) {
+                    this.pointAtShownTooltip !== point && this._tooltip.isEnabled() && this._showTooltip(point)
+                },
+                _clickHandler: function(e) {
+                    var that = e.data.tracker,
+                        rootOffset = that._renderer.getRootOffset(),
+                        x = _floor(e.pageX - rootOffset.left),
+                        y = _floor(e.pageY - rootOffset.top),
+                        point = getData(e, POINT_DATA),
+                        series = that._stickedSeries || getData(e, SERIES_DATA) || point && point.series,
+                        axis = that._argumentAxis;
+                    if (that._legend.coordsIn(x, y)) {
+                        var item = that._legend.getItemByCoord(x, y);
+                        if (item)
+                            that._legendClick(item, e)
+                    }
+                    else if (axis && axis.coordsIn(x, y)) {
+                        var argument = getData(e, ARG_DATA);
+                        if (isDefined(argument))
+                            that._eventTrigger("argumentAxisClick", {
+                                argument: argument,
+                                jQueryEvent: e
+                            })
+                    }
+                    else if (series) {
+                        point = point || series.getPointByCoord(x, y);
+                        if (point)
+                            that._pointClick(point, e);
+                        else
+                            getData(e, SERIES_DATA) && that._eventTrigger(SERIES_CLICK, {
+                                target: series,
+                                jQueryEvent: e
+                            })
+                    }
                 },
                 dispose: function() {
                     var that = this;
@@ -38501,10 +38717,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             this.ctor(options)
         };
         $.extend(charts.ChartTracker.prototype, baseTrackerPrototype, {
-            ctor: function(options) {
-                var that = this;
-                baseTrackerPrototype.ctor.call(that, options)
-            },
             _pointClick: function(point, event) {
                 var that = this,
                     eventTrigger = that._eventTrigger,
@@ -38531,12 +38743,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 that._rotated = options.rotated;
                 that._crosshair = options.crosshair
             },
-            _toAllArgumentPoints: function(argument, func, eventName, targetPoint) {
-                var that = this;
-                _each(that._storedSeries, function(_, series) {
-                    setPointsSpecState(series.getPointsByArg(argument), targetPoint, func, eventName, that._eventTrigger)
-                })
-            },
             _getCanvas: function(x, y) {
                 var that = this,
                     canvases = that._canvases || [];
@@ -38547,27 +38753,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 }
                 return null
             },
-            _focusOnCanvas: function(canvas) {
-                if (!canvas && this._stickedSeries)
-                    this._pointerOut()
+            _getPointSeries: function(point) {
+                return point.series
             },
-            _releasePoint: function(point, eventTrigger) {
-                var that = this,
-                    mode = _normalizeEnum(point.getOptions().hoverMode);
-                if (mode === ALL_SERIES_POINTS_MODE)
-                    setPointsSpecState(point.series.getPoints(), point, RELEASE_POINT_HOVER_STATE, POINT_HOVER_CHANGED, eventTrigger);
-                else if (mode === ALL_ARGUMENTS_POINTS_MODE)
-                    that._toAllArgumentPoints(point.argument, RELEASE_POINT_HOVER_STATE, POINT_HOVER_CHANGED, point);
-                else if (mode !== "none") {
-                    point.releaseHoverState(that.legendCallback(point));
-                    eventTrigger(POINT_HOVER_CHANGED, {target: point})
-                }
+            _isModeChanged: function(series, mode) {
+                return series.lastHoverMode !== mode
+            },
+            _isPointerOut: function(canvas) {
+                return !canvas && this._stickedSeries
             },
             _resetHoveredArgument: function() {
                 if (isDefined(this.hoveredArgument)) {
                     this._toAllArgumentPoints(this.hoveredArgument, RELEASE_POINT_HOVER_STATE);
                     this.hoveredArgument = null
                 }
+            },
+            _toAllArgumentPoints: function(argument, func, eventName, targetPoint) {
+                var that = this;
+                _each(that._storedSeries, function(_, series) {
+                    setPointsSpecState(series.getPointsByArg(argument), targetPoint, func, eventName, that._eventTrigger)
+                })
             },
             _hideCrosshair: function() {
                 this._crosshair && this._crosshair.hide()
@@ -38578,12 +38783,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             },
             _prepare: function(root) {
                 var that = this,
-                    touchScrollingEnabled = that._scrollingMode === 'all' || that._scrollingMode === 'touch',
-                    touchZoomingEnabled = that._zoomingMode === 'all' || that._zoomingMode === 'touch',
-                    cssValue = (!touchScrollingEnabled ? "pan-x pan-y " : '') + (!touchZoomingEnabled ? "pinch-zoom" : '') || "none",
+                    touchScrollingEnabled = that._scrollingMode === "all" || that._scrollingMode === "touch",
+                    touchZoomingEnabled = that._zoomingMode === "all" || that._zoomingMode === "touch",
+                    cssValue = (!touchScrollingEnabled ? "pan-x pan-y " : "") + (!touchZoomingEnabled ? "pinch-zoom" : "") || "none",
                     rootStyles = {
-                        'touch-action': cssValue,
-                        '-ms-touch-action': cssValue
+                        "touch-action": cssValue,
+                        "-ms-touch-action": cssValue
                     },
                     wheelzoomingEnabled = that._zoomingMode === "all" || that._zoomingMode === "mouse";
                 root.off(wheelEvent.name + " dxc-scroll-start dxc-scroll-move");
@@ -38652,8 +38857,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 var that = this,
                     startGesture = that._startGesture,
                     gestureChanged = false,
-                    scrollingEnabled = that._scrollingMode === 'all' || that._scrollingMode !== 'none' && that._scrollingMode === gestureParams.pointerType,
-                    zoommingEnabled = that._zoomingMode === 'all' || that._zoomingMode === 'touch';
+                    scrollingEnabled = that._scrollingMode === "all" || that._scrollingMode !== "none" && that._scrollingMode === gestureParams.pointerType,
+                    zoommingEnabled = that._zoomingMode === "all" || that._zoomingMode === "touch";
                 if (!startGesture)
                     return gestureChanged;
                 if (startGesture.touches === 1 && math.abs(startGesture.center - gestureParams.center) < 3) {
@@ -38721,7 +38926,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     });
                     _each(points, function(_, p) {
                         var coords = p.getCrosshairData(x, y),
-                            d = math.sqrt((x - coords.x) * (x - coords.x) + (y - coords.y) * (y - coords.y));
+                            d = mathUtils.getDistance(x, y, coords.x, coords.y);
                         if (d < distance) {
                             point = p;
                             distance = d
@@ -38745,101 +38950,23 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 clearTimeout(this._hoverTimeout);
                 this._timeoutKeeper = this._hoverTimeout = null
             },
-            _pointerHandler: function(e) {
-                var that = e.data.tracker,
-                    rootOffset = that._renderer.getRootOffset(),
-                    x = _floor(e.pageX - rootOffset.left),
-                    y = _floor(e.pageY - rootOffset.top),
-                    canvas = that._getCanvas(x, y),
-                    series = getData(e, SERIES_DATA),
-                    point = getData(e, POINT_DATA) || series && series.getPointByCoord(x, y);
-                that._enableOutHandler();
-                that._x = x;
-                that._y = y;
+            _checkGestureEvents: function(e, canvas, rootOffset) {
+                var that = this;
                 if (e.type === pointerEvents.down)
                     canvas && that._gestureStart(that._getGestureParams(e, rootOffset));
                 else if (that._startGesture && canvas)
                     if (that._gestureChange(that._getGestureParams(e, rootOffset))) {
                         that._pointerOut();
                         e.preventDefault();
-                        return
+                        return true
                     }
-                if (that._legend.coordsIn(x, y)) {
-                    var item = that._legend.getItemByCoord(x, y);
-                    if (item) {
-                        series = that._storedSeries[item.id];
-                        that._setHoveredSeries(series, that._legend._options.hoverMode);
-                        that._stickedSeries = series
-                    }
-                    else
-                        that._clearHover();
-                    that._hideCrosshair();
-                    return
-                }
-                if (that._axisHoverEnabled && that._argumentAxis.coordsIn(x, y)) {
-                    var argument = getData(e, ARG_DATA),
-                        argumentDefined = isDefined(argument);
-                    if (argumentDefined && that.hoveredArgument !== argument) {
-                        that._clearHover();
-                        that._resetHoveredArgument();
-                        that._toAllArgumentPoints(argument, "setPointHoverState");
-                        that.hoveredArgument = argument
-                    }
-                    else if (!argumentDefined)
-                        that._resetHoveredArgument();
-                    return
-                }
-                that._resetHoveredArgument();
-                that._focusOnCanvas(canvas);
-                if (!canvas && !point)
-                    return;
-                if (!series && !point)
-                    that._stickedSeries = that._stickedSeries || that._getSeriesForShared(x, y);
-                if (series && !point) {
-                    point = series.getNeighborPoint(x, y);
-                    if (series !== that.hoveredSeries) {
-                        that._setTimeout(function() {
-                            that._setHoveredSeries(series, series.getOptions().hoverMode);
-                            that._stickedSeries = series;
-                            that._pointerComplete(point)
-                        }, series);
-                        return
-                    }
-                }
-                else if (point) {
-                    if (that.hoveredSeries)
-                        that._setTimeout(function() {
-                            that._pointerOnPoint(point)
-                        }, point);
-                    else {
-                        that._pointerOnPoint(point);
-                        that._seriesWithHoverView = point.series.setHoverView()
-                    }
-                    return
-                }
-                else if (that._stickedSeries) {
-                    series = that._stickedSeries;
-                    point = series.getNeighborPoint(x, y);
-                    that._releaseHoveredSeries(false);
-                    point && that._setHoveredPoint(point)
-                }
-                that._pointerComplete(point)
             },
-            _pointerOnPoint: function(point) {
-                var that = this,
-                    seriesWithHoverView = that._seriesWithHoverView,
-                    seriesFromPoint = point.series;
-                that._stickedSeries = seriesFromPoint;
-                that._setHoveredPoint(point);
-                that._releaseHoveredSeries(!seriesWithHoverView || seriesWithHoverView === seriesFromPoint, point);
-                that._pointerComplete(point)
+            _setStickedSeries: function(x, y) {
+                this._stickedSeries = this._stickedSeries || this._getSeriesForShared(x, y);
+                return !!this._stickedSeries
             },
-            _pointerComplete: function(point) {
-                var that = this;
-                that.hoveredSeries && that.hoveredSeries.updateHover(that._x, that._y);
-                that._resetTimer();
-                that._moveCrosshair(point, that._x, that._y);
-                that.pointAtShownTooltip !== point && that._tooltip.isEnabled() && that._showTooltip(point)
+            _setSeriesWithHoverView: function(point) {
+                this._seriesWithHoverView = point.series.setHoverView()
             },
             _pointerOut: function() {
                 var that = this;
@@ -38849,45 +38976,45 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 that._resetTimer();
                 baseTrackerPrototype._pointerOut.call(that)
             },
-            _clickHandler: function(e) {
-                var that = e.data.tracker,
-                    rootOffset = that._renderer.getRootOffset(),
-                    x = _floor(e.pageX - rootOffset.left),
-                    y = _floor(e.pageY - rootOffset.top),
-                    point = getData(e, POINT_DATA),
-                    series = that._stickedSeries || getData(e, SERIES_DATA) || point && point.series,
-                    axis = that._argumentAxis;
-                if (that._legend.coordsIn(x, y)) {
-                    var item = that._legend.getItemByCoord(x, y);
-                    if (item) {
-                        series = that._storedSeries[item.id];
-                        that._legendClick({
-                            target: series,
-                            jQueryEvent: e
-                        }, SERIES_CLICK)
-                    }
-                    return
-                }
-                if (axis && axis.coordsIn(x, y)) {
+            _hoverArgumentAxis: function(x, y, e) {
+                var that = this;
+                that._resetHoveredArgument();
+                if (that._axisHoverEnabled && that._argumentAxis.coordsIn(x, y)) {
                     var argument = getData(e, ARG_DATA);
-                    if (isDefined(argument)) {
-                        that._eventTrigger("argumentAxisClick", {
-                            argument: argument,
-                            jQueryEvent: e
-                        });
-                        return
+                    if (isDefined(argument) && that.hoveredArgument !== argument) {
+                        that._clearHover();
+                        that._toAllArgumentPoints(argument, SET_POINT_HOVER_STATE);
+                        that.hoveredArgument = argument
                     }
+                    return true
                 }
-                if (series) {
-                    point = point || series.getPointByCoord(x, y);
-                    if (point)
-                        that._pointClick(point, e);
-                    else
-                        getData(e, SERIES_DATA) && that._eventTrigger(SERIES_CLICK, {
-                            target: series,
-                            jQueryEvent: e
-                        })
-                }
+            },
+            _pointerComplete: function(point, x, y) {
+                var that = this;
+                that.hoveredSeries && that.hoveredSeries.updateHover(x, y);
+                that._resetTimer();
+                that._moveCrosshair(point, x, y);
+                baseTrackerPrototype._pointerComplete.call(that, point)
+            },
+            _legendClick: function(item, e) {
+                var series = this._storedSeries[item.id];
+                this._trigerLegendClick({
+                    target: series,
+                    jQueryEvent: e
+                }, SERIES_CLICK)
+            },
+            _hoverLegendItem: function(x, y) {
+                this._stickedSeries = null;
+                this._hideCrosshair();
+                baseTrackerPrototype._hoverLegendItem.call(this, x, y)
+            },
+            _pointerOnPoint: function(point, x, y) {
+                var that = this,
+                    seriesWithHoverView = that._seriesWithHoverView,
+                    seriesFromPoint = point.series;
+                that._stickedSeries = seriesFromPoint;
+                that._releaseHoveredSeries(!seriesWithHoverView || seriesWithHoverView === seriesFromPoint, point);
+                baseTrackerPrototype._pointerOnPoint.call(that, point, x, y)
             },
             dispose: function() {
                 this._gestureEndHandler && $(document).off(pointerEvents.up, this._gestureEndHandler);
@@ -38899,103 +39026,43 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             this.ctor(options)
         };
         $.extend(charts.PieTracker.prototype, baseTrackerPrototype, {
-            _pointerHandler: function(e) {
-                var that = e.data.tracker,
-                    rootOffset = that._renderer.getRootOffset(),
-                    x = _floor(e.pageX - rootOffset.left),
-                    y = _floor(e.pageY - rootOffset.top),
-                    point = getData(e, POINT_DATA),
-                    mode,
-                    item;
-                that._enableOutHandler();
-                if (that._legend.coordsIn(x, y)) {
-                    item = that._legend.getItemByCoord(x, y);
-                    if (item)
-                        _each(that._storedSeries, function(_, singleSeries) {
-                            _each(singleSeries.getPointsByArg(item.argument), function(_, p) {
-                                if (p.index === item.id) {
-                                    point = p;
-                                    return false
-                                }
-                            });
-                            if (point)
-                                return false
-                        });
-                    mode = _normalizeEnum(that._legend._options.hoverMode)
-                }
-                if (point && point !== that.hoveredPoint) {
-                    !item && that._tooltip.isEnabled() && that._showTooltip(point);
-                    that._setHoveredPoint(point, mode)
-                }
-                else if (!point)
-                    that._pointerOut()
+            _getPointSeries: function(point) {
+                return this._storedSeries[point.index]
             },
-            _toAllArgumentPoints: function(argument, func, eventName, targetPoint, legendCallback) {
-                var that = this;
-                that._hoveredArgumentPoints = true;
-                _each(getArgumentPointsByIndex(that._storedSeries, argument, targetPoint.index), function(_, currentPoint) {
-                    var series = currentPoint.series,
-                        obj = {
-                            point: currentPoint,
-                            setState: true
-                        };
-                    if (currentPoint === targetPoint)
-                        obj.legendCallback = legendCallback;
-                    series[func](obj);
-                    that._eventTrigger(eventName, {target: currentPoint})
-                })
+            _isModeChanged: function() {
+                return false
             },
-            _releasePoint: function(point, eventTrigger) {
-                var that = this;
-                if (that._hoveredArgumentPoints) {
-                    that._hoveredArgumentPoints = null;
-                    _each(getArgumentPointsByIndex(that._storedSeries, point.argument, point.index), function(_, argumentPoint) {
-                        argumentPoint.releaseHoverState(that.legendCallback(argumentPoint));
-                        eventTrigger(POINT_HOVER_CHANGED, {target: argumentPoint})
-                    })
-                }
-                else if (_normalizeEnum(point.getOptions().hoverMode) !== NONE_MODE) {
-                    point.releaseHoverState(that.legendCallback(point));
-                    eventTrigger(POINT_HOVER_CHANGED, {target: point})
-                }
+            _isPointerOut: function(_, point) {
+                return !point
             },
-            _clickHandler: function(e) {
-                var that = e.data.tracker,
-                    rootOffset = that._renderer.getRootOffset(),
-                    x = _floor(e.pageX - rootOffset.left),
-                    y = _floor(e.pageY - rootOffset.top),
-                    eventTrigger = that._eventTrigger,
-                    legend = that._legend,
-                    points,
-                    point,
-                    argument,
-                    item;
-                if (legend.coordsIn(x, y)) {
-                    item = legend.getItemByCoord(x, y);
-                    if (item) {
-                        argument = item.argument;
-                        if (that._storedSeries.length === 1) {
-                            points = getArgumentPointsByIndex(that._storedSeries, argument, item.id);
-                            that._legendClick({
-                                target: points[0],
-                                jQueryEvent: e
-                            }, POINT_CLICK)
-                        }
-                        else
-                            eventTrigger(LEGEND_CLICK, {
-                                target: argument,
-                                jQueryEvent: e
-                            })
-                    }
+            _legendClick: function(item, e) {
+                var that = this,
+                    argument = item.argument,
+                    points;
+                if (that._storedSeries.length === 1) {
+                    points = getArgumentPointsByIndex(that._storedSeries, argument, item.id);
+                    that._trigerLegendClick({
+                        target: points[0],
+                        jQueryEvent: e
+                    }, POINT_CLICK)
                 }
-                else {
-                    point = getData(e, POINT_DATA);
-                    point && eventTrigger(POINT_CLICK, {
-                        target: point,
+                else
+                    that._eventTrigger(LEGEND_CLICK, {
+                        target: argument,
                         jQueryEvent: e
                     })
-                }
-            }
+            },
+            _pointClick: function(point, e) {
+                this._eventTrigger(POINT_CLICK, {
+                    target: point,
+                    jQueryEvent: e
+                })
+            },
+            _hoverArgumentAxis: _noop,
+            _setStickedSeries: _noop,
+            _setSeriesWithHoverView: _noop,
+            _getCanvas: _noop,
+            _checkGestureEvents: _noop
         })
     })(jQuery, DevExpress, Math);
     /*! Module viz-charts, file crosshair.js */
@@ -42993,7 +43060,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
     if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE)
         throw Error('Required module is not referenced: viz-core');
     /*! Module viz-rangeselector, file rangeSelector.js */
-    (function($, DX, undefined) {
+    (function(DX, $, undefined) {
         var rangeSelector = DX.viz.rangeSelector = {},
             commonUtils = DX.require("/utils/utils.common"),
             mathUtils = DX.require("/utils/utils.math"),
@@ -43022,7 +43089,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             SELECTED_RANGE_CHANGED = SELECTED_RANGE + "Changed",
             CONTAINER_BACKGROUND_COLOR = "containerBackgroundColor",
             SLIDER_MARKER = "sliderMarker",
-            BACKGROUND = "background",
+            OPTION_BACKGROUND = "background",
             LOGARITHMIC = "logarithmic",
             INVISIBLE_POS = -1000,
             logarithmBase = 10;
@@ -43031,7 +43098,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             pointerSize: POINTER_SIZE
         };
         rangeSelector.HEIGHT_COMPACT_MODE = HEIGHT_COMPACT_MODE;
-        rangeSelector.__getTextBBox = getTextBBox;
         function cloneSelectedRange(arg) {
             return {
                     startValue: arg.startValue,
@@ -43045,254 +43111,230 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     };
                 return String(commonUtils.isFunction(formatOptions.customizeText) ? formatOptions.customizeText.call(formatObject, formatObject) : formatObject.valueText)
             };
-        var createTranslator = function(range, canvas) {
-                return {
-                        x: viz.CoreFactory.createTranslator2D(range.arg, canvas, {isHorizontal: true}),
-                        y: viz.CoreFactory.createTranslator2D(range.val, canvas)
-                    }
-            };
-        var createTranslatorCanvas = function(sizeOptions, rangeContainerCanvas, scaleLabelsAreaHeight) {
-                return {
-                        left: rangeContainerCanvas.left,
-                        top: rangeContainerCanvas.top,
-                        right: sizeOptions.width - rangeContainerCanvas.width - rangeContainerCanvas.left,
-                        bottom: sizeOptions.height - rangeContainerCanvas.height - rangeContainerCanvas.top + scaleLabelsAreaHeight,
-                        width: sizeOptions.width,
-                        height: sizeOptions.height
-                    }
-            };
-        var calculateMarkerHeight = function(renderer, value, sliderMarkerOptions) {
-                var formattedText = value === undefined ? EMPTY_SLIDER_MARKER_TEXT : formatValue(value, sliderMarkerOptions),
-                    textBBox = getTextBBox(renderer, formattedText, sliderMarkerOptions.font);
-                return _ceil(textBBox.height) + 2 * sliderMarkerOptions.paddingTopBottom + POINTER_SIZE
-            };
-        var calculateScaleLabelHalfWidth = function(renderer, value, scaleOptions) {
-                var formattedText = formatValue(value, scaleOptions.label),
-                    textBBox = getTextBBox(renderer, formattedText, scaleOptions.label.font);
-                return _ceil(textBBox.width / 2)
-            };
-        var calculateRangeContainerCanvas = function(originalCanvas, size, indents, scaleLabelsAreaHeight, title, isCompactMode) {
-                var canvas = {
-                        left: size.left + indents.left,
-                        top: size.top + indents.top,
-                        width: size.width - indents.left - indents.right,
-                        height: !isCompactMode ? size.height - indents.top - indents.bottom : HEIGHT_COMPACT_MODE + scaleLabelsAreaHeight
-                    };
-                if (canvas.width <= 0)
-                    canvas.width = 1;
-                return canvas
-            };
-        var parseSliderMarkersPlaceholderSize = function(placeholderSize) {
-                var placeholderWidthLeft,
-                    placeholderWidthRight,
-                    placeholderHeight;
-                if (_isNumber(placeholderSize))
-                    placeholderWidthLeft = placeholderWidthRight = placeholderHeight = placeholderSize;
-                else if (placeholderSize) {
-                    if (_isNumber(placeholderSize.height))
-                        placeholderHeight = placeholderSize.height;
-                    if (_isNumber(placeholderSize.width))
-                        placeholderWidthLeft = placeholderWidthRight = placeholderSize.width;
-                    else if (placeholderSize.width) {
-                        if (_isNumber(placeholderSize.width.left))
-                            placeholderWidthLeft = placeholderSize.width.left;
-                        if (_isNumber(placeholderSize.width.right))
-                            placeholderWidthRight = placeholderSize.width.right
-                    }
+        function createTranslator() {
+            return new viz.Translator2D({}, {})
+        }
+        function updateTranslator(translator, valueRange, screenRange) {
+            translator.update(valueRange, {
+                left: screenRange[0],
+                width: screenRange[1]
+            }, {isHorizontal: true})
+        }
+        function calculateMarkerHeight(renderer, value, sliderMarkerOptions) {
+            var formattedText = value === undefined ? EMPTY_SLIDER_MARKER_TEXT : formatValue(value, sliderMarkerOptions),
+                textBBox = getTextBBox(renderer, formattedText, sliderMarkerOptions.font);
+            return _ceil(textBBox.height) + 2 * sliderMarkerOptions.paddingTopBottom + POINTER_SIZE
+        }
+        function calculateScaleLabelHalfWidth(renderer, value, scaleOptions) {
+            var formattedText = formatValue(value, scaleOptions.label),
+                textBBox = getTextBBox(renderer, formattedText, scaleOptions.label.font);
+            return _ceil(textBBox.width / 2)
+        }
+        function parseSliderMarkersPlaceholderSize(placeholderSize) {
+            var placeholderWidthLeft,
+                placeholderWidthRight,
+                placeholderHeight;
+            if (_isNumber(placeholderSize))
+                placeholderWidthLeft = placeholderWidthRight = placeholderHeight = placeholderSize;
+            else if (placeholderSize) {
+                if (_isNumber(placeholderSize.height))
+                    placeholderHeight = placeholderSize.height;
+                if (_isNumber(placeholderSize.width))
+                    placeholderWidthLeft = placeholderWidthRight = placeholderSize.width;
+                else if (placeholderSize.width) {
+                    if (_isNumber(placeholderSize.width.left))
+                        placeholderWidthLeft = placeholderSize.width.left;
+                    if (_isNumber(placeholderSize.width.right))
+                        placeholderWidthRight = placeholderSize.width.right
                 }
-                else
-                    return null;
-                return {
-                        widthLeft: placeholderWidthLeft,
-                        widthRight: placeholderWidthRight,
-                        height: placeholderHeight
-                    }
-            };
-        var calculateIndents = function(renderer, size, scale, sliderMarkerOptions, indentOptions) {
-                var leftMarkerHeight,
-                    leftScaleLabelWidth = 0,
-                    rightScaleLabelWidth = 0,
-                    rightMarkerHeight,
-                    placeholderWidthLeft = 0,
-                    placeholderWidthRight = 0,
-                    placeholderHeight,
-                    parsedPlaceholderSize;
-                indentOptions = indentOptions || {};
-                parsedPlaceholderSize = parseSliderMarkersPlaceholderSize(sliderMarkerOptions.placeholderSize);
-                if (parsedPlaceholderSize && indentOptions.left === undefined && indentOptions.right === undefined) {
-                    placeholderWidthLeft = parsedPlaceholderSize.widthLeft;
-                    placeholderWidthRight = parsedPlaceholderSize.widthRight
+            }
+            else
+                return null;
+            return {
+                    widthLeft: placeholderWidthLeft,
+                    widthRight: placeholderWidthRight,
+                    height: placeholderHeight
                 }
-                else {
-                    placeholderWidthLeft = indentOptions.left;
-                    placeholderWidthRight = indentOptions.right
+        }
+        function calculateIndents(renderer, scale, sliderMarkerOptions, indentOptions) {
+            var leftMarkerHeight,
+                leftScaleLabelWidth = 0,
+                rightScaleLabelWidth = 0,
+                rightMarkerHeight,
+                placeholderWidthLeft = 0,
+                placeholderWidthRight = 0,
+                placeholderHeight,
+                parsedPlaceholderSize;
+            indentOptions = indentOptions || {};
+            parsedPlaceholderSize = parseSliderMarkersPlaceholderSize(sliderMarkerOptions.placeholderSize);
+            if (parsedPlaceholderSize && indentOptions.left === undefined && indentOptions.right === undefined) {
+                placeholderWidthLeft = parsedPlaceholderSize.widthLeft;
+                placeholderWidthRight = parsedPlaceholderSize.widthRight
+            }
+            else {
+                placeholderWidthLeft = indentOptions.left;
+                placeholderWidthRight = indentOptions.right
+            }
+            if (parsedPlaceholderSize && sliderMarkerOptions.placeholderHeight === undefined)
+                placeholderHeight = parsedPlaceholderSize.height;
+            else
+                placeholderHeight = sliderMarkerOptions.placeholderHeight;
+            if (sliderMarkerOptions.visible) {
+                leftMarkerHeight = calculateMarkerHeight(renderer, scale.startValue, sliderMarkerOptions);
+                rightMarkerHeight = calculateMarkerHeight(renderer, scale.endValue, sliderMarkerOptions);
+                if (placeholderHeight === undefined)
+                    placeholderHeight = _max(leftMarkerHeight, rightMarkerHeight)
+            }
+            if (scale.label.visible) {
+                leftScaleLabelWidth = calculateScaleLabelHalfWidth(renderer, scale.startValue, scale);
+                rightScaleLabelWidth = calculateScaleLabelHalfWidth(renderer, scale.endValue, scale)
+            }
+            placeholderWidthLeft = placeholderWidthLeft !== undefined ? placeholderWidthLeft : leftScaleLabelWidth;
+            placeholderWidthRight = (placeholderWidthRight !== undefined ? placeholderWidthRight : rightScaleLabelWidth) || 1;
+            return {
+                    left: placeholderWidthLeft,
+                    right: placeholderWidthRight,
+                    top: placeholderHeight || 0,
+                    bottom: 0
                 }
-                if (parsedPlaceholderSize && sliderMarkerOptions.placeholderHeight === undefined)
-                    placeholderHeight = parsedPlaceholderSize.height;
-                else
-                    placeholderHeight = sliderMarkerOptions.placeholderHeight;
-                if (sliderMarkerOptions.visible) {
-                    leftMarkerHeight = calculateMarkerHeight(renderer, scale.startValue, sliderMarkerOptions);
-                    rightMarkerHeight = calculateMarkerHeight(renderer, scale.endValue, sliderMarkerOptions);
-                    if (placeholderHeight === undefined)
-                        placeholderHeight = _max(leftMarkerHeight, rightMarkerHeight)
-                }
-                if (scale.label.visible) {
-                    leftScaleLabelWidth = calculateScaleLabelHalfWidth(renderer, scale.startValue, scale);
-                    rightScaleLabelWidth = calculateScaleLabelHalfWidth(renderer, scale.endValue, scale)
-                }
-                placeholderWidthLeft = placeholderWidthLeft !== undefined ? placeholderWidthLeft : leftScaleLabelWidth;
-                placeholderWidthRight = (placeholderWidthRight !== undefined ? placeholderWidthRight : rightScaleLabelWidth) || 1;
-                return {
-                        left: placeholderWidthLeft,
-                        right: placeholderWidthRight,
-                        top: placeholderHeight || 0,
-                        bottom: 0
-                    }
-            };
-        var calculateValueType = function(firstValue, secondValue) {
-                var typeFirstValue = $.type(firstValue),
-                    typeSecondValue = $.type(secondValue),
-                    validType = function(type) {
-                        return typeFirstValue === type || typeSecondValue === type
-                    };
-                return validType("date") ? DATETIME : validType("number") ? "numeric" : validType(STRING) ? STRING : ""
-            };
-        var showScaleMarkers = function(scaleOptions) {
-                return scaleOptions.valueType === DATETIME && scaleOptions.marker.visible
-            };
-        var updateTranslatorRangeInterval = function(translatorRange, scaleOptions) {
-                var intervalX = scaleOptions.minorTickInterval || scaleOptions.tickInterval;
-                if (scaleOptions.valueType === "datetime")
-                    intervalX = dateUtils.dateToMilliseconds(intervalX);
-                translatorRange.arg.addRange({interval: intervalX})
-            };
-        var createRange = function(options) {
-                return new viz.Range(options)
-            };
-        var checkLogarithmicOptions = function(options, defaultLogarithmBase, incidentOccured) {
-                var logarithmBase;
-                if (!options)
-                    return;
-                logarithmBase = options.logarithmBase;
-                if (options.type === LOGARITHMIC && logarithmBase <= 0 || logarithmBase && !_isNumber(logarithmBase)) {
-                    options.logarithmBase = defaultLogarithmBase;
-                    incidentOccured("E2104")
-                }
-                else if (options.type !== LOGARITHMIC)
-                    options.logarithmBase = undefined
-            };
-        var calculateScaleAreaHeight = function(renderer, scaleOptions, visibleMarkers) {
-                var textBBox,
-                    value = "0",
-                    formatObject = {
-                        value: 0,
-                        valueText: value
-                    },
-                    labelScaleOptions = scaleOptions.label,
-                    markerScaleOPtions = scaleOptions.marker,
-                    customizeText = labelScaleOptions.customizeText,
-                    placeholderHeight = scaleOptions.placeholderHeight,
-                    text = commonUtils.isFunction(customizeText) ? customizeText.call(formatObject, formatObject) : value,
-                    visibleLabels = labelScaleOptions.visible;
-                if (placeholderHeight)
-                    return placeholderHeight;
-                else {
-                    textBBox = getTextBBox(renderer, text, labelScaleOptions.font);
-                    return (visibleLabels ? labelScaleOptions.topIndent + textBBox.height : 0) + (visibleMarkers ? markerScaleOPtions.topIndent + markerScaleOPtions.separatorHeight : 0)
-                }
-            };
-        var updateTickIntervals = function(scaleOptions, screenDelta, incidentOccured, stick, min, max) {
-                var categoriesInfo = scaleOptions._categoriesInfo,
-                    tickManager = viz.CoreFactory.createTickManager({
-                        axisType: scaleOptions.type,
-                        dataType: scaleOptions.valueType
-                    }, {
-                        min: min,
-                        max: max,
-                        screenDelta: screenDelta,
-                        customTicks: categoriesInfo && categoriesInfo.categories
-                    }, {
-                        labelOptions: {},
-                        boundCoef: 1,
-                        minorTickInterval: scaleOptions.minorTickInterval,
-                        tickInterval: scaleOptions.tickInterval,
-                        incidentOccured: incidentOccured,
-                        base: scaleOptions.logarithmBase,
-                        showMinorTicks: true,
-                        withMinorCorrection: true,
-                        stick: stick !== false
-                    }),
-                    ticks = tickManager.getTicks(true);
-                return {
-                        tickInterval: tickManager.getTickInterval(),
-                        minorTickInterval: tickManager.getMinorTickInterval(),
-                        bounds: tickManager.getTickBounds(),
-                        ticks: ticks
-                    }
-            };
-        var calculateTranslatorRange = function(seriesDataSource, scaleOptions) {
-                var minValue,
-                    maxValue,
-                    inverted = false,
-                    isEqualDates,
-                    startValue = scaleOptions.startValue,
-                    endValue = scaleOptions.endValue,
-                    categories,
-                    categoriesInfo,
-                    translatorRange = seriesDataSource ? seriesDataSource.getBoundRange() : {
-                        arg: createRange(),
-                        val: createRange({isValueRange: true})
-                    },
-                    rangeForCategories;
-                if (scaleOptions.type === DISCRETE) {
-                    rangeForCategories = createRange({
-                        categories: scaleOptions.categories || (!seriesDataSource && startValue && endValue ? [startValue, endValue] : undefined),
-                        minVisible: startValue,
-                        maxVisible: endValue
-                    });
-                    rangeForCategories.addRange(translatorRange.arg);
-                    translatorRange.arg = rangeForCategories;
-                    categories = rangeForCategories.categories || [];
-                    scaleOptions._categoriesInfo = categoriesInfo = vizUtils.getCategoriesInfo(categories, startValue || categories[0], endValue || categories[categories.length - 1])
-                }
-                if (_isDefined(startValue) && _isDefined(endValue)) {
-                    inverted = categoriesInfo ? categoriesInfo.inverted : startValue > endValue;
-                    minValue = categoriesInfo ? categoriesInfo.start : inverted ? endValue : startValue;
-                    maxValue = categoriesInfo ? categoriesInfo.end : inverted ? startValue : endValue
-                }
-                else if (_isDefined(startValue) || _isDefined(endValue)) {
-                    minValue = startValue;
-                    maxValue = endValue
-                }
-                else if (categoriesInfo) {
-                    minValue = categoriesInfo.start;
-                    maxValue = categoriesInfo.end
-                }
-                isEqualDates = _isDate(minValue) && _isDate(maxValue) && minValue.getTime() === maxValue.getTime();
-                if (minValue !== maxValue && !isEqualDates)
-                    translatorRange.arg.addRange({
-                        invert: inverted,
-                        min: minValue,
-                        max: maxValue,
-                        minVisible: minValue,
-                        maxVisible: maxValue,
-                        dataType: scaleOptions.valueType
-                    });
-                translatorRange.arg.addRange({
+        }
+        function calculateValueType(firstValue, secondValue) {
+            var typeFirstValue = $.type(firstValue),
+                typeSecondValue = $.type(secondValue),
+                validType = function(type) {
+                    return typeFirstValue === type || typeSecondValue === type
+                };
+            return validType("date") ? DATETIME : validType("number") ? "numeric" : validType(STRING) ? STRING : ""
+        }
+        function showScaleMarkers(scaleOptions) {
+            return scaleOptions.valueType === DATETIME && scaleOptions.marker.visible
+        }
+        function updateTranslatorRangeInterval(translatorRange, scaleOptions) {
+            var intervalX = scaleOptions.minorTickInterval || scaleOptions.tickInterval;
+            if (scaleOptions.valueType === "datetime")
+                intervalX = dateUtils.dateToMilliseconds(intervalX);
+            translatorRange.addRange({interval: intervalX})
+        }
+        function checkLogarithmicOptions(options, defaultLogarithmBase, incidentOccured) {
+            var logarithmBase;
+            if (!options)
+                return;
+            logarithmBase = options.logarithmBase;
+            if (options.type === LOGARITHMIC && logarithmBase <= 0 || logarithmBase && !_isNumber(logarithmBase)) {
+                options.logarithmBase = defaultLogarithmBase;
+                incidentOccured("E2104")
+            }
+            else if (options.type !== LOGARITHMIC)
+                options.logarithmBase = undefined
+        }
+        function calculateScaleAreaHeight(renderer, scaleOptions, visibleMarkers) {
+            var textBBox,
+                value = "0",
+                formatObject = {
+                    value: 0,
+                    valueText: value
+                },
+                labelScaleOptions = scaleOptions.label,
+                markerScaleOPtions = scaleOptions.marker,
+                customizeText = labelScaleOptions.customizeText,
+                placeholderHeight = scaleOptions.placeholderHeight,
+                text = commonUtils.isFunction(customizeText) ? customizeText.call(formatObject, formatObject) : value,
+                visibleLabels = labelScaleOptions.visible;
+            if (placeholderHeight)
+                return placeholderHeight;
+            else {
+                textBBox = getTextBBox(renderer, text, labelScaleOptions.font);
+                return (visibleLabels ? labelScaleOptions.topIndent + textBBox.height : 0) + (visibleMarkers ? markerScaleOPtions.topIndent + markerScaleOPtions.separatorHeight : 0)
+            }
+        }
+        function updateTickIntervals(scaleOptions, screenDelta, incidentOccured, stick, min, max) {
+            var categoriesInfo = scaleOptions._categoriesInfo,
+                tickManager = viz.CoreFactory.createTickManager({
+                    axisType: scaleOptions.type,
+                    dataType: scaleOptions.valueType
+                }, {
+                    min: min,
+                    max: max,
+                    screenDelta: screenDelta,
+                    customTicks: categoriesInfo && categoriesInfo.categories
+                }, {
+                    labelOptions: {},
+                    boundCoef: 1,
+                    minorTickInterval: scaleOptions.minorTickInterval,
+                    tickInterval: scaleOptions.tickInterval,
+                    incidentOccured: incidentOccured,
                     base: scaleOptions.logarithmBase,
-                    axisType: scaleOptions.type
-                });
-                if (!translatorRange.arg.isDefined()) {
-                    if (isEqualDates)
-                        scaleOptions.valueType = "numeric";
-                    translatorRange.arg.setStubData(scaleOptions.valueType)
+                    showMinorTicks: true,
+                    withMinorCorrection: true,
+                    stick: stick !== false
+                }),
+                ticks = tickManager.getTicks(true);
+            return {
+                    tickInterval: tickManager.getTickInterval(),
+                    minorTickInterval: tickManager.getMinorTickInterval(),
+                    bounds: tickManager.getTickBounds(),
+                    ticks: ticks
                 }
-                return translatorRange
-            };
-        var startEndNotDefined = function(start, end) {
-                return !_isDefined(start) || !_isDefined(end)
-            };
+        }
+        function calculateTranslatorRange(seriesDataSource, scaleOptions) {
+            var minValue,
+                maxValue,
+                inverted = false,
+                isEqualDates,
+                startValue = scaleOptions.startValue,
+                endValue = scaleOptions.endValue,
+                categories,
+                categoriesInfo,
+                translatorRange = seriesDataSource ? seriesDataSource.getBoundRange().arg : new viz.Range,
+                rangeForCategories;
+            if (scaleOptions.type === DISCRETE) {
+                rangeForCategories = new viz.Range({
+                    categories: scaleOptions.categories || (!seriesDataSource && startValue && endValue ? [startValue, endValue] : undefined),
+                    minVisible: startValue,
+                    maxVisible: endValue
+                });
+                rangeForCategories.addRange(translatorRange);
+                translatorRange = rangeForCategories;
+                categories = rangeForCategories.categories || [];
+                scaleOptions._categoriesInfo = categoriesInfo = vizUtils.getCategoriesInfo(categories, startValue || categories[0], endValue || categories[categories.length - 1])
+            }
+            if (_isDefined(startValue) && _isDefined(endValue)) {
+                inverted = categoriesInfo ? categoriesInfo.inverted : startValue > endValue;
+                minValue = categoriesInfo ? categoriesInfo.start : inverted ? endValue : startValue;
+                maxValue = categoriesInfo ? categoriesInfo.end : inverted ? startValue : endValue
+            }
+            else if (_isDefined(startValue) || _isDefined(endValue)) {
+                minValue = startValue;
+                maxValue = endValue
+            }
+            else if (categoriesInfo) {
+                minValue = categoriesInfo.start;
+                maxValue = categoriesInfo.end
+            }
+            isEqualDates = _isDate(minValue) && _isDate(maxValue) && minValue.getTime() === maxValue.getTime();
+            if (minValue !== maxValue && !isEqualDates)
+                translatorRange.addRange({
+                    invert: inverted,
+                    min: minValue,
+                    max: maxValue,
+                    minVisible: minValue,
+                    maxVisible: maxValue,
+                    dataType: scaleOptions.valueType
+                });
+            translatorRange.addRange({
+                base: scaleOptions.logarithmBase,
+                axisType: scaleOptions.type
+            });
+            if (!translatorRange.isDefined()) {
+                if (isEqualDates)
+                    scaleOptions.valueType = "numeric";
+                translatorRange.setStubData(scaleOptions.valueType)
+            }
+            return translatorRange
+        }
+        function startEndNotDefined(start, end) {
+            return !_isDefined(start) || !_isDefined(end)
+        }
         function getTextBBox(renderer, text, fontOptions) {
             var textElement = renderer.text(text, INVISIBLE_POS, INVISIBLE_POS).css(patchFontOptions(fontOptions)).append(renderer.root);
             var textBBox = textElement.getBBox();
@@ -43313,16 +43355,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             else
                 resultValue = parsedValue;
             return rangeSelector.utils.truncateSelectedRange(resultValue, scaleOptions)
-        }
-        function prepareCanvas(canvas) {
-            return {
-                    top: canvas.top,
-                    bottom: canvas.bottom,
-                    left: canvas.left,
-                    right: canvas.right,
-                    width: canvas.width - canvas.left - canvas.right,
-                    height: canvas.height - canvas.top - canvas.bottom
-                }
         }
         function getSelectedRange(scaleOption, selectedRangeOption, incidentOccurred) {
             return selectedRangeOption ? {
@@ -43397,6 +43429,37 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             scaleOption.parser = parser;
             return scaleOption
         }
+        function performTitleLayout(canvas, title) {
+            var cuttedCanvas = title.getVerticalCuttedSize({
+                    left: canvas.left,
+                    top: canvas.top,
+                    right: canvas.right,
+                    bottom: canvas.bottom,
+                    width: canvas.width - canvas.left - canvas.right,
+                    height: canvas.height - canvas.top - canvas.bottom
+                }),
+                layoutOptions = title.getLayoutOptions(),
+                target;
+            if (layoutOptions) {
+                target = {
+                    x: cuttedCanvas.left,
+                    y: cuttedCanvas.top,
+                    width: cuttedCanvas.width,
+                    height: cuttedCanvas.height + layoutOptions.height,
+                    getLayoutOptions: function() {
+                        return this
+                    }
+                };
+                if (layoutOptions.verticalAlignment !== "bottom")
+                    target.y -= layoutOptions.height;
+                title.position({
+                    at: layoutOptions.position,
+                    my: layoutOptions.position,
+                    of: target
+                })
+            }
+            return cuttedCanvas
+        }
         DX.require("/componentRegistrator")("dxRangeSelector", rangeSelector, viz.BaseWidget.inherit({
             _eventsMap: $.extend({}, viz.BaseWidget.prototype._eventsMap, {onSelectedRangeChanged: {name: SELECTED_RANGE_CHANGED}}),
             _setDeprecatedOptions: function() {
@@ -43422,20 +43485,64 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             _rootClassPrefix: "dxrs",
             _rootClass: "dxrs-range-selector",
-            _invalidatingOptions: ["scale", "selectedRangeColor", "containerBackgroundColor", "sliderMarker", "sliderHandle", "shutter", "background", "behavior", "chart", "indent"],
+            _invalidatingOptions: ["scale", "selectedRangeColor", "containerBackgroundColor", "sliderMarker", "sliderHandle", "shutter", OPTION_BACKGROUND, "behavior", "chart", "indent"],
             _dataIsReady: function() {
-                return !this._hasChart || this._dataSource.isLoaded()
+                return this._dataSource.isLoaded()
             },
             _init: function() {
                 this.callBase.apply(this, arguments);
                 this._updateDataSource()
             },
             _initCore: function() {
-                this._renderer.root.css({
+                var that = this,
+                    renderer = that._renderer,
+                    root = renderer.root,
+                    rangeViewGroup,
+                    slidersGroup,
+                    scaleGroup,
+                    trackersGroup;
+                root.css({
                     "touch-action": "pan-y",
                     "-ms-touch-action": "pan-y"
                 });
-                this._rangeContainer = new rangeSelector.RangeContainer({renderer: this._renderer})
+                that._updateSelectedRangeCallback = function(selectedRange) {
+                    that.option(SELECTED_RANGE, selectedRange);
+                    that._eventTrigger(SELECTED_RANGE_CHANGED, cloneSelectedRange(selectedRange))
+                };
+                that._clipRect = renderer.clipRect();
+                that._viewClipRect = renderer.clipRect();
+                rangeViewGroup = renderer.g().attr({
+                    "class": "dxrs-view",
+                    clipId: that._viewClipRect.id
+                }).append(root);
+                slidersGroup = renderer.g().attr({
+                    "class": "dxrs-slidersContainer",
+                    clipId: that._clipRect.id
+                }).append(root);
+                scaleGroup = renderer.g().attr({
+                    "class": "dxrs-scale",
+                    clipId: that._clipRect.id
+                }).append(root);
+                trackersGroup = renderer.g().attr({"class": "dxrs-trackers"}).append(root);
+                that._translator = createTranslator();
+                that._rangeView = new rangeSelector.RangeView({
+                    renderer: renderer,
+                    root: rangeViewGroup,
+                    translator: that._translator
+                });
+                that._slidersController = new rangeSelector.SlidersController({
+                    renderer: renderer,
+                    root: slidersGroup,
+                    trackersGroup: trackersGroup,
+                    updateSelectedRange: that._updateSelectedRangeCallback,
+                    translator: that._translator
+                });
+                that._axis = new AxisWrapper({
+                    renderer: renderer,
+                    root: scaleGroup,
+                    updateSelectedRange: that._updateSelectedRangeCallback,
+                    translator: that._translator
+                })
             },
             _getDefaultSize: function() {
                 return {
@@ -43444,8 +43551,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     }
             },
             _disposeCore: function() {
-                this._rangeContainer.dispose();
-                this._rangeContainer = null
+                this._axis.dispose();
+                this._slidersController.dispose()
             },
             _createThemeManager: function() {
                 return new rangeSelector.ThemeManager
@@ -43453,20 +43560,27 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             _render: function() {
                 var that = this,
                     renderer = that._renderer,
-                    currentAnimationEnabled;
+                    currentAnimationEnabled,
+                    canvas;
                 renderer.lock();
                 if (that.__isResizing) {
                     currentAnimationEnabled = renderer.animationEnabled();
                     renderer.updateAnimationOptions({enabled: false})
                 }
-                that._updateRangeContainer();
+                canvas = performTitleLayout(that._canvas, that._title);
+                that._clipRect.attr({
+                    x: canvas.left,
+                    y: canvas.top,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                that._updateContent(canvas);
                 if (that.__isResizing)
                     renderer.updateAnimationOptions({enabled: currentAnimationEnabled});
                 renderer.unlock();
                 if (!that.__isResizing && that._dataIsReady())
                     that.hideLoadingIndicator();
-                that._drawn();
-                that.__rendered && that.__rendered()
+                that._drawn()
             },
             _handleChangedOptions: function(options) {
                 var that = this,
@@ -43483,7 +43597,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             _applySize: function() {
                 if (this._initialized) {
                     this.__isResizing = true;
-                    this._render(true);
+                    this._render();
                     this.__isResizing = false
                 }
             },
@@ -43491,109 +43605,89 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 if (this._initialized)
                     this._render()
             },
-            _updateRangeContainer: function() {
+            _updateContent: function(canvas) {
                 var that = this,
-                    rangeContainerCanvas,
-                    seriesDataSource,
-                    translatorRange,
-                    scaleLabelsAreaHeight,
-                    sizeOptions = that._title.getVerticalCuttedSize(prepareCanvas(that._canvas)),
-                    indents,
+                    chartOptions = that.option("chart"),
+                    seriesDataSource = that._createSeriesDataSource(chartOptions),
+                    hasChart = seriesDataSource && seriesDataSource.isShowChart(),
+                    isCompactMode = !(hasChart || that.option("background.image.url")),
+                    scaleOptions = that._scaleOptions = prepareScaleOptions(that._getOption("scale"), seriesDataSource, that._incidentOccured),
+                    argTranslatorRange = calculateTranslatorRange(seriesDataSource, scaleOptions),
+                    min = _isDefined(argTranslatorRange.minVisible) ? argTranslatorRange.minVisible : argTranslatorRange.min,
+                    max = _isDefined(argTranslatorRange.maxVisible) ? argTranslatorRange.maxVisible : argTranslatorRange.max,
+                    tickIntervalsInfo = updateTickIntervals(scaleOptions, canvas.width, that._incidentOccured, argTranslatorRange.stick, min, max),
+                    shutterOptions = that._getOption("shutter"),
                     sliderMarkerOptions,
                     selectedRange,
-                    chartOptions = that.option("chart"),
-                    shutterOptions = that._getOption("shutter"),
-                    background = that._getOption(BACKGROUND),
-                    isCompactMode,
-                    scaleOptions,
-                    min,
-                    max,
-                    argTranslatorRange,
-                    tickIntervalsInfo,
-                    chartThemeManager,
-                    translators;
-                that._isUpdating = true;
-                seriesDataSource = that._createSeriesDataSource(chartOptions);
-                that._hasChart = seriesDataSource && seriesDataSource.isShowChart();
-                isCompactMode = !(that._hasChart || background && background.image && background.image.url);
-                if (seriesDataSource) {
+                    indents,
+                    scaleLabelsAreaHeight,
+                    rangeContainerCanvas,
+                    chartThemeManager;
+                if (hasChart) {
                     chartThemeManager = seriesDataSource.getThemeManager();
                     checkLogarithmicOptions(chartOptions && chartOptions.valueAxis, chartThemeManager.getOptions("valueAxis").logarithmBase, that._incidentOccured)
                 }
-                scaleOptions = that._scaleOptions = prepareScaleOptions(that._getOption("scale"), seriesDataSource, that._incidentOccured);
-                translatorRange = calculateTranslatorRange(seriesDataSource, scaleOptions);
-                argTranslatorRange = translatorRange.arg;
-                min = _isDefined(argTranslatorRange.minVisible) ? argTranslatorRange.minVisible : argTranslatorRange.min;
-                max = _isDefined(argTranslatorRange.maxVisible) ? argTranslatorRange.maxVisible : argTranslatorRange.max;
-                tickIntervalsInfo = updateTickIntervals(scaleOptions, sizeOptions.width, this._incidentOccured, argTranslatorRange.stick, min, max);
-                updateScaleOptions(that._scaleOptions, seriesDataSource, translatorRange.arg, tickIntervalsInfo);
-                updateTranslatorRangeInterval(translatorRange, scaleOptions);
-                sliderMarkerOptions = that._prepareSliderMarkersOptions(sizeOptions.width, tickIntervalsInfo);
-                selectedRange = getSelectedRange(that._scaleOptions, that.option(SELECTED_RANGE), that._incidentOccured);
-                indents = calculateIndents(that._renderer, sizeOptions, scaleOptions, sliderMarkerOptions, that.option("indent"));
+                updateScaleOptions(scaleOptions, seriesDataSource, argTranslatorRange, tickIntervalsInfo);
+                updateTranslatorRangeInterval(argTranslatorRange, scaleOptions);
+                sliderMarkerOptions = that._prepareSliderMarkersOptions(canvas.width, tickIntervalsInfo);
+                selectedRange = getSelectedRange(scaleOptions, that.option(SELECTED_RANGE), that._incidentOccured);
+                indents = calculateIndents(that._renderer, scaleOptions, sliderMarkerOptions, that.option("indent"));
                 scaleLabelsAreaHeight = calculateScaleAreaHeight(that._renderer, scaleOptions, showScaleMarkers(scaleOptions));
-                rangeContainerCanvas = calculateRangeContainerCanvas(that._canvas, sizeOptions, indents, scaleLabelsAreaHeight, that._title, isCompactMode);
-                that._applyTitleLayout(rangeContainerCanvas, indents);
-                translators = createTranslator(translatorRange, createTranslatorCanvas(sizeOptions, rangeContainerCanvas, scaleLabelsAreaHeight));
-                that._TESTS_translators = translators;
-                that._selectedRange = selectedRange;
-                if (seriesDataSource)
-                    seriesDataSource.adjustSeriesDimensions(translators);
+                rangeContainerCanvas = {
+                    left: canvas.left + indents.left,
+                    top: canvas.top + indents.top,
+                    width: _max(canvas.width - indents.left - indents.right, 1),
+                    height: _max(!isCompactMode ? canvas.height - indents.top - indents.bottom - scaleLabelsAreaHeight : HEIGHT_COMPACT_MODE, 0)
+                };
+                updateTranslator(that._translator, argTranslatorRange, [rangeContainerCanvas.left, rangeContainerCanvas.left + rangeContainerCanvas.width]);
+                that._TESTS_selectedRange = selectedRange;
                 shutterOptions.color = shutterOptions.color || that._getOption(CONTAINER_BACKGROUND_COLOR, true);
-                scaleOptions.minorTickInterval = scaleOptions.isEmpty ? 0 : that._getOption('scale').minorTickInterval;
-                that._rangeContainer.update({
-                    canvas: rangeContainerCanvas,
+                scaleOptions.minorTickInterval = scaleOptions.isEmpty ? 0 : scaleOptions.minorTickInterval;
+                that._updateElements({
                     isCompactMode: isCompactMode,
-                    scaleLabelsAreaHeight: scaleLabelsAreaHeight,
-                    indents: indents,
-                    translators: translators,
                     selectedRange: selectedRange,
                     scale: scaleOptions,
                     behavior: that._getOption("behavior"),
-                    background: background,
                     chart: chartOptions,
-                    seriesDataSource: seriesDataSource,
                     sliderMarker: sliderMarkerOptions,
                     sliderHandle: that._getOption("sliderHandle"),
                     shutter: shutterOptions,
-                    selectedRangeColor: that._getOption("selectedRangeColor", true),
-                    selectedRangeChanged: function(selectedRange, blockSelectedRangeChanged) {
-                        that.option(SELECTED_RANGE, selectedRange);
-                        if (!blockSelectedRangeChanged)
-                            that._eventTrigger(SELECTED_RANGE_CHANGED, cloneSelectedRange(selectedRange))
-                    },
-                    setSelectedRange: function(selectedRange) {
-                        that.setSelectedRange(selectedRange)
-                    }
-                });
-                that._isUpdating = false;
-                chartThemeManager && chartThemeManager.dispose()
+                    selectedRangeColor: that._getOption("selectedRangeColor", true)
+                }, rangeContainerCanvas, seriesDataSource);
+                if (hasChart)
+                    chartThemeManager.dispose()
             },
-            _applyTitleLayout: function(rangeContainerCanvas, indents) {
-                var layoutOptions = this._title.getLayoutOptions(),
-                    canvas = this._canvas;
-                layoutOptions && this._title.position({
-                    at: layoutOptions.position,
-                    my: layoutOptions.position,
-                    of: {getLayoutOptions: function() {
-                            return {
-                                    width: rangeContainerCanvas.width + indents.left + indents.right,
-                                    height: rangeContainerCanvas.height + layoutOptions.height + indents.top + indents.bottom,
-                                    x: canvas.left,
-                                    y: canvas.top
-                                }
-                        }}
-                })
+            _updateElements: function(options, canvas, seriesDataSource) {
+                var that = this;
+                that._viewClipRect.attr({
+                    x: canvas.left,
+                    y: canvas.top,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                if (!options.isCompactMode)
+                    that._rangeView.update(that.option("background"), that._themeManager.theme("background"), canvas, options.behavior.animationEnabled && that._renderer.animationEnabled(), seriesDataSource);
+                that._axis.update(options.scale, options.isCompactMode, canvas);
+                var range = that._translator.getBusinessRange();
+                that._isUpdating = true;
+                that._slidersController.update(canvas, options.behavior, options.scale.type, options.scale.isEmpty, options.isCompactMode, options.selectedRange, options.sliderHandle, options.sliderMarker, options.shutter, {
+                    startValue: range.invert ? range.maxVisible : range.minVisible,
+                    endValue: range.invert ? range.minVisible : range.maxVisible,
+                    inverted: range.invert,
+                    minRange: options.scale.minRange,
+                    maxRange: options.scale.maxRange,
+                    type: options.scale.type,
+                    categories: range.categories,
+                    _categoriesInfo: {categories: options.scale._categoriesInfo && options.scale._categoriesInfo.categories}
+                }, that._axis.getFullTicks(), options.selectedRangeColor, options.scale.logarithmBase);
+                that._isUpdating = false
             },
             _createSeriesDataSource: function(chartOptions) {
                 var that = this,
                     seriesDataSource,
                     dataSource = that._dataSource.items(),
                     scaleOptions = that._getOption("scale"),
-                    valueType = scaleOptions.valueType,
-                    backgroundOption = that.option(BACKGROUND);
-                if (!valueType)
-                    valueType = calculateValueType(scaleOptions.startValue, scaleOptions.endValue);
+                    valueType = scaleOptions.valueType || calculateValueType(scaleOptions.startValue, scaleOptions.endValue);
                 if (dataSource || chartOptions && chartOptions.series) {
                     chartOptions = $.extend({}, chartOptions, {theme: that.option("theme")});
                     seriesDataSource = new rangeSelector.SeriesDataSource({
@@ -43603,7 +43697,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         axisType: scaleOptions.type,
                         chart: chartOptions,
                         dataSourceField: that.option("dataSourceField"),
-                        backgroundColor: backgroundOption && backgroundOption.color,
                         incidentOccured: that._incidentOccured,
                         categories: scaleOptions.categories
                     })
@@ -43644,20 +43737,18 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 return sliderMarkerOptions
             },
             getSelectedRange: function() {
-                return cloneSelectedRange(this._rangeContainer.getSlidersContainer().getSelectedRange())
+                return this._slidersController.getSelectedRange()
             },
             setSelectedRange: function(range) {
                 var current;
                 if (!this._isUpdating && range) {
-                    current = this._rangeContainer.getSlidersContainer().getSelectedRange();
+                    current = this._slidersController.getSelectedRange();
                     if (!current || current.startValue !== range.startValue || current.endValue !== range.endValue)
-                        this._rangeContainer.getSlidersContainer().setSelectedRange(range)
+                        this._slidersController.setSelectedRange(range)
                 }
             },
-            resetSelectedRange: function(_blockSelectedRangeChanged) {
-                var data = cloneSelectedRange(this._scaleOptions);
-                data.blockSelectedRangeChanged = _blockSelectedRangeChanged;
-                this.setSelectedRange(data)
+            resetSelectedRange: function() {
+                this.setSelectedRange(cloneSelectedRange(this._scaleOptions))
             },
             render: function(isResizing) {
                 var that = this;
@@ -43670,8 +43761,67 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             _setTooltipRendererOptions: _noop,
             _setTooltipOptions: _noop,
             _hideTooltip: _noop
-        }))
-    })(jQuery, DevExpress);
+        }));
+        function prepareAxixOptions(scaleOptions, isCompactMode, height, axisPosition) {
+            scaleOptions.label.overlappingBehavior = {mode: scaleOptions.useTicksAutoArrangement ? "enlargeTickInterval" : "ignore"};
+            scaleOptions.marker.label.font = scaleOptions.label.font;
+            scaleOptions.color = scaleOptions.marker.color = scaleOptions.tick.color;
+            scaleOptions.opacity = scaleOptions.marker.opacity = scaleOptions.tick.opacity;
+            scaleOptions.width = scaleOptions.marker.width = scaleOptions.tick.width;
+            scaleOptions.placeholderSize = (scaleOptions.placeholderHeight || 0) + axisPosition;
+            scaleOptions.argumentType = scaleOptions.valueType;
+            scaleOptions.visible = isCompactMode;
+            scaleOptions.minorTick.showCalculatedTicks = scaleOptions.isHorizontal = scaleOptions.withoutOverlappingBehavior = scaleOptions.stick = true;
+            if (!isCompactMode)
+                scaleOptions.minorTick.length = scaleOptions.tick.length = height;
+            scaleOptions.label.indentFromAxis = scaleOptions.label.topIndent + axisPosition;
+            return scaleOptions
+        }
+        function createDateMarkersEvent(scaleOptions, markerTrackers, setSelectedRange) {
+            $.each(markerTrackers, function(_, value) {
+                value.on("dxpointerdown", onPointerDown)
+            });
+            function onPointerDown(e) {
+                var range = e.target.range,
+                    minRange = scaleOptions.minRange ? dateUtils.addInterval(range.startValue, scaleOptions.minRange) : undefined,
+                    maxRange = scaleOptions.maxRange ? dateUtils.addInterval(range.startValue, scaleOptions.maxRange) : undefined;
+                if (!(minRange && minRange > range.endValue || maxRange && maxRange < range.endValue))
+                    setSelectedRange(range)
+            }
+        }
+        function AxisWrapper(params) {
+            this._axis = new DX.viz.axes.Axis({
+                renderer: params.renderer,
+                axesContainerGroup: params.root,
+                axisType: "xyAxes",
+                drawingType: "linear",
+                widgetClass: "dxrs",
+                axisClass: "range-selector"
+            });
+            this._updateSelectedRangeCallback = params.updateSelectedRange;
+            this._translator = params.translator
+        }
+        AxisWrapper.prototype = {
+            constructor: AxisWrapper,
+            dispose: function() {
+                this._axis.dispose()
+            },
+            update: function(options, isCompactMode, canvas) {
+                var axis = this._axis;
+                axis.updateOptions(prepareAxixOptions(options, isCompactMode, canvas.height, canvas.height / 2 - Math.ceil(options.width / 2)));
+                axis.delta = {bottom: -canvas.height / 2};
+                axis.setTranslator(this._translator, {translateSpecialCase: function() {
+                        return canvas.top + canvas.height
+                    }});
+                axis.draw();
+                if (axis.getMarkerTrackers())
+                    createDateMarkersEvent(options, axis.getMarkerTrackers(), this._updateSelectedRangeCallback)
+            },
+            getFullTicks: function() {
+                return this._axis.getFullTicks()
+            }
+        }
+    })(DevExpress, jQuery);
     /*! Module viz-rangeselector, file utils.js */
     (function($, DX, undefined) {
         var commonUtils = DX.require("/utils/utils.common"),
@@ -43720,19 +43870,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
                 return value
             };
-        var getEventPageX = function(eventArgs) {
-                var result = 0;
-                if (eventArgs.pageX)
-                    result = eventArgs.pageX;
-                else if (eventArgs.originalEvent && eventArgs.originalEvent.pageX)
-                    result = eventArgs.originalEvent.pageX;
-                if (eventArgs.originalEvent && eventArgs.originalEvent.touches)
-                    if (eventArgs.originalEvent.touches.length > 0)
-                        result = eventArgs.originalEvent.touches[0].pageX;
-                    else if (eventArgs.originalEvent.changedTouches.length > 0)
-                        result = eventArgs.originalEvent.changedTouches[0].pageX;
-                return result
-            };
         var truncateSelectedRange = function(value, scaleOptions) {
                 var isDiscrete = scaleOptions.type === "discrete",
                     categories = isDiscrete ? scaleOptions.categories || scaleOptions._categoriesInfo.categories : undefined,
@@ -43759,21 +43896,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     value = max;
                 return value
             };
-        var canvasOptionsToRenderOptions = function(canvasOptions) {
-                return {
-                        x: canvasOptions.left,
-                        y: canvasOptions.top,
-                        width: canvasOptions.width,
-                        height: canvasOptions.height
-                    }
-            };
         DX.viz.rangeSelector.utils = {
             findLessOrEqualValue: findLessOrEqualValue,
             findNearValue: findNearValue,
             findGreaterOrEqualValue: findGreaterOrEqualValue,
-            getEventPageX: getEventPageX,
             truncateSelectedRange: truncateSelectedRange,
-            canvasOptionsToRenderOptions: canvasOptionsToRenderOptions,
             trackerSettings: {
                 fill: "grey",
                 stroke: "grey",
@@ -43795,358 +43922,150 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             }
         }
     })(jQuery, DevExpress);
-    /*! Module viz-rangeselector, file rangeContainer.js */
-    (function($, DX, undefined) {
-        var rangeSelector = DX.viz.rangeSelector,
-            canvasOptionsToRenderOptions = rangeSelector.utils.canvasOptionsToRenderOptions,
-            dateUtils = DX.require("/utils/utils.date"),
-            _extend = $.extend;
-        function createClipRectCanvas(canvas, indents) {
-            return {
-                    left: canvas.left - indents.left,
-                    top: canvas.top - indents.top,
-                    width: canvas.width + indents.right + indents.left,
-                    height: canvas.height + indents.bottom + indents.top
-                }
-        }
-        function createDateMarkersEvent(scaleOptions, markerTrackers, setSelectedRange) {
-            $.each(markerTrackers, function(_, value) {
-                value.on("dxpointerdown", onPointerDown)
-            });
-            function onPointerDown(e) {
-                var range = e.target.range,
-                    minRange = scaleOptions.minRange ? dateUtils.addInterval(range.startValue, scaleOptions.minRange) : undefined,
-                    maxRange = scaleOptions.maxRange ? dateUtils.addInterval(range.startValue, scaleOptions.maxRange) : undefined;
-                if (!(minRange && minRange > range.endValue || maxRange && maxRange < range.endValue))
-                    setSelectedRange(range)
-            }
-        }
-        function prepareScaleOptions(options, axisPosition) {
-            var scaleOptions = options.scale;
-            scaleOptions.label.overlappingBehavior = {mode: scaleOptions.useTicksAutoArrangement ? "enlargeTickInterval" : "ignore"};
-            scaleOptions.marker.label.font = scaleOptions.label.font;
-            scaleOptions.color = scaleOptions.marker.color = scaleOptions.tick.color;
-            scaleOptions.opacity = scaleOptions.marker.opacity = scaleOptions.tick.opacity;
-            scaleOptions.width = scaleOptions.marker.width = scaleOptions.tick.width;
-            scaleOptions.placeholderSize = (scaleOptions.placeholderHeight || 0) + axisPosition;
-            scaleOptions.argumentType = scaleOptions.valueType;
-            scaleOptions.visible = options.isCompactMode;
-            scaleOptions.minorTick.showCalculatedTicks = scaleOptions.isHorizontal = scaleOptions.withoutOverlappingBehavior = scaleOptions.stick = true;
-            if (!options.isCompactMode)
-                scaleOptions.minorTick.length = scaleOptions.tick.length = options.canvas.height - options.scaleLabelsAreaHeight;
-            scaleOptions.label.indentFromAxis = scaleOptions.label.topIndent + axisPosition;
-            scaleOptions.setSelectedRange = options.setSelectedRange;
-            return scaleOptions
-        }
-        function RangeContainer(params) {
-            var that = this,
-                renderer = params.renderer,
-                root;
-            that._clipRect = renderer.clipRect();
-            root = renderer.g().attr({
-                "class": "rangeContainer",
-                clipId: that._clipRect.id
-            }).append(renderer.root);
-            that._viewClipRect = renderer.clipRect();
-            that._rangeViewGroup = renderer.g().attr({
-                "class": "dxrs-view",
-                clipId: that._viewClipRect.id
-            }).append(root);
-            that._slidersGroup = renderer.g().attr({"class": "dxrs-slidersContainer"}).append(root);
-            that._scaleGroup = renderer.g().attr({"class": "dxrs-scale"}).append(root);
-            that._trackersGroup = renderer.g().attr({"class": "dxrs-trackers"}).append(root);
-            that._slidersContainer = new rangeSelector.SlidersContainer({
-                renderer: renderer,
-                root: that._slidersGroup
-            });
-            that._rangeView = new rangeSelector.RangeView({
-                renderer: renderer,
-                root: that._rangeViewGroup
-            });
-            that._axis = new DX.viz.axes.Axis({
-                axesContainerGroup: that._scaleGroup,
-                renderer: renderer,
-                axisType: "xyAxes",
-                drawingType: "linear",
-                widgetClass: "dxrs",
-                axisClass: "range-selector"
-            })
-        }
-        RangeContainer.prototype = {
-            constructor: RangeContainer,
-            dispose: function() {
-                var that = this;
-                that._slidersContainer.dispose();
-                that._axis.dispose();
-                that._slidersContainer = that._rangeView = that._axis = null
-            },
-            getSlidersContainer: function() {
-                return this._slidersContainer
-            },
-            _updateClipRects: function(options, viewCanvas) {
-                var that = this;
-                that._clipRect.attr(canvasOptionsToRenderOptions(createClipRectCanvas(options.canvas, options.indents)));
-                that._viewClipRect.attr(canvasOptionsToRenderOptions(viewCanvas))
-            },
-            update: function(options) {
-                var that = this,
-                    scaleLabelsAreaHeight = options.scaleLabelsAreaHeight,
-                    canvas = options.canvas,
-                    height = canvas.height,
-                    viewCanvas = {
-                        left: canvas.left,
-                        top: canvas.top,
-                        width: canvas.width,
-                        height: height >= scaleLabelsAreaHeight ? height - scaleLabelsAreaHeight : 0
-                    };
-                that._updateClipRects(options, viewCanvas);
-                that._updateRangeView(options, viewCanvas);
-                that._updateAxis(options, viewCanvas);
-                that._updateSliderContainer(options, viewCanvas)
-            },
-            _updateAxis: function(options, viewCanvas) {
-                var that = this,
-                    canvas = options.canvas,
-                    translators = options.translators,
-                    centerY = (2 * canvas.top + canvas.height - options.scaleLabelsAreaHeight) / 2,
-                    markerTrackers;
-                that._axis.updateOptions(prepareScaleOptions(options, viewCanvas.height + canvas.top - centerY - Math.ceil(options.scale.width / 2)));
-                that._axis.delta = {bottom: centerY - translators.y.translateSpecialCase("canvas_position_bottom")};
-                that._axis.setTranslator(translators.x, translators.y);
-                that._axis.draw();
-                markerTrackers = that._axis.getMarkerTrackers();
-                if (markerTrackers)
-                    createDateMarkersEvent(options.scale, markerTrackers, options.setSelectedRange)
-            },
-            _updateSliderContainer: function(options, viewCanvas) {
-                var that = this,
-                    translator = that._axis.getTranslator(),
-                    range = translator.getBusinessRange(),
-                    inverted = range.invert,
-                    scaleOptions = options.scale;
-                that._slidersContainer.update(_extend({
-                    type: range.axisType,
-                    startValue: inverted ? range.maxVisible : range.minVisible,
-                    endValue: inverted ? range.minVisible : range.maxVisible,
-                    categories: range.categories,
-                    inverted: inverted,
-                    fullTicks: that._axis.getFullTicks(),
-                    maxRange: scaleOptions.maxRange,
-                    minRange: scaleOptions.minRange,
-                    isEmpty: scaleOptions.isEmpty
-                }, options, {
-                    canvas: viewCanvas,
-                    translator: translator
-                }));
-                that._slidersContainer.appendTrackers(that._trackersGroup)
-            },
-            _updateRangeView: function(options, viewCanvas) {
-                if (!options.isCompactMode)
-                    this._rangeView.update(_extend({}, options, {canvas: viewCanvas}))
-            }
-        };
-        rangeSelector.RangeContainer = RangeContainer
-    })(jQuery, DevExpress);
-    /*! Module viz-rangeselector, file slidersContainer.js */
-    (function($, DX, undefined) {
-        var rangeSelector = DX.viz.rangeSelector,
-            msPointerEnabled = DX.require("/utils/utils.support").pointer,
-            _normalizeEnum = DX.viz.utils.normalizeEnum,
-            rangeSelectorUtils = rangeSelector.utils,
-            trackerAttributes = rangeSelectorUtils.trackerSettings;
-        function checkRangeEquality(selectedRange, lastSelectedRange) {
-            var lastStartValue = lastSelectedRange.startValue && lastSelectedRange.startValue.valueOf(),
-                lastEndValue = lastSelectedRange.endValue && lastSelectedRange.endValue.valueOf(),
-                startValue = selectedRange.startValue && selectedRange.startValue.valueOf(),
-                endValue = selectedRange.endValue && selectedRange.endValue.valueOf();
-            return lastEndValue === endValue && lastStartValue === startValue
-        }
-        function validateSelectedRange(options, field, value) {
-            if (value === undefined || $.type(options[field]) === $.type(value))
-                options.selectedRange[field] = value
-        }
-        function SlidersContainer(params) {
-            var that = this;
-            that._params = params;
-            that._controller = new rangeSelector.SlidersController(params);
-            that._eventsManager = new rangeSelector.SlidersEventsManager(params.renderer, that._controller, function(moving) {
-                that._processSelectionChanged(moving)
-            });
-            that._lastSelectedRange = {}
-        }
-        SlidersContainer.prototype = {
-            constructor: SlidersContainer,
-            _processSelectionChanged: function(moving, blockSelectedRangeChanged) {
-                var that = this,
-                    selectedRange = that.getSelectedRange(),
-                    rangeNotEquality = !checkRangeEquality(selectedRange, that._lastSelectedRange);
-                if ((!moving || _normalizeEnum(that._options.behavior.callSelectedRangeChanged) === "onmoving") && rangeNotEquality) {
-                    that._updateLastSelectedRange(selectedRange, blockSelectedRangeChanged);
-                    that._options.selectedRangeChanged(selectedRange);
-                    !moving && rangeNotEquality && that.setSelectedRange(selectedRange)
-                }
-            },
-            _updateLastSelectedRange: function(selectedRange) {
-                var _selectedRange = selectedRange || this._options.selectedRange;
-                this._lastSelectedRange = {
-                    startValue: _selectedRange.startValue,
-                    endValue: _selectedRange.endValue
-                }
-            },
-            update: function(options) {
-                var that = this,
-                    isEmpty = options.isEmpty;
-                that._options = options;
-                that._controller.applyOptions(options);
-                that._eventsManager.applyOptions({behavior: options.behavior});
-                if (msPointerEnabled)
-                    that._params.renderer.root.css({msTouchAction: "pinch-zoom"});
-                that._drawAreaTracker(options);
-                that._eventsManager.initialize();
-                that._eventsManager.setEnabled(!isEmpty);
-                if (!isEmpty)
-                    that._updateSelectedView(options);
-                that._controller.applySelectedRange(isEmpty ? {} : options.selectedRange);
-                that._controller.applyPosition();
-                that._processSelectionChanged(false, options.selectedRange.blockSelectedRangeChanged)
-            },
-            _drawAreaTracker: function(options) {
-                var canvas = options.canvas,
-                    renderer = this._params.renderer,
-                    group = this._params.root,
-                    areaTracker = renderer.rect(canvas.left, canvas.top, canvas.width, canvas.height).attr(trackerAttributes).append(group),
-                    selectedAreaTracker = renderer.rect(canvas.left, canvas.top, canvas.width, canvas.height).attr(trackerAttributes).css({cursor: 'pointer'}).append(group);
-                this._controller.setAreaTrackers(areaTracker, selectedAreaTracker)
-            },
-            _updateSelectedView: function(options) {
-                var that = this,
-                    canvas = options.canvas,
-                    lineOptions = {
-                        "stroke-width": 3,
-                        stroke: options.selectedRangeColor,
-                        sharp: "v"
-                    },
-                    center = canvas.top + canvas.height / 2,
-                    selectedView = that._selectedView,
-                    selectedViewAppended = that._selectedViewAppended,
-                    controller = that._controller;
-                if (!options.isCompactMode) {
-                    if (selectedView && selectedViewAppended) {
-                        selectedView.remove();
-                        that._selectedViewAppended = false
-                    }
-                    controller.appendShutters()
-                }
-                else {
-                    if (!selectedView) {
-                        that._selectedView = selectedView = that._params.renderer.path([canvas.left, center, canvas.left, center], "line").attr(lineOptions);
-                        controller.setSelectedView(selectedView)
-                    }
-                    else
-                        selectedView.attr(lineOptions);
-                    if (!selectedViewAppended) {
-                        selectedView.append(that._params.root);
-                        controller.removeShutters();
-                        that._selectedViewAppended = true
-                    }
-                }
-            },
-            dispose: function() {
-                this._eventsManager.dispose();
-                this._controller.dispose();
-                this._eventsManager = null
-            },
-            getSelectedRange: function() {
-                return this._controller.getSelectedRange()
-            },
-            setSelectedRange: function(selectedRange) {
-                var that = this,
-                    options = that._options,
-                    startValue,
-                    endValue,
-                    currentSelectedRange = options.selectedRange;
-                if (selectedRange) {
-                    startValue = selectedRange.startValue;
-                    endValue = selectedRange.endValue
-                }
-                validateSelectedRange(options, "startValue", startValue);
-                validateSelectedRange(options, "endValue", endValue);
-                currentSelectedRange.startValue = rangeSelectorUtils.truncateSelectedRange(currentSelectedRange.startValue, options);
-                currentSelectedRange.endValue = rangeSelectorUtils.truncateSelectedRange(currentSelectedRange.endValue, options);
-                that._controller.applySelectedRange(currentSelectedRange);
-                that._controller.applyPosition();
-                that._processSelectionChanged(false, selectedRange && selectedRange.blockSelectedRangeChanged)
-            },
-            appendTrackers: function(group) {
-                this._controller.appendTrackers(group)
-            },
-            getController: function() {
-                return this._controller
-            }
-        };
-        rangeSelector.SlidersContainer = SlidersContainer
-    })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file slidersController.js */
-    (function($, DX, undefined) {
+    (function(DX, $, undefined) {
         var rangeSelector = DX.viz.rangeSelector,
+            _normalizeEnum = DX.viz.utils.normalizeEnum,
+            _truncateSelectedRange = rangeSelector.utils.truncateSelectedRange,
             START_VALUE_INDEX = 0,
             END_VALUE_INDEX = 1,
             DISCRETE = "discrete";
+        function valueOf(value) {
+            return value && value.valueOf()
+        }
+        function validateValue(value, scaleValue, fallback) {
+            return value === undefined || $.type(value) === $.type(scaleValue) ? value : fallback
+        }
+        function dummyProcessSelectionChanged() {
+            this._lastSelectedRange = this.getSelectedRange();
+            delete this._processSelectionChanged
+        }
         function SlidersController(params) {
-            var sliders = this._sliders = [new rangeSelector.Slider(params, START_VALUE_INDEX), new rangeSelector.Slider(params, END_VALUE_INDEX)];
+            var that = this,
+                sliders = that._sliders = [],
+                sliderParams = {
+                    renderer: params.renderer,
+                    root: params.root,
+                    trackersGroup: params.trackersGroup,
+                    translator: params.translator
+                };
+            that._params = params;
+            that._areaTracker = params.renderer.rect().attr(rangeSelector.utils.trackerSettings).append(params.trackersGroup);
+            that._selectedAreaTracker = params.renderer.rect().attr(rangeSelector.utils.trackerSettings).css({cursor: 'pointer'}).append(params.trackersGroup);
+            sliders[0] = new rangeSelector.Slider(sliderParams, START_VALUE_INDEX);
+            sliders[1] = new rangeSelector.Slider(sliderParams, END_VALUE_INDEX);
             sliders[START_VALUE_INDEX].setAnotherSlider(sliders[END_VALUE_INDEX]);
-            sliders[END_VALUE_INDEX].setAnotherSlider(sliders[START_VALUE_INDEX])
+            sliders[END_VALUE_INDEX].setAnotherSlider(sliders[START_VALUE_INDEX]);
+            that._processSelectionChanged = dummyProcessSelectionChanged;
+            that._eventsManager = new rangeSelector.SlidersEventsManager(params.renderer, that)
         }
         SlidersController.prototype = {
             constructor: SlidersController,
+            _processSelectionChanged: function() {
+                var that = this,
+                    selectedRange = that.getSelectedRange();
+                if (valueOf(selectedRange.startValue) !== valueOf(that._lastSelectedRange.startValue) || valueOf(selectedRange.endValue) !== valueOf(that._lastSelectedRange.endValue)) {
+                    that._lastSelectedRange = selectedRange;
+                    that._params.updateSelectedRange(selectedRange)
+                }
+            },
             _callMethodForBothSliders: function(methodName, params) {
                 this._sliders[START_VALUE_INDEX][methodName](params);
                 this._sliders[END_VALUE_INDEX][methodName](params)
             },
             _applySelectedRangePosition: function(disableAnimation) {
                 var that = this,
-                    options = that._options,
-                    canvas = options.canvas,
-                    center = canvas.top + canvas.height / 2,
-                    isAnimation = options.behavior.animationEnabled && !disableAnimation,
+                    center = that._canvas.top + that._canvas.height / 2,
+                    isAnimation = that._animationEnabled && !disableAnimation,
                     startSliderPos = that._sliders[START_VALUE_INDEX].getPosition(),
                     points = [startSliderPos, center, startSliderPos + that.getSelectedRangeInterval(), center],
                     selectedView = that._selectedView;
-                if (!selectedView || !options.isCompactMode)
+                if (!selectedView || !that._isCompactMode)
                     return;
                 if (isAnimation)
                     selectedView.animate({points: points}, rangeSelector.utils.animationSettings);
                 else
                     selectedView.stopAnimation().attr({points: points})
             },
-            setAreaTrackers: function(areaTracker, selectedAreaTracker) {
-                this._areaTracker = areaTracker;
-                this._selectedAreaTracker = selectedAreaTracker
-            },
-            applyOptions: function(options) {
+            update: function(canvas, behavior, type, isEmpty, isCompactMode, selectedRange, sliderHandleOptions, sliderMarkerOptions, shutterOptions, rangeData, fullTicks, selectedRangeColor, logarithmBase) {
                 var that = this,
                     values = null;
-                that._options = options;
+                that._canvas = canvas;
+                that._isDiscrete = type === DISCRETE;
+                that._isCompactMode = isCompactMode;
+                that._animationEnabled = behavior.animationEnabled;
+                that._rangeData = rangeData;
+                that._selectedRangeOption = selectedRange;
                 that._foregroundSliderIndex = END_VALUE_INDEX;
-                that._callMethodForBothSliders("update", options);
-                if (options.behavior.snapToTicks && options.type !== DISCRETE) {
-                    values = options.fullTicks;
+                that._sliders[0].update(canvas, behavior, that._isDiscrete, sliderHandleOptions, sliderMarkerOptions, shutterOptions, rangeData, {
+                    type: type,
+                    logarithmBase: logarithmBase
+                });
+                that._sliders[1].update(canvas, behavior, that._isDiscrete, sliderHandleOptions, sliderMarkerOptions, shutterOptions, rangeData, {
+                    type: type,
+                    logarithmBase: logarithmBase
+                });
+                if (behavior.snapToTicks && !that._isDiscrete) {
+                    values = fullTicks;
                     values[0] > values[values.length - 1] && values.reverse()
                 }
-                that._callMethodForBothSliders("setAvailableValues", values)
+                that._callMethodForBothSliders("setAvailableValues", values);
+                that._areaTracker.attr({
+                    x: canvas.left,
+                    y: canvas.top,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                that._eventsManager.update({
+                    enabled: !isEmpty,
+                    moveSelectedRangeByClick: behavior.moveSelectedRangeByClick,
+                    manualRangeSelectionEnabled: behavior.manualRangeSelectionEnabled
+                });
+                if (!isEmpty)
+                    that._updateSelectedView(canvas, isCompactMode, selectedRangeColor);
+                that._isOnMoving = _normalizeEnum(behavior.callSelectedRangeChanged) === "onmoving";
+                that.setSelectedRange(isEmpty ? {} : selectedRange)
             },
-            processDocking: function(sliderIndex) {
-                var that = this;
-                if (sliderIndex !== undefined)
-                    that._sliders[sliderIndex].processDocking();
-                else
-                    that._callMethodForBothSliders("processDocking");
-                that.setTrackersCursorStyle("default");
-                that.applyAreaTrackersPosition();
-                that._applySelectedRangePosition()
+            _updateSelectedView: function(canvas, isCompactMode, selectedRangeColor) {
+                var that = this,
+                    lineOptions = {
+                        "stroke-width": 3,
+                        stroke: selectedRangeColor,
+                        sharp: "v"
+                    },
+                    center = canvas.top + canvas.height / 2,
+                    selectedView = that._selectedView,
+                    selectedViewAppended = that._selectedViewAppended;
+                if (!isCompactMode) {
+                    if (selectedView && selectedViewAppended) {
+                        selectedView.remove();
+                        that._selectedViewAppended = false
+                    }
+                    that._appendShutters()
+                }
+                else {
+                    if (!selectedView) {
+                        that._selectedView = selectedView = that._params.renderer.path([canvas.left, center, canvas.left, center], "line").attr(lineOptions);
+                        that._selectedView = selectedView
+                    }
+                    else
+                        selectedView.attr(lineOptions);
+                    if (!selectedViewAppended) {
+                        selectedView.append(that._params.root);
+                        that._removeShutters();
+                        that._selectedViewAppended = true
+                    }
+                }
             },
-            setSelectedView: function(selectedView) {
-                this._selectedView = selectedView
+            _processDocking: function() {
+                this._callMethodForBothSliders("processDocking");
+                this._setTrackersCursorStyle("default");
+                this._applyAreaTrackersPosition();
+                this._applySelectedRangePosition()
+            },
+            processDocking: function() {
+                this._processDocking();
+                this._processSelectionChanged()
             },
             getSelectedRangeInterval: function() {
                 return this._sliders[END_VALUE_INDEX].getPosition() - this._sliders[START_VALUE_INDEX].getPosition()
@@ -44154,7 +44073,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             moveSliders: function(postitionDelta, selectedRangeInterval) {
                 var startSlider = this._sliders[START_VALUE_INDEX];
                 startSlider.setPosition(startSlider.getPosition() + postitionDelta, false, selectedRangeInterval);
-                this.applyPosition(true)
+                this._applyPosition(true);
+                if (this._isOnMoving)
+                    this._processSelectionChanged()
             },
             moveSlider: function(sliderIndex, fastSwap, position, offsetPosition, startOffsetPosition, startOffsetPositionChangedCallback) {
                 var that = this,
@@ -44174,15 +44095,17 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                                 startOffsetPositionChangedCallback(-delta * startOffsetPosition)
                             }
                         if (doSwap) {
-                            that.swapSliders();
+                            that._swapSliders();
                             anotherSlider.applyPosition(true)
                         }
                     }
                 slider.setPosition(position, true);
                 slider.applyPosition(true);
-                that.applyAreaTrackersPosition();
+                that._applyAreaTrackersPosition();
                 that._applySelectedRangePosition(true);
-                that.setTrackersCursorStyle("w-resize")
+                that._setTrackersCursorStyle("w-resize");
+                if (that._isOnMoving)
+                    that._processSelectionChanged()
             },
             applySelectedAreaCenterPosition: function(position) {
                 var that = this,
@@ -44190,15 +44113,17 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     selectedRangeInterval = that.getSelectedRangeInterval(),
                     slidersContainerHalfWidth = selectedRangeInterval / 2;
                 startSlider.setPosition(position - slidersContainerHalfWidth, false, selectedRangeInterval);
-                that.applyPosition();
-                that.processDocking()
+                that._applyPosition(false);
+                that._processDocking()
             },
-            endSelection: function() {
+            endSelection: function(isWithNotification) {
                 var that = this,
                     startSlider = that._sliders[START_VALUE_INDEX],
                     endSlider = that._sliders[END_VALUE_INDEX],
                     overlappedState = startSlider.getCloudBorder() > endSlider.getCloudBorder();
-                that._callMethodForBothSliders("setOverlapped", overlappedState)
+                that._callMethodForBothSliders("setOverlapped", overlappedState);
+                if (isWithNotification)
+                    that._processSelectionChanged()
             },
             processManualSelection: function(startPosition, endPosition, eventArgs) {
                 var isStartLessEnd = startPosition < endPosition,
@@ -44212,27 +44137,37 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 movingSlider.setPosition(positionRange[movingSliderIndex], true);
                 movingSlider.startEventHandler(eventArgs);
                 animatedSlider.processDocking();
-                movingSlider.applyPosition(true)
+                movingSlider.applyPosition(true);
+                if (this._isOnMoving)
+                    this._processSelectionChanged()
             },
-            applySelectedRange: function(selectedRange) {
+            setSelectedRange: function(range) {
+                var rangeData = this._rangeData;
+                this._applySelectedRange({
+                    startValue: _truncateSelectedRange(validateValue(range.startValue, rangeData.startValue, this._selectedRangeOption.startValue), rangeData),
+                    endValue: _truncateSelectedRange(validateValue(range.endValue, rangeData.endValue, this._selectedRangeOption.endValue), rangeData)
+                })
+            },
+            _applySelectedRange: function(range) {
                 var that = this,
-                    options = that._options,
-                    inverted = options.inverted,
+                    inverted = that._rangeData.inverted,
                     startSlider = that._sliders[START_VALUE_INDEX],
                     endSlider = that._sliders[END_VALUE_INDEX],
-                    startValue = selectedRange.startValue,
-                    endValue = selectedRange.endValue,
+                    startValue = range.startValue,
+                    endValue = range.endValue,
                     categoriesInfo,
                     setValues = function(startValue, endValue, isInverted) {
                         (isInverted ? endSlider : startSlider).setValue(startValue);
                         (isInverted ? startSlider : endSlider).setValue(endValue)
                     };
-                if (options.type !== DISCRETE)
+                if (!that._isDiscrete)
                     setValues(startValue, endValue, !inverted && startValue > endValue || inverted && startValue < endValue);
                 else {
-                    categoriesInfo = DX.viz.utils.getCategoriesInfo(options.categories, startValue, endValue);
+                    categoriesInfo = DX.viz.utils.getCategoriesInfo(that._rangeData.categories, startValue, endValue);
                     setValues(categoriesInfo.start, categoriesInfo.end, categoriesInfo.inverted ^ inverted)
                 }
+                that._applyPosition(false || !that._params.renderer.animationEnabled());
+                that._processSelectionChanged()
             },
             getSelectedRange: function() {
                 return {
@@ -44240,30 +44175,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         endValue: this._sliders[END_VALUE_INDEX].getValue()
                     }
             },
-            swapSliders: function() {
+            _swapSliders: function() {
                 this._sliders.reverse();
                 this._callMethodForBothSliders("changeLocation")
             },
-            applyAreaTrackersPosition: function() {
+            _applyAreaTrackersPosition: function() {
                 var that = this,
                     selectedRange = that.getSelectedRange(),
-                    options = that._options,
-                    canvas = options.canvas,
-                    startSliderPosition = that._sliders[START_VALUE_INDEX].getPosition(),
-                    width = that._sliders[END_VALUE_INDEX].getPosition() - startSliderPosition,
-                    style = {cursor: options.endValue - options.startValue === selectedRange.endValue - selectedRange.startValue ? "default" : "pointer"};
+                    rangeData = that._rangeData,
+                    startSliderPosition = that._sliders[START_VALUE_INDEX].getPosition();
                 that._selectedAreaTracker.attr({
                     x: startSliderPosition,
-                    width: width < 0 ? 0 : width,
-                    y: canvas.top,
-                    height: canvas.height
-                }).css(style);
-                that._areaTracker.attr(rangeSelector.utils.canvasOptionsToRenderOptions(canvas))
+                    width: Math.max(that._sliders[END_VALUE_INDEX].getPosition() - startSliderPosition, 0),
+                    y: that._canvas.top,
+                    height: that._canvas.height
+                }).css({cursor: rangeData.endValue - rangeData.startValue === selectedRange.endValue - selectedRange.startValue ? "default" : "pointer"})
             },
-            applyPosition: function(disableAnimation) {
+            _applyPosition: function(disableAnimation) {
                 var that = this;
                 that._callMethodForBothSliders("applyPosition", disableAnimation);
-                that.applyAreaTrackersPosition();
+                that._applyAreaTrackersPosition();
                 that._applySelectedRangePosition(disableAnimation)
             },
             toForeground: function(slider) {
@@ -44272,14 +44203,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     slider.toForeground();
                     this._foregroundSliderIndex = sliderIndex
                 }
-            },
-            appendTrackers: function(group) {
-                var that = this;
-                if (that._areaTracker && that._selectedAreaTracker) {
-                    that._areaTracker.append(group);
-                    that._selectedAreaTracker.append(group)
-                }
-                that._callMethodForBothSliders("appendTrackers", group)
             },
             getSlider: function(sliderIndex) {
                 return this._sliders[sliderIndex]
@@ -44290,268 +44213,254 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             getSelectedAreaTracker: function() {
                 return this._selectedAreaTracker
             },
-            setTrackersCursorStyle: function(style) {
+            _setTrackersCursorStyle: function(style) {
                 style = {cursor: style};
                 this._selectedAreaTracker.css(style);
                 this._areaTracker.css(style)
             },
-            appendShutters: function() {
+            _appendShutters: function() {
                 this._callMethodForBothSliders("appendShutter")
             },
-            removeShutters: function() {
+            _removeShutters: function() {
                 this._callMethodForBothSliders("removeShutter")
             },
             dispose: function() {
-                this._callMethodForBothSliders("dispose")
+                this._callMethodForBothSliders("dispose");
+                this._eventsManager.dispose()
             }
         };
         rangeSelector.SlidersController = SlidersController
-    })(jQuery, DevExpress);
+    })(DevExpress, jQuery);
     /*! Module viz-rangeselector, file slidersEventsManager.js */
     (function($, DX, undefined) {
         var rangeSelector = DX.viz.rangeSelector,
             pointerEvents = DX.require("/ui/events/pointer/ui.events.pointer"),
+            msPointerEnabled = DX.require("/utils/utils.support").pointer,
             MIN_MANUAL_SELECTING_WIDTH = 10,
             START_VALUE_INDEX = 0,
-            END_VALUE_INDEX = 1,
-            eventUtils = DX.require("/ui/events/ui.events.utils"),
-            addNamespace = eventUtils.addNamespace,
-            _SlidersEventManager,
-            rangeSelectorUtils = rangeSelector.utils,
-            getEventPageX = rangeSelectorUtils.getEventPageX,
-            rangeSelectorCount = 0;
-        rangeSelector.events = {
-            start: pointerEvents.down,
-            move: pointerEvents.move,
-            end: pointerEvents.up
-        };
-        var isLeftButtonPressed = function(event) {
-                var e = event || window.event,
-                    originalEvent = e.originalEvent,
-                    touches = e.touches,
-                    pointerType = originalEvent ? originalEvent.pointerType : false,
-                    eventTouches = originalEvent ? originalEvent.touches : false,
-                    isIE8LeftClick = e.which === undefined && e.button === 1,
-                    isMSPointerLeftClick = originalEvent && pointerType !== undefined && (pointerType === (originalEvent.MSPOINTER_TYPE_TOUCH || "touch") || pointerType === (originalEvent.MSPOINTER_TYPE_MOUSE || "mouse") && originalEvent.buttons === 1),
-                    isLeftClick = isIE8LeftClick || e.which === 1,
-                    isTouches = touches && touches.length > 0 || eventTouches && eventTouches.length > 0;
-                return isLeftClick || isMSPointerLeftClick || isTouches
-            };
-        var isMultiTouches = function(event) {
-                var originalEvent = event.originalEvent,
-                    touches = event.touches,
-                    eventTouches = originalEvent ? originalEvent.touches : false;
-                return touches && touches.length > 1 || eventTouches && eventTouches.length > 1 || null
-            };
-        var isTouchEventArgs = function(e) {
-                return e && e.type && e.type.indexOf("touch") === 0
-            };
-        _SlidersEventManager = rangeSelector.SlidersEventsManager = function(renderer, slidersController, processSelectionChanged) {
-            var that = this,
-                uniqueNS = that._uniqueNS = "dx-range-selector_" + rangeSelectorCount++,
-                rangeSelectorEvents = rangeSelector.events;
-            that._renderer = renderer;
-            that._slidersController = slidersController;
-            that._processSelectionChanged = processSelectionChanged;
-            that._enabled = true;
-            that._eventsNames = {
-                start: addNamespace(rangeSelectorEvents.start, uniqueNS),
-                move: addNamespace(rangeSelectorEvents.move, uniqueNS),
-                end: addNamespace(rangeSelectorEvents.end, uniqueNS)
+            END_VALUE_INDEX = 1;
+        function isLeftButtonPressed(event) {
+            var e = event || window.event,
+                originalEvent = e.originalEvent,
+                touches = e.touches,
+                pointerType = originalEvent ? originalEvent.pointerType : false,
+                eventTouches = originalEvent ? originalEvent.touches : false,
+                isIE8LeftClick = e.which === undefined && e.button === 1,
+                isMSPointerLeftClick = originalEvent && pointerType !== undefined && (pointerType === (originalEvent.MSPOINTER_TYPE_TOUCH || "touch") || pointerType === (originalEvent.MSPOINTER_TYPE_MOUSE || "mouse") && originalEvent.buttons === 1),
+                isLeftClick = isIE8LeftClick || e.which === 1,
+                isTouches = touches && touches.length > 0 || eventTouches && eventTouches.length > 0;
+            return isLeftClick || isMSPointerLeftClick || isTouches
+        }
+        function isMultiTouches(event) {
+            var originalEvent = event.originalEvent,
+                touches = event.touches,
+                eventTouches = originalEvent ? originalEvent.touches : false;
+            return touches && touches.length > 1 || eventTouches && eventTouches.length > 1 || null
+        }
+        function isTouchEventArgs(e) {
+            return e && e.type && e.type.indexOf("touch") === 0
+        }
+        function getEventPageX(eventArgs) {
+            var result = 0;
+            if (eventArgs.pageX)
+                result = eventArgs.pageX;
+            else if (eventArgs.originalEvent && eventArgs.originalEvent.pageX)
+                result = eventArgs.originalEvent.pageX;
+            if (eventArgs.originalEvent && eventArgs.originalEvent.touches)
+                if (eventArgs.originalEvent.touches.length > 0)
+                    result = eventArgs.originalEvent.touches[0].pageX;
+                else if (eventArgs.originalEvent.changedTouches.length > 0)
+                    result = eventArgs.originalEvent.changedTouches[0].pageX;
+            return result
+        }
+        function SlidersEventsManager(renderer, controller) {
+            var that = this;
+            if (msPointerEnabled)
+                renderer.root.css({msTouchAction: "pinch-zoom"});
+            that._docEvents = [];
+            that._initializeSelectedAreaEvents(controller);
+            that._initializeAreaEvents(controller, getRootOffsetLeft);
+            that._initializeSliderEvents(START_VALUE_INDEX, controller, getRootOffsetLeft);
+            that._initializeSliderEvents(END_VALUE_INDEX, controller, getRootOffsetLeft);
+            $.each(that._docEvents, function(_, events) {
+                $(document).on(events)
+            });
+            function getRootOffsetLeft() {
+                return renderer.getRootOffset().left
             }
-        };
-        _SlidersEventManager.prototype = {
-            constructor: _SlidersEventManager,
-            _initializeSliderEvents: function(sliderIndex) {
+        }
+        SlidersEventsManager.prototype = {
+            constructor: SlidersEventsManager,
+            _initializeSliderEvents: function(sliderIndex, controller, getRootOffsetLeft) {
                 var that = this,
                     isTouchEvent,
-                    slidersController = that._slidersController,
-                    processSelectionChanged = that._processSelectionChanged,
-                    slider = slidersController.getSlider(sliderIndex),
+                    slider = controller.getSlider(sliderIndex),
                     fastSwap,
                     startOffsetPosition,
                     splitterMoving,
-                    sliderEndHandler = function() {
-                        if (splitterMoving) {
-                            splitterMoving = false;
-                            slidersController.endSelection();
-                            slidersController.processDocking();
-                            processSelectionChanged(false)
+                    docEvents = {},
+                    sliderEvents = {};
+                docEvents[pointerEvents.move] = function(e) {
+                    var pageX,
+                        offsetPosition,
+                        svgOffsetLeft = getRootOffsetLeft(),
+                        position,
+                        sliderIndex = slider.getIndex();
+                    if (isTouchEvent !== isTouchEventArgs(e))
+                        return;
+                    if (!isLeftButtonPressed(e) && splitterMoving) {
+                        splitterMoving = false;
+                        controller.processDocking()
+                    }
+                    else if (splitterMoving) {
+                        if (!isMultiTouches(e)) {
+                            this.preventedDefault = true;
+                            e.preventDefault()
                         }
-                    },
-                    sliderMoveHandler = function(e) {
-                        var pageX,
-                            offsetPosition,
-                            svgOffsetLeft = that._renderer.getRootOffset().left,
-                            position,
-                            sliderIndex = slider.getIndex();
-                        if (isTouchEvent !== isTouchEventArgs(e))
-                            return;
-                        if (!isLeftButtonPressed(e, true) && splitterMoving) {
-                            splitterMoving = false;
-                            slidersController.processDocking();
-                            processSelectionChanged(false)
-                        }
-                        else if (splitterMoving) {
-                            if (!isMultiTouches(e)) {
-                                this.preventedDefault = true;
-                                e.preventDefault()
-                            }
-                            pageX = getEventPageX(e);
-                            position = pageX - startOffsetPosition - svgOffsetLeft;
-                            offsetPosition = pageX - slider.getPosition() - svgOffsetLeft;
-                            slidersController.moveSlider(sliderIndex, fastSwap, position, offsetPosition, startOffsetPosition, function(newStartOffsetPosition) {
-                                startOffsetPosition = newStartOffsetPosition
-                            });
-                            processSelectionChanged(true)
-                        }
-                        slidersController.endSelection()
-                    },
-                    eventsNames = that._eventsNames;
-                slider.startEventHandler = function(e) {
+                        pageX = getEventPageX(e);
+                        position = pageX - startOffsetPosition - svgOffsetLeft;
+                        offsetPosition = pageX - slider.getPosition() - svgOffsetLeft;
+                        controller.moveSlider(sliderIndex, fastSwap, position, offsetPosition, startOffsetPosition, function(newStartOffsetPosition) {
+                            startOffsetPosition = newStartOffsetPosition
+                        })
+                    }
+                    controller.endSelection(false)
+                };
+                docEvents[pointerEvents.up] = function() {
+                    if (splitterMoving) {
+                        splitterMoving = false;
+                        controller.endSelection(false);
+                        controller.processDocking()
+                    }
+                };
+                sliderEvents[pointerEvents.down] = function(e) {
                     if (!that._enabled || !isLeftButtonPressed(e) || splitterMoving)
                         return;
                     fastSwap = this === slider.getSliderTracker().element;
                     splitterMoving = true;
                     isTouchEvent = isTouchEventArgs(e);
-                    startOffsetPosition = getEventPageX(e) - slider.getPosition() - that._renderer.getRootOffset().left;
+                    startOffsetPosition = getEventPageX(e) - slider.getPosition() - getRootOffsetLeft();
                     if (!isMultiTouches(e)) {
                         this.preventedDefault = true;
                         e.stopPropagation();
                         e.preventDefault()
                     }
                 };
-                slider.on(eventsNames.move, function() {
-                    slidersController.toForeground(slider)
-                });
-                slider.on(eventsNames.start, slider.startEventHandler);
-                $(document).on(eventsNames.end, sliderEndHandler).on(eventsNames.move, sliderMoveHandler);
-                slider.__moveEventHandler = sliderMoveHandler
+                sliderEvents[pointerEvents.move] = function() {
+                    controller.toForeground(slider)
+                };
+                slider.on(sliderEvents);
+                that._docEvents.push(docEvents);
+                slider.startEventHandler = sliderEvents[pointerEvents.down];
+                slider.__moveEventHandler = docEvents[pointerEvents.move]
             },
-            _initializeAreaEvents: function() {
+            _initializeAreaEvents: function(controller, getRootOffsetLeft) {
                 var that = this,
                     isTouchEvent,
-                    slidersController = that._slidersController,
-                    processSelectionChanged = that._processSelectionChanged,
-                    areaTracker = slidersController.getAreaTracker(),
                     unselectedAreaProcessing = false,
                     startPageX,
-                    areaEndHandler = function(e) {
-                        var pageX;
-                        if (unselectedAreaProcessing) {
-                            pageX = getEventPageX(e);
-                            if (that._options.behavior.moveSelectedRangeByClick && Math.abs(startPageX - pageX) < MIN_MANUAL_SELECTING_WIDTH)
-                                slidersController.applySelectedAreaCenterPosition(pageX - that._renderer.getRootOffset().left);
-                            unselectedAreaProcessing = false;
-                            slidersController.endSelection();
-                            processSelectionChanged(false)
+                    docEvents = {};
+                docEvents[pointerEvents.move] = function(e) {
+                    var pageX,
+                        startPosition,
+                        endPosition,
+                        svgOffsetLeft = getRootOffsetLeft();
+                    if (isTouchEvent !== isTouchEventArgs(e))
+                        return;
+                    if (unselectedAreaProcessing && !isLeftButtonPressed(e))
+                        unselectedAreaProcessing = false;
+                    if (unselectedAreaProcessing) {
+                        pageX = getEventPageX(e);
+                        if (that._manualRangeSelectionEnabled && Math.abs(startPageX - pageX) >= MIN_MANUAL_SELECTING_WIDTH) {
+                            startPosition = startPageX - svgOffsetLeft;
+                            endPosition = pageX - svgOffsetLeft;
+                            controller.processManualSelection(startPosition, endPosition, e);
+                            unselectedAreaProcessing = false
                         }
-                    },
-                    areaMoveHandler = function(e) {
-                        var pageX,
-                            startPosition,
-                            endPosition,
-                            svgOffsetLeft = that._renderer.getRootOffset().left;
-                        if (isTouchEvent !== isTouchEventArgs(e))
-                            return;
-                        if (unselectedAreaProcessing && !isLeftButtonPressed(e)) {
-                            unselectedAreaProcessing = false;
-                            processSelectionChanged(false)
-                        }
-                        if (unselectedAreaProcessing) {
-                            pageX = getEventPageX(e);
-                            if (that._options.behavior.manualRangeSelectionEnabled && Math.abs(startPageX - pageX) >= MIN_MANUAL_SELECTING_WIDTH) {
-                                startPosition = startPageX - svgOffsetLeft;
-                                endPosition = pageX - svgOffsetLeft;
-                                slidersController.processManualSelection(startPosition, endPosition, e);
-                                unselectedAreaProcessing = false;
-                                processSelectionChanged(true)
-                            }
-                        }
-                    },
-                    eventsNames = that._eventsNames;
-                areaTracker.on(eventsNames.start, function(e) {
+                    }
+                };
+                docEvents[pointerEvents.up] = function(e) {
+                    var pageX;
+                    if (unselectedAreaProcessing) {
+                        pageX = getEventPageX(e);
+                        if (that._moveSelectedRangeByClick && Math.abs(startPageX - pageX) < MIN_MANUAL_SELECTING_WIDTH)
+                            controller.applySelectedAreaCenterPosition(pageX - getRootOffsetLeft());
+                        unselectedAreaProcessing = false;
+                        controller.endSelection(true)
+                    }
+                };
+                controller.getAreaTracker().on(pointerEvents.down, function(e) {
                     if (!that._enabled || !isLeftButtonPressed(e) || unselectedAreaProcessing)
                         return;
                     unselectedAreaProcessing = true;
                     isTouchEvent = isTouchEventArgs(e);
                     startPageX = getEventPageX(e)
                 });
-                $(document).on(eventsNames.end, areaEndHandler).on(eventsNames.move, areaMoveHandler);
-                that.__areaMoveEventHandler = areaMoveHandler
+                that._docEvents.push(docEvents);
+                that.__areaMoveEventHandler = docEvents[pointerEvents.move]
             },
-            _initializeSelectedAreaEvents: function() {
+            _initializeSelectedAreaEvents: function(controller) {
                 var that = this,
                     isTouchEvent,
-                    slidersController = that._slidersController,
-                    processSelectionChanged = that._processSelectionChanged,
-                    selectedAreaTracker = slidersController.getSelectedAreaTracker(),
                     selectedAreaMoving = false,
                     offsetStartPosition,
                     selectedRangeInterval,
-                    selectedAreaEndHandler = function() {
-                        if (selectedAreaMoving) {
-                            selectedAreaMoving = false;
-                            slidersController.processDocking();
-                            processSelectionChanged(false)
+                    docEvents = {};
+                docEvents[pointerEvents.move] = function(e) {
+                    var positionDelta,
+                        pageX;
+                    if (isTouchEvent !== isTouchEventArgs(e))
+                        return;
+                    if (selectedAreaMoving && !isLeftButtonPressed(e)) {
+                        selectedAreaMoving = false;
+                        controller.processDocking()
+                    }
+                    if (selectedAreaMoving) {
+                        if (!isMultiTouches(e)) {
+                            this.preventedDefault = true;
+                            e.preventDefault()
                         }
-                    },
-                    selectedAreaMoveHandler = function(e) {
-                        var positionDelta,
-                            pageX;
-                        if (isTouchEvent !== isTouchEventArgs(e))
-                            return;
-                        if (selectedAreaMoving && !isLeftButtonPressed(e)) {
-                            selectedAreaMoving = false;
-                            slidersController.processDocking();
-                            processSelectionChanged(false)
-                        }
-                        if (selectedAreaMoving) {
-                            if (!isMultiTouches(e)) {
-                                this.preventedDefault = true;
-                                e.preventDefault()
-                            }
-                            pageX = getEventPageX(e);
-                            positionDelta = pageX - slidersController.getSlider(START_VALUE_INDEX).getPosition() - offsetStartPosition;
-                            slidersController.moveSliders(positionDelta, selectedRangeInterval);
-                            processSelectionChanged(true)
-                        }
-                        slidersController.endSelection()
-                    },
-                    eventsNames = that._eventsNames;
-                selectedAreaTracker.on(eventsNames.start, function(e) {
+                        pageX = getEventPageX(e);
+                        positionDelta = pageX - controller.getSlider(START_VALUE_INDEX).getPosition() - offsetStartPosition;
+                        controller.moveSliders(positionDelta, selectedRangeInterval)
+                    }
+                    controller.endSelection(false)
+                };
+                docEvents[pointerEvents.up] = function() {
+                    if (selectedAreaMoving) {
+                        selectedAreaMoving = false;
+                        controller.processDocking()
+                    }
+                };
+                controller.getSelectedAreaTracker().on(pointerEvents.down, function(e) {
                     if (!that._enabled || !isLeftButtonPressed(e) || selectedAreaMoving)
                         return;
                     selectedAreaMoving = true;
                     isTouchEvent = isTouchEventArgs(e);
-                    offsetStartPosition = getEventPageX(e) - slidersController.getSlider(START_VALUE_INDEX).getPosition();
-                    selectedRangeInterval = slidersController.getSelectedRangeInterval();
+                    offsetStartPosition = getEventPageX(e) - controller.getSlider(START_VALUE_INDEX).getPosition();
+                    selectedRangeInterval = controller.getSelectedRangeInterval();
                     if (!isMultiTouches(e)) {
                         this.preventedDefault = true;
                         e.stopPropagation();
                         e.preventDefault()
                     }
                 });
-                $(document).on(eventsNames.end, selectedAreaEndHandler).on(eventsNames.move, selectedAreaMoveHandler);
-                that.__selectedAreaMoveEventHandler = selectedAreaMoveHandler
-            },
-            applyOptions: function(options) {
-                this._options = options
+                that._docEvents.push(docEvents);
+                that.__selectedAreaMoveEventHandler = docEvents[pointerEvents.move]
             },
             dispose: function() {
-                $(document).off("." + this._uniqueNS)
+                $.each(this._docEvents, function(_, events) {
+                    $(document).off(events)
+                })
             },
-            initialize: function() {
-                var that = this;
-                that._initializeSelectedAreaEvents(that);
-                that._initializeAreaEvents();
-                that._initializeSliderEvents(START_VALUE_INDEX);
-                that._initializeSliderEvents(END_VALUE_INDEX)
-            },
-            setEnabled: function(enabled) {
-                this._enabled = enabled
+            update: function(options) {
+                this._enabled = options.enabled;
+                this._moveSelectedRangeByClick = options.moveSelectedRangeByClick;
+                this._manualRangeSelectionEnabled = options.manualRangeSelectionEnabled
             }
-        }
+        };
+        rangeSelector.SlidersEventsManager = SlidersEventsManager;
+        SlidersEventsManager._TESTS_getEventPageX = getEventPageX
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file slider.js */
     (function($, DX, undefined) {
@@ -44566,7 +44475,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             TOUCH_SPLITTER_WIDTH = 20,
             START_VALUE_INDEX = 0,
             END_VALUE_INDEX = 1,
-            DISCRETE = "discrete",
             addInterval = rangeSelectorUtils.addInterval;
         function checkItemsSpacing(firstSliderPosition, secondSliderPosition, distance) {
             return Math.abs(secondSliderPosition - firstSliderPosition) < distance
@@ -44592,8 +44500,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             sliderGroup.__line = sliderHandle;
             return sliderGroup
         }
-        function createSliderTracker(renderer) {
-            var sliderTrackerGroup = renderer.g().attr({"class": "sliderTracker"}),
+        function createSliderTracker(renderer, root) {
+            var sliderTrackerGroup = renderer.g().attr({"class": "sliderTracker"}).append(root),
                 sliderTracker = renderer.rect().attr(rangeSelectorUtils.trackerSettings).css({cursor: "w-resize"}).append(sliderTrackerGroup);
             sliderTrackerGroup.setHandleWidth = function(width) {
                 var splitterWidth = SPLITTER_WIDTH < width ? width : SPLITTER_WIDTH,
@@ -44621,6 +44529,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 renderer = params.renderer;
             that._params = params;
             that._index = index;
+            that._translator = params.translator;
             that._container = renderer.g().attr({"class": "sliderArea"}).append(params.root);
             that._slider = createSlider(renderer, that._container);
             that._marker = new rangeSelector.SliderMarker({
@@ -44629,19 +44538,19 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 isLeftPointer: index === END_VALUE_INDEX
             });
             that._shutter = renderer.rect();
-            that._sliderTracker = createSliderTracker(renderer)
+            that._sliderTracker = createSliderTracker(renderer, params.trackersGroup)
         }
         Slider.prototype = {
             constructor: Slider,
             _setPosition: function(position, correctByMinMaxRange) {
                 var that = this,
                     correctedPosition = that._correctPosition(position),
-                    value = that._options.translator.untranslate(correctedPosition, that._getValueDirection());
+                    value = that._translator.untranslate(correctedPosition, that._getValueDirection());
                 that.setValue(value, correctByMinMaxRange, false);
                 that._position = correctedPosition
             },
             _getValueDirection: function() {
-                return this._options.type === DISCRETE ? this._index === START_VALUE_INDEX ? -1 : 1 : 0
+                return this._isDiscrete ? this._index === START_VALUE_INDEX ? -1 : 1 : 0
             },
             _setPositionForBothSliders: function(startPosition, interval) {
                 var that = this,
@@ -44649,10 +44558,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     startValue,
                     endValue,
                     endPosition,
-                    options = that._options,
-                    canvas = options.canvas,
+                    rangeData = that._rangeData,
+                    canvas = that._canvas,
                     rightBorderCoords = canvas.left + canvas.width,
-                    translator = options.translator,
+                    translator = that._translator,
                     valueDirection = that._getValueDirection(),
                     valueDirectionAnotherSlider = anotherSlider._getValueDirection(),
                     getNextValue = function(value, isNegative, reverseValueDirection) {
@@ -44665,7 +44574,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 endValue = getNextValue(startValue);
                 endPosition = startPosition + interval;
                 if (endPosition > rightBorderCoords) {
-                    endValue = options.endValue;
+                    endValue = rangeData.endValue;
                     endPosition = rightBorderCoords;
                     startValue = getNextValue(endValue, true, true);
                     startPosition = that._correctBounds(endPosition - interval)
@@ -44673,7 +44582,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 else
                     endPosition = that._correctBounds(endPosition);
                 if (that._values)
-                    if (!options.inverted ? startValue < that._values[0] : startValue > that._values[that._values.length - 1]) {
+                    if (!rangeData.inverted ? startValue < that._values[0] : startValue > that._values[that._values.length - 1]) {
                         startValue = correctByAvailableValues(that._values, startValue, false);
                         endValue = getNextValue(startValue)
                     }
@@ -44696,7 +44605,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             _correctBounds: function(position) {
                 var correctedPosition = position,
-                    canvas = this._options.canvas;
+                    canvas = this._canvas;
                 if (position < canvas.left)
                     correctedPosition = canvas.left;
                 if (position > canvas.left + canvas.width)
@@ -44708,14 +44617,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     result = correctByAvailableValues(that._values, businessValue, skipCorrection);
                 if (correctByMinMaxRange)
                     result = that._correctByMinMaxRange(result);
-                if (that._options.type !== DISCRETE)
+                if (!that._isDiscrete)
                     result = that._correctByMinRange(result);
                 return result
             },
             _correctByMinMaxRange: function(businessValue) {
                 var that = this,
                     result = businessValue,
-                    options = that._options,
+                    rangeData = that._rangeData,
                     values = that._values,
                     sliderIndex = that._index,
                     anotherSlider = that.getAnotherSlider(),
@@ -44723,27 +44632,27 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     isValid = true,
                     minValue,
                     maxValue,
-                    maxRange = options.maxRange,
-                    minRange = options.minRange,
+                    maxRange = rangeData.maxRange,
+                    minRange = rangeData.minRange,
                     isNegative,
                     tmp;
-                if (options.type === DISCRETE) {
-                    if (checkItemsSpacing(that.getPosition(), anotherSlider.getPosition(), options.translator.getInterval())) {
+                if (that._isDiscrete) {
+                    if (checkItemsSpacing(that.getPosition(), anotherSlider.getPosition(), that._translator.getInterval())) {
                         isValid = false;
                         result = anotherBusinessValue
                     }
                 }
                 else {
-                    isNegative = !options.inverted && sliderIndex === START_VALUE_INDEX || options.inverted && sliderIndex === END_VALUE_INDEX;
+                    isNegative = !rangeData.inverted && sliderIndex === START_VALUE_INDEX || rangeData.inverted && sliderIndex === END_VALUE_INDEX;
                     if (maxRange) {
-                        tmp = addInterval(anotherBusinessValue, maxRange, isNegative, options);
+                        tmp = addInterval(anotherBusinessValue, maxRange, isNegative, that._addIntervalOptions);
                         if (isNegative)
                             minValue = tmp;
                         else
                             maxValue = tmp
                     }
                     if (minRange) {
-                        tmp = addInterval(anotherBusinessValue, minRange, isNegative, options);
+                        tmp = addInterval(anotherBusinessValue, minRange, isNegative, that._addIntervalOptions);
                         if (isNegative)
                             maxValue = tmp;
                         else
@@ -44763,33 +44672,32 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             _correctByMinRange: function(businessValue) {
                 var that = this,
-                    options = that._options,
+                    rangeData = that._rangeData,
                     startValue,
                     endValue,
-                    minRange = options.minRange,
+                    minRange = rangeData.minRange,
                     result = businessValue;
                 if (minRange)
                     if (that._index === END_VALUE_INDEX) {
-                        startValue = addInterval(options.startValue, minRange, options.inverted, options);
-                        if (!options.inverted && result < startValue || options.inverted && result > startValue)
+                        startValue = addInterval(rangeData.startValue, minRange, rangeData.inverted, that._addIntervalOptions);
+                        if (!rangeData.inverted && result < startValue || rangeData.inverted && result > startValue)
                             result = startValue
                     }
                     else {
-                        endValue = addInterval(options.endValue, minRange, !options.inverted, options);
-                        if (!options.inverted && result > endValue || options.inverted && result < endValue)
+                        endValue = addInterval(rangeData.endValue, minRange, !rangeData.inverted, that._addIntervalOptions);
+                        if (!rangeData.inverted && result > endValue || rangeData.inverted && result < endValue)
                             result = endValue
                     }
                 return result
             },
             _applySliderPosition: function(position, disableAnimation) {
                 var that = this,
-                    options = that._options,
-                    isAnimation = options.behavior.animationEnabled && !disableAnimation,
+                    isAnimation = that._animationEnabled && !disableAnimation,
                     slider = that._slider,
                     sliderTracker = that._sliderTracker,
                     attrs = {
                         translateX: position,
-                        translateY: options.canvas.top
+                        translateY: that._canvas.top
                     },
                     animationSettings = rangeSelectorUtils.animationSettings;
                 that._marker.setPosition(position);
@@ -44807,14 +44715,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             _applyShutterPosition: function(position, disableAnimation) {
                 var that = this,
                     shutterSettings,
-                    options = that._options,
-                    isAnimation = options.behavior.animationEnabled && !disableAnimation,
+                    isAnimation = that._animationEnabled && !disableAnimation,
                     sliderIndex = that._index,
-                    canvas = options.canvas,
-                    halfSliderHandleWidth = options.sliderHandle.width / 2,
+                    canvas = that._canvas,
                     width;
                 if (sliderIndex === START_VALUE_INDEX) {
-                    width = position - canvas.left - Math.floor(halfSliderHandleWidth);
+                    width = position - canvas.left - Math.floor(that._halfSliderHandleWidth);
                     if (width < 0)
                         width = 0;
                     shutterSettings = {
@@ -44826,7 +44732,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
                 else if (sliderIndex === END_VALUE_INDEX)
                     shutterSettings = {
-                        x: position + Math.ceil(halfSliderHandleWidth),
+                        x: position + Math.ceil(that._halfSliderHandleWidth),
                         y: canvas.top,
                         width: canvas.left + canvas.width - position,
                         height: canvas.height
@@ -44843,13 +44749,20 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             _setText: function(text) {
                 this._marker.setText(text)
             },
-            update: function(options) {
-                var that = this,
-                    canvas = options.canvas,
-                    sliderMarkerOptions = options.sliderMarker,
-                    shutterOptions = options.shutter,
-                    sliderHandleOptions = options.sliderHandle;
-                that._options = options;
+            update: function(canvas, behavior, isDiscrete, sliderHandleOptions, sliderMarkerOptions, shutterOptions, rangeData, addIntervalOptions) {
+                var that = this;
+                that._canvas = canvas;
+                that._isDiscrete = isDiscrete;
+                that._rangeData = rangeData;
+                that._formatOptions = {
+                    format: sliderMarkerOptions.format,
+                    precision: sliderMarkerOptions.precision,
+                    customizeText: sliderMarkerOptions.customizeText
+                };
+                that._halfSliderHandleWidth = sliderHandleOptions.width / 2;
+                that._allowSlidersSwap = behavior.allowSlidersSwap;
+                that._animationEnabled = behavior.animationEnabled;
+                that._addIntervalOptions = addIntervalOptions;
                 that._lastPosition = null;
                 that._marker.setCanvas(canvas);
                 that._marker.applyOptions(sliderMarkerOptions);
@@ -44896,9 +44809,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             getAnotherSlider: function() {
                 return this._anotherSlider
             },
-            appendTrackers: function(group) {
-                this._sliderTracker.append(group)
-            },
             getSliderTracker: function() {
                 return this._sliderTracker
             },
@@ -44906,7 +44816,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 var that = this;
                 that._marker.changeLocation();
                 that._index = 1 - that._index;
-                that._options.type === DISCRETE && that.setPosition(that._position);
+                that._isDiscrete && that.setPosition(that._position);
                 that._lastPosition = null
             },
             setPosition: function(position, correctByMinMaxRange, selectedRangeInterval) {
@@ -44924,8 +44834,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             setValue: function(value, correctByMinMaxRange, skipCorrection) {
                 var that = this,
-                    options = that._options,
-                    canvas = options.canvas,
+                    canvas = that._canvas,
                     position,
                     text;
                 if (value === undefined) {
@@ -44935,8 +44844,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
                 else {
                     that._value = that._correctValue(value, correctByMinMaxRange, commonUtils.isDefined(skipCorrection) ? !!skipCorrection : true);
-                    position = options.translator.translate(that._value, that._getValueDirection());
-                    text = rangeSelector.formatValue(that._value, options.sliderMarker)
+                    position = that._translator.translate(that._value, that._getValueDirection());
+                    text = rangeSelector.formatValue(that._value, that._formatOptions)
                 }
                 that._setText(text);
                 that._valuePosition = that._position = position
@@ -44949,21 +44858,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             canSwap: function() {
                 var that = this,
-                    options = that._options,
+                    rangeData = that._rangeData,
                     startValue,
                     endValue,
                     anotherSliderValue;
-                if (that._options.behavior.allowSlidersSwap) {
-                    if (options.minRange) {
+                if (that._allowSlidersSwap) {
+                    if (rangeData.minRange) {
                         anotherSliderValue = that.getAnotherSlider().getValue();
                         if (that._index === START_VALUE_INDEX) {
-                            endValue = addInterval(options.endValue, options.minRange, !options.inverted, options);
-                            if (!options.inverted && anotherSliderValue > endValue || options.inverted && anotherSliderValue < endValue)
+                            endValue = addInterval(rangeData.endValue, rangeData.minRange, !rangeData.inverted, that._addIntervalOptions);
+                            if (!rangeData.inverted && anotherSliderValue > endValue || rangeData.inverted && anotherSliderValue < endValue)
                                 return false
                         }
                         else {
-                            startValue = addInterval(options.startValue, options.minRange, options.inverted, options);
-                            if (!options.inverted && anotherSliderValue < startValue || options.inverted && anotherSliderValue > startValue)
+                            startValue = addInterval(rangeData.startValue, rangeData.minRange, rangeData.inverted, that._addIntervalOptions);
+                            if (!rangeData.inverted && anotherSliderValue < startValue || rangeData.inverted && anotherSliderValue > startValue)
                                 return false
                         }
                     }
@@ -45207,48 +45116,57 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
         }
     })(jQuery, DevExpress);
     /*! Module viz-rangeselector, file rangeView.js */
-    (function($, DX, undefined) {
+    (function(DX, undefined) {
+        function createTranslator(valueRange, screenRange) {
+            return new DX.viz.Translator2D(valueRange, {
+                    top: screenRange[0],
+                    height: screenRange[1]
+                })
+        }
+        function drawSeriesView(root, seriesDataSource, translator, screenRange, isAnimationEnabled) {
+            var seriesList = seriesDataSource.getSeries(),
+                series,
+                i,
+                ii = seriesList.length,
+                translators = {
+                    x: translator,
+                    y: createTranslator(seriesDataSource.getBoundRange().val, screenRange)
+                };
+            seriesDataSource.adjustSeriesDimensions(translators);
+            for (i = 0; i < ii; ++i) {
+                series = seriesList[i];
+                series._extGroups.seriesGroup = series._extGroups.labelsGroup = root;
+                series.draw(translators, isAnimationEnabled)
+            }
+        }
+        function merge(a, b) {
+            return a !== undefined ? a : b
+        }
         function RangeView(params) {
             this._params = params
         }
         RangeView.prototype = {
             constructor: RangeView,
-            update: function(options) {
+            update: function(backgroundOption, backgroundTheme, canvas, isAnimationEnabled, seriesDataSource) {
                 var renderer = this._params.renderer,
-                    group = this._params.root,
-                    series,
-                    i,
-                    canvas = options.canvas,
-                    isEmpty = options.scale.isEmpty,
-                    seriesDataSource = options.seriesDataSource,
-                    showChart = seriesDataSource && seriesDataSource.isShowChart() && !isEmpty,
-                    background = options.background,
-                    backgroundColor = showChart ? seriesDataSource.getBackgroundColor() : background.color,
-                    backgroundImage = background.image,
-                    backgroundIsVisible = background.visible,
-                    animationEnabled;
-                group.clear();
-                if (backgroundIsVisible && !isEmpty && backgroundColor)
-                    renderer.rect(canvas.left, canvas.top, canvas.width + 1, canvas.height).attr({
-                        fill: backgroundColor,
-                        "class": "dx-range-selector-background"
-                    }).append(group);
-                if (backgroundIsVisible && backgroundImage && backgroundImage.url)
-                    renderer.image(canvas.left, canvas.top, canvas.width + 1, canvas.height, backgroundImage.url, backgroundImage.location).append(group);
-                if (showChart) {
-                    series = seriesDataSource.getSeries();
-                    seriesDataSource.adjustSeriesDimensions(options.translators, options.chart.useAggregation);
-                    animationEnabled = options.behavior && options.behavior.animationEnabled && renderer.animationEnabled();
-                    for (i = 0; i < series.length; i++) {
-                        series[i]._extGroups.seriesGroup = group;
-                        series[i]._extGroups.labelsGroup = group;
-                        series[i].draw(options.translators, animationEnabled)
-                    }
+                    root = this._params.root;
+                backgroundOption = backgroundOption || {};
+                root.clear();
+                if (merge(backgroundOption.visible, backgroundTheme.visible)) {
+                    if (backgroundOption.color)
+                        renderer.rect(canvas.left, canvas.top, canvas.width + 1, canvas.height).attr({
+                            fill: merge(backgroundOption.color, backgroundTheme.color),
+                            "class": "dx-range-selector-background"
+                        }).append(root);
+                    if (backgroundOption.image && backgroundOption.image.url)
+                        renderer.image(canvas.left, canvas.top, canvas.width + 1, canvas.height, backgroundOption.image.url, merge(backgroundOption.image.location, backgroundTheme.image.location)).append(root)
                 }
+                if (seriesDataSource && seriesDataSource.isShowChart())
+                    drawSeriesView(root, seriesDataSource, this._params.translator, [canvas.top, canvas.top + canvas.height], isAnimationEnabled)
             }
         };
         DX.viz.rangeSelector.RangeView = RangeView
-    })(jQuery, DevExpress);
+    })(DevExpress);
     /*! Module viz-rangeselector, file seriesDataSource.js */
     (function($, DX, undefined) {
         var rangeSelector = DX.viz.rangeSelector,
@@ -45333,6 +45251,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             seriesTemplate = themeManager.getOptions('seriesTemplate');
             if (options.dataSource && seriesTemplate)
                 templatedSeries = viz.utils.processSeriesTemplate(seriesTemplate, options.dataSource);
+            that._useAggregation = options.chart.useAggregation;
             that._series = that._calculateSeries(options, templatedSeries);
             that._seriesFamilies = processSeriesFamilies(that._series, themeManager.getOptions('equalBarWidth'), themeManager.getOptions('minBubbleSize'), themeManager.getOptions('maxBubbleSize'), themeManager.getOptions('barWidth'))
         };
@@ -45366,7 +45285,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     that._hideChart = true
                 }
                 allSeriesOptions = $.isArray(allSeriesOptions) ? allSeriesOptions : allSeriesOptions ? [allSeriesOptions] : [];
-                that._backgroundColor = options.backgroundColor;
                 for (i = 0; i < allSeriesOptions.length; i++) {
                     particularSeriesOptions = $.extend(true, {incidentOccured: options.incidentOccured}, allSeriesOptions[i]);
                     particularSeriesOptions.rotated = false;
@@ -45395,13 +45313,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 }
                 return series
             },
-            adjustSeriesDimensions: function(translators, useAggregation) {
-                var that = this;
-                if (useAggregation)
-                    $.each(that._series || [], function(_, s) {
+            adjustSeriesDimensions: function(translators) {
+                if (this._useAggregation)
+                    $.each(this._series, function(_, s) {
                         s.resamplePoints(translators.x)
                     });
-                $.each(that._seriesFamilies, function(_, family) {
+                $.each(this._seriesFamilies, function(_, family) {
                     family.adjustSeriesDimensions({
                         arg: translators.x,
                         val: translators.y
@@ -45461,9 +45378,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             getSeries: function() {
                 var that = this;
                 return that._series
-            },
-            getBackgroundColor: function() {
-                return this._backgroundColor
             },
             isEmpty: function() {
                 var that = this;
@@ -45985,7 +45899,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
         }
     })(DevExpress, jQuery);
     /*! Module viz-vectormap, file eventEmitter.js */
-    (function(DX, undefined) {
+    (function(DX, $, undefined) {
         var eventEmitterMethods = {
                 _initEvents: function() {
                     var names = this._eventNames,
@@ -46024,7 +45938,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 prot[name] = eventEmitterMethods[name]
         };
         DX.viz.map._tests.eventEmitterMethods = eventEmitterMethods
-    })(DevExpress);
+    })(DevExpress, jQuery);
     /*! Module viz-vectormap, file projection.js */
     (function(DX, $, undefined) {
         var _Number = Number,
