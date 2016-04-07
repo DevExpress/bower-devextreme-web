@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.7
-* Build date: Mar 3, 2016
+* Version: 15.2.8
+* Build date: Apr 4, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -1082,7 +1082,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var normalizeTemplateElement = function(element) {
                 var $element = commonUtils.isDefined(element) && (element.nodeType || element.jquery) ? $(element) : $("<div>").html(element).contents();
                 if ($element.length === 1 && $element.is("script"))
-                    $element = normalizeTemplateElement(element.html());
+                    $element = normalizeTemplateElement($element.html());
                 return $element
             };
         var toggleAttr = function($target, attr, value) {
@@ -2877,7 +2877,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var getDateByAsciiString = function(string) {
                 if (typeof string !== "string")
                     return string;
-                var date = Globalize.parseDate(string, "yyyyMMddTHHmmss");
+                var date = Globalize.parseDate(string, "yyyyMMddTHHmmssZ") || Globalize.parseDate(string, "yyyyMMddTHHmmss");
                 if (!date)
                     date = Globalize.parseDate(string, "yyyyMMdd");
                 return date
@@ -2889,7 +2889,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return result
             };
         var getAsciiStringByDate = function(date) {
-                return date.getFullYear() + ('0' + (date.getMonth() + 1)).slice(-2) + ('0' + date.getDate()).slice(-2)
+                return date.getFullYear() + ('0' + (date.getMonth() + 1)).slice(-2) + ('0' + date.getDate()).slice(-2) + 'T' + ('0' + date.getHours()).slice(-2) + ('0' + date.getMinutes()).slice(-2) + ('0' + date.getSeconds()).slice(-2) + 'Z'
             };
         var splitDateRules = function(rule) {
                 var result = [];
@@ -3710,7 +3710,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             "dxScheduler-switcherMonth": "Month",
             "dxScheduler-switcherTimelineDay": "Timeline Day",
             "dxScheduler-switcherTimelineWeek": "Timeline Week",
-            "dxScheduler-switcherTimelineWorkWeek": "Timeline Work week",
+            "dxScheduler-switcherTimelineWorkWeek": "Timeline Work Week",
             "dxScheduler-switcherTimelineMonth": "Timeline Month",
             "dxScheduler-recurrenceRepeatOnDate": "on date",
             "dxScheduler-recurrenceRepeatCount": "occurrence(s)",
@@ -4056,40 +4056,81 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     var normalizeOptionName = function(name) {
                             if (name) {
                                 that._logWarningIfDeprecated(name);
-                                if (optionAliases[name])
-                                    name = optionAliases[name]
+                                var alias = optionAliases[name];
+                                if (alias)
+                                    name = alias
                             }
                             return name
                         };
-                    var getOptionValue = function(name, unwrapObservables) {
+                    var normailzeOptionValue = function(name, value) {
+                            if (name) {
+                                var alias = normalizeOptionName(name);
+                                if (alias && alias !== name) {
+                                    setOptionsField(alias, value);
+                                    clearOptionsField(name)
+                                }
+                            }
+                        };
+                    var getPreviousName = function(fullName) {
+                            var splittedNames = fullName.split('.');
+                            splittedNames.pop();
+                            return splittedNames.join('.')
+                        };
+                    var getFieldName = function(fullName) {
+                            var splittedNames = fullName.split('.');
+                            return splittedNames[splittedNames.length - 1]
+                        };
+                    var setOptionsField = function(name, value) {
+                            var previousFieldName = getPreviousName(name),
+                                fieldName = getFieldName(name),
+                                fieldObject = previousFieldName ? getOptionValue(options, previousFieldName, false) || getOptionValue(that._options, previousFieldName, false) : options;
+                            if (fieldObject)
+                                fieldObject[fieldName] = value
+                        };
+                    var clearOptionsField = function(name) {
+                            delete options[name];
+                            var previousFieldName = getPreviousName(name),
+                                fieldName = getFieldName(name),
+                                fieldObject = previousFieldName ? getOptionValue(options, previousFieldName, false) : options;
+                            if (fieldObject)
+                                delete fieldObject[fieldName]
+                        };
+                    var getOptionValue = function(options, name, unwrapObservables) {
                             if (!cachedGetters[name])
                                 cachedGetters[name] = dataUtils.compileGetter(name);
-                            return cachedGetters[name](that._options, {
+                            return cachedGetters[name](options, {
                                     functionsAsIs: true,
                                     unwrapObservables: unwrapObservables
                                 })
                         };
-                    var setOptionValue = function(name, value) {
+                    var setOptionValue = function(options, name, value) {
                             if (!cachedSetters[name])
                                 cachedSetters[name] = dataUtils.compileSetter(name);
-                            cachedSetters[name](that._options, value, {
+                            cachedSetters[name](options, value, {
                                 functionsAsIs: true,
                                 merge: !that._getOptionsByReference()[name],
                                 unwrapObservables: false
-                            });
+                            })
+                        };
+                    var prepareOption = function(name, value) {
                             if ($.isPlainObject(value))
-                                $.each(value, function(optionName, optionValue) {
-                                    optionName = name + "." + optionName;
-                                    var normalizedOptionName = normalizeOptionName(optionName);
-                                    if (normalizedOptionName !== optionName) {
-                                        setOptionValue(optionName, undefined);
-                                        setOptionValue(normalizedOptionName, optionValue)
-                                    }
-                                })
+                                $.each(value, function(valueName, valueItem) {
+                                    prepareOption(name + "." + valueName, valueItem)
+                                });
+                            normailzeOptionValue(name, value)
+                        };
+                    var setOption = function(name, value) {
+                            var previousValue = getOptionValue(that._options, name, false);
+                            if (that._optionValuesEqual(name, previousValue, value))
+                                return;
+                            if (that._initialized)
+                                that._optionChanging(name, previousValue, value);
+                            setOptionValue(that._options, name, value);
+                            that._notifyOptionChanged(name, value, previousValue)
                         };
                     if (arguments.length < 2 && $.type(name) !== "object") {
                         name = normalizeOptionName(name);
-                        return getOptionValue(name)
+                        return getOptionValue(that._options, name)
                     }
                     if (typeof name === "string") {
                         options = {};
@@ -4097,16 +4138,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     }
                     that.beginUpdate();
                     try {
-                        $.each(options, function(name, value) {
-                            name = normalizeOptionName(name);
-                            var prevValue = getOptionValue(name, false);
-                            if (that._optionValuesEqual(name, prevValue, value))
-                                return;
-                            if (that._initialized)
-                                that._optionChanging(name, prevValue, value);
-                            setOptionValue(name, value);
-                            that._notifyOptionChanged(name, value, prevValue)
-                        })
+                        $.each(options, prepareOption);
+                        $.each(options, setOption)
                     }
                     finally {
                         that.endUpdate()
@@ -4328,7 +4361,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.7"
+        return "15.2.8"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -4365,7 +4398,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 W0003: "{0} - '{1}' property is deprecated in {2}. {3}",
                 W0004: "Timeout for theme loading is over: {0}",
                 W0005: "'{0}' event is deprecated in {1}. {2}",
-                W0006: "Invalid recurrence rule: '{0}'"
+                W0006: "Invalid recurrence rule: '{0}'",
+                W0007: "A 3rd party template should be specified inside a <script> element:\n{0}"
             })
     });
     /*! Module core, file eventsMixin.js */
@@ -5800,40 +5834,63 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             errors = DevExpress.require("/data/data.errors"),
             data = DX.data,
             utils = data.utils;
+        function dfs(i, depth, root, callback) {
+            var j = 0;
+            if (i < depth)
+                for (; j < root.items.length; j++)
+                    dfs(i + 1, depth, root.items[j], callback);
+            if (i === depth)
+                callback(root)
+        }
+        function map(array, callback) {
+            var i,
+                ret;
+            if ("map" in array)
+                return array.map(callback);
+            ret = new Array(array.length);
+            for (i in array)
+                ret[i] = callback(array[i], i);
+            return ret
+        }
+        function isEmpty(x) {
+            return x !== x || x === "" || x === null || x === undefined
+        }
         function isCount(aggregator) {
             return aggregator === utils.aggregators.count
         }
         function normalizeAggregate(aggregate) {
             var selector = utils.compileGetter(aggregate.selector),
+                skipEmptyValues = "skipEmptyValues" in aggregate ? aggregate.skipEmptyValues : true,
                 aggregator = aggregate.aggregator;
             if (typeof aggregator === "string") {
-                aggregator = data.utils.aggregators[aggregator];
+                aggregator = utils.aggregators[aggregator];
                 if (!aggregator)
                     throw errors.Error("E4001", aggregate.aggregator);
             }
             return {
                     selector: selector,
-                    aggregator: aggregator
+                    aggregator: aggregator,
+                    skipEmptyValues: skipEmptyValues
                 }
         }
         data.AggregateCalculator = Class.inherit({
             ctor: function(options) {
                 this._data = options.data;
                 this._groupLevel = options.groupLevel || 0;
-                this._totalAggregates = $.map(options.totalAggregates || [], normalizeAggregate);
-                this._groupAggregates = $.map(options.groupAggregates || [], normalizeAggregate);
+                this._totalAggregates = map(options.totalAggregates || [], normalizeAggregate);
+                this._groupAggregates = map(options.groupAggregates || [], normalizeAggregate);
                 this._totals = []
             },
             calculate: function() {
                 if (this._totalAggregates.length)
                     this._calculateTotals(0, {items: this._data});
                 if (this._groupAggregates.length && this._groupLevel > 0)
-                    this._calculateGroups(0, {items: this._data})
+                    this._calculateGroups({items: this._data})
             },
             totalAggregates: function() {
                 return this._totals
             },
-            _aggregate: function(data, aggregates, container) {
+            _aggregate: function(aggregates, data, container) {
                 var i,
                     j;
                 for (i = 0; i < aggregates.length; i++) {
@@ -5850,43 +5907,52 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 if (level === 0)
                     this._totals = this._seed(this._totalAggregates);
                 if (level === this._groupLevel)
-                    this._aggregate(data, this._totalAggregates, this._totals);
+                    this._aggregate(this._totalAggregates, data, this._totals);
                 else
                     for (i = 0; i < data.items.length; i++)
                         this._calculateTotals(level + 1, data.items[i]);
                 if (level === 0)
                     this._totals = this._finalize(this._totalAggregates, this._totals)
             },
-            _calculateGroups: function(level, data, outerAggregates) {
-                var i,
-                    innerAggregates;
-                if (level === this._groupLevel)
-                    this._aggregate(data, this._groupAggregates, outerAggregates);
-                else
-                    for (i = 0; i < data.items.length; i++) {
-                        innerAggregates = this._seed(this._groupAggregates);
-                        this._calculateGroups(level + 1, data.items[i], innerAggregates);
-                        data.items[i].aggregates = this._finalize(this._groupAggregates, innerAggregates);
-                        if (level > 0) {
-                            outerAggregates = outerAggregates || this._seed(this._groupAggregates);
-                            this._calculateGroups(level + 1, data.items[i], outerAggregates)
-                        }
-                    }
+            _calculateGroups: function(root) {
+                var maxLevel = this._groupLevel,
+                    currentLevel = maxLevel + 1,
+                    seedFn = $.proxy(this._seed, this, this._groupAggregates),
+                    stepFn = $.proxy(this._aggregate, this, this._groupAggregates),
+                    finalizeFn = $.proxy(this._finalize, this, this._groupAggregates);
+                function aggregator(node) {
+                    node.aggregates = seedFn();
+                    if (currentLevel === maxLevel)
+                        stepFn(node, node.aggregates);
+                    else
+                        dfs(currentLevel, maxLevel, node, function(innerNode) {
+                            stepFn(innerNode, node.aggregates)
+                        });
+                    node.aggregates = finalizeFn(node.aggregates)
+                }
+                while (--currentLevel > 0)
+                    dfs(0, currentLevel, root, aggregator)
             },
             _seed: function(aggregates) {
-                return $.map(aggregates, function(aggregate) {
+                return map(aggregates, function(aggregate) {
                         var aggregator = aggregate.aggregator,
                             seed = "seed" in aggregator ? $.isFunction(aggregator.seed) ? aggregator.seed() : aggregator.seed : NaN;
-                        return $.isArray(seed) ? [seed] : seed
+                        return seed
                     })
             },
             _accumulate: function(aggregateIndex, aggregate, results, item) {
                 var value = aggregate.selector(item),
-                    aggregator = aggregate.aggregator;
-                results[aggregateIndex] = results[aggregateIndex] !== results[aggregateIndex] ? value : aggregator.step(results[aggregateIndex], value)
+                    aggregator = aggregate.aggregator,
+                    skipEmptyValues = aggregate.skipEmptyValues;
+                if (skipEmptyValues && isEmpty(value))
+                    return;
+                if (results[aggregateIndex] !== results[aggregateIndex])
+                    results[aggregateIndex] = value;
+                else
+                    results[aggregateIndex] = aggregator.step(results[aggregateIndex], value)
             },
             _finalize: function(aggregates, results) {
-                return $.map(aggregates, function(aggregate, index) {
+                return map(aggregates, function(aggregate, index) {
                         var fin = aggregate.aggregator.finalize;
                         return fin ? fin(results[index]) : results[index]
                     })
@@ -6039,16 +6105,18 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             xValue = toComparable(rule.getter(x)),
                             yValue = toComparable(rule.getter(y)),
                             factor = rule.desc ? -1 : 1;
-                        if (xValue === null || yValue === undefined)
+                        if (xValue === null && yValue !== null)
                             return -factor;
-                        if (yValue === null || xValue === undefined)
+                        if (xValue !== null && yValue === null)
                             return factor;
+                        if (xValue === undefined && yValue !== undefined)
+                            return factor;
+                        if (xValue !== undefined && yValue === undefined)
+                            return -factor;
                         if (xValue < yValue)
                             return -factor;
                         if (xValue > yValue)
-                            return factor;
-                        if (xValue !== yValue)
-                            return !xValue ? -factor : factor
+                            return factor
                     }
                     return xIndex - yIndex
                 }
@@ -6531,9 +6599,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             var chunks = isoString.replace("Z", "").split("T"),
                 date = /(\d{4})-(\d{2})-(\d{2})/.exec(chunks[0]),
                 time = /(\d{2}):(\d{2}):(\d{2})\.?(\d{0,7})?/.exec(chunks[1]);
-            result.setDate(Number(date[3]));
-            result.setMonth(Number(date[2]) - 1);
             result.setFullYear(Number(date[1]));
+            result.setMonth(Number(date[2]) - 1);
+            result.setDate(Number(date[3]));
             if ($.isArray(time) && time.length) {
                 result.setHours(Number(time[1]));
                 result.setMinutes(Number(time[2]));
@@ -8086,8 +8154,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._init();
                     return this.load()
                 },
-                cancel: function(loadOperationId) {
-                    return operationManager.cancel(loadOperationId)
+                cancel: function(operationId) {
+                    return operationManager.cancel(operationId)
                 },
                 _addSearchOptions: function(storeLoadOptions) {
                     if (this._disposed)
@@ -9536,8 +9604,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if ($container)
                         data = this._prepareDataForContainer(data, $container);
                     var $result = this._renderCore(data, index, $container);
-                    renderedCallbacks.fire($result);
                     this._ensureResultInContainer($result, $container);
+                    renderedCallbacks.fire($result, $container);
                     return $result
                 },
                 _ensureResultInContainer: function($result, $container) {
@@ -9919,7 +9987,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (this._handlerCount && !this.noBubble)
                         return;
                     element = this.noBubble ? element : document;
-                    $(element).off(this._originalEvents, this._selector)
+                    if (this._originalEvents !== "." + POINTER_EVENTS_NAMESPACE)
+                        $(element).off(this._originalEvents, this._selector)
                 },
                 dispose: function(element) {
                     element = this.noBubble ? element : document;
@@ -10200,7 +10269,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var EVENT_NAME = "dxmousewheel",
             EVENT_NAMESPACE = "dxWheel";
         $.event.fixHooks["wheel"] = $.event.mouseHooks;
-        var wheelEvent = document.onmousewheel !== undefined ? "mousewheel" : "wheel";
+        var wheelEvent = document.onwheel !== undefined ? "wheel" : "mousewheel";
         var wheel = {
                 setup: function(element, data) {
                     var $element = $(element);
@@ -12539,9 +12608,16 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             };
         var outerHtml = function(element) {
                 element = $(element);
-                if (!element.length || element[0].nodeName.toLowerCase() !== "script")
+                var templateTag = element.length && element[0].nodeName.toLowerCase();
+                if (templateTag === "script")
+                    return element.html();
+                else {
                     element = $("<div>").append(element);
-                return element.html()
+                    var result = element.html();
+                    if (result.length)
+                        errors.log("W0007", result);
+                    return result
+                }
             };
         registerTemplateEngine("default", {
             compile: function(element) {
@@ -12553,10 +12629,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         });
         registerTemplateEngine("jquery-tmpl", {
             compile: function(element) {
-                return $("<div>").append(domUtils.normalizeTemplateElement(element))
+                return outerHtml(element)
             },
             render: function(template, data) {
-                return template.tmpl(data)
+                return $.tmpl(template, data)
             }
         });
         registerTemplateEngine("jsrender", {
@@ -12743,7 +12819,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                         return;
                                     locks.obtain(optionName);
                                     try {
-                                        component.option(optionName, optionValue)
+                                        if (ko.ignoreDependencies)
+                                            ko.ignoreDependencies(component.option, component, [optionName, optionValue]);
+                                        else
+                                            component.option(optionName, optionValue)
                                     }
                                     finally {
                                         locks.release(optionName)
@@ -13220,42 +13299,25 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     /*! Module core, file ko.cleanNode.js */
     DevExpress.define("/integration/knockout/ko.cleanNode", ["jquery"], function($) {
         var ko = window.ko,
-            nodesToCleanByJquery,
-            cleanData = $.cleanData,
-            cleanNode = ko.cleanNode;
+            cleanData = $.cleanData;
         $.cleanData = function(nodes) {
             var result = cleanData(nodes);
-            for (var i = 0; i < nodes.length; i++) {
+            for (var i = 0; i < nodes.length; i++)
+                nodes[i].cleanedByJquery = true;
+            for (i = 0; i < nodes.length; i++) {
                 if (!nodes[i].cleanedByKo)
-                    cleanNode(nodes[i]);
+                    ko.cleanNode(nodes[i]);
                 delete nodes[i].cleanedByKo
             }
-            nodesToCleanByJquery = null;
-            return result
-        };
-        ko.cleanNode = function(node) {
-            var result = cleanNode(node);
-            if (nodesToCleanByJquery)
-                cleanData(nodesToCleanByJquery);
+            for (i = 0; i < nodes.length; i++)
+                delete nodes[i].cleanedByJquery;
             return result
         };
         ko.utils.domNodeDisposal.cleanExternalData = function(node) {
             node.cleanedByKo = true;
-            nodesToCleanByJquery = nodesToCleanByJquery || [];
-            nodesToCleanByJquery.push(node)
-        };
-        return {
-                cleanData: function(value) {
-                    if (value)
-                        cleanData = value;
-                    return cleanData
-                },
-                cleanNode: function(value) {
-                    if (value)
-                        cleanNode = value;
-                    return cleanNode
-                }
-            }
+            if (!node.cleanedByJquery)
+                $.cleanData([node])
+        }
     });
     /*! Module core, file ko.cleanNodeIE8.js */
     DevExpress.define("/integration/knockout/ko.cleanNodeIE8", ["jquery"], function($) {
@@ -13328,6 +13390,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._compile = options.compile;
                     this._itemAlias = options.itemAlias;
                     this._transcludeFn = options.transcludeFn;
+                    this._digestCallbacks = options.dxDigestCallbacks;
                     this._normalizeOptions(options.ngOptions);
                     this._initComponentBindings();
                     this._initComponent(this._scope);
@@ -13397,11 +13460,27 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._component = new this._componentClass(this._$element, this._evalOptions(scope));
                     this._component._isHidden = true
                 },
+                _handleDigestPhase: function() {
+                    var that = this,
+                        beginUpdate = function() {
+                            that._component.beginUpdate()
+                        },
+                        endUpdate = function() {
+                            that._component.endUpdate()
+                        };
+                    that._digestCallbacks.begin.add(beginUpdate);
+                    that._digestCallbacks.end.add(endUpdate);
+                    that._componentDisposing.add(function() {
+                        that._digestCallbacks.begin.remove(beginUpdate);
+                        that._digestCallbacks.end.remove(endUpdate)
+                    })
+                },
                 _initComponentBindings: function() {
                     var that = this,
                         optionDependencies = {};
                     if (!that._ngOptions.bindingOptions)
                         return;
+                    that._handleDigestPhase();
                     $.each(that._ngOptions.bindingOptions, function(optionPath, value) {
                         var separatorIndex = optionPath.search(/\[|\./),
                             optionForSubscribe = separatorIndex > -1 ? optionPath.substring(0, separatorIndex) : optionPath,
@@ -13644,7 +13723,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var registeredComponents = {};
         var registerComponentDirective = function(name) {
                 var priority = name !== "dxValidator" ? 1 : 10;
-                ngModule.directive(name, ["$compile", "$parse", function($compile, $parse) {
+                ngModule.directive(name, ["$compile", "$parse", "dxDigestCallbacks", function($compile, $parse, dxDigestCallbacks) {
                         return {
                                 restrict: "A",
                                 require: "^?ngModel",
@@ -13667,7 +13746,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                                     ngModel: attrs.ngModel,
                                                     ngModelController: ngModelController,
                                                     transcludeFn: transcludeFn,
-                                                    itemAlias: attrs[ITEM_ALIAS_ATTRIBUTE_NAME]
+                                                    itemAlias: attrs[ITEM_ALIAS_ATTRIBUTE_NAME],
+                                                    dxDigestCallbacks: dxDigestCallbacks
                                                 })
                                             }, scope)
                                         }
@@ -13715,6 +13795,25 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             $element.after(markup);
                             $compile(markup)($scope)
                         }
+                    }
+            }]);
+        ngModule.service("dxDigestCallbacks", ["$rootScope", function($rootScope) {
+                var begin = $.Callbacks(),
+                    end = $.Callbacks();
+                var digestPhase = false;
+                $rootScope.$watch(function() {
+                    if (digestPhase)
+                        return;
+                    digestPhase = true;
+                    begin.fire();
+                    $rootScope.$$postDigest(function() {
+                        digestPhase = false;
+                        end.fire()
+                    })
+                });
+                return {
+                        begin: begin,
+                        end: end
                     }
             }])
     });
@@ -14975,7 +15074,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 },
                 _contextMenuHandler: function(e) {
                     e = this._fireContextMenu(e);
-                    if (!e.cancel)
+                    if (!e.cancel && !e._cancel)
                         e.preventDefault()
                 },
                 _fireContextMenu: function(e) {
@@ -15172,7 +15271,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 _initDynamicTemplates: function() {
                     if (this._displayGetterExpr())
                         this._dynamicTemplates["item"] = new FunctionTempalte($.proxy(function(data) {
-                            return this._displayGetter(data)
+                            return $('<div/>').text(this._displayGetter(data)).html()
                         }, this));
                     else
                         delete this._dynamicTemplates["item"]
@@ -15863,7 +15962,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 _init: function() {
                     this._initEditStrategy();
                     this.callBase();
-                    this._selectedItemIndices = []
+                    this._selectedItemIndices = [];
+                    if (this.option("selectionMode") === "multi")
+                        this.option("selectionMode", "multiple")
                 },
                 _initEditStrategy: function() {
                     var strategy = ui.CollectionWidget.PlainEditStrategy;
@@ -16025,8 +16126,15 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (this._cancelOptionChange)
                         return;
                     switch (args.name) {
+                        case"items":
+                            this.callBase(args);
+                            this._clearSelectedItems();
+                            break;
                         case"selectionMode":
-                            this._invalidate();
+                            if (args.value === "multi")
+                                this.option("selectionMode", "multiple");
+                            else
+                                this._invalidate();
                             break;
                         case"selectedIndex":
                         case"selectedItem":
@@ -16565,7 +16673,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._selectedNodesKeys = [];
                     this._expandedNodesKeys = [];
                     this._dataStructure = [];
-                    this._createInternalDataStructure()
+                    this._createInternalDataStructure();
+                    this.getTreeNodes()
                 },
                 _defaultOptions: function() {
                     return {
@@ -16704,6 +16813,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (node.internalFields[field] === state)
                         return;
                     node.internalFields[field] = state;
+                    if (node.internalFields.publicNode)
+                        node.internalFields.publicNode[field] = state;
                     this.options.dataAccessors.setters[field](node.internalFields.item, state)
                 },
                 _markChildren: function(keys) {
@@ -16721,7 +16832,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._markChildren(node.internalFields.childrenKeys);
                     var that = this,
                         counter = 0,
-                        items = $.extend(true, [], this._dataStructure);
+                        items = $.extend([], this._dataStructure);
                     $.each(items, function(index, item) {
                         if (!item) {
                             that._dataStructure.splice(index - counter, 1);
@@ -16773,7 +16884,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return this.options.dataConverter.getVisibleItemsCount()
                 },
                 getPublicNode: function(node) {
-                    this.options.dataConverter.convertToPublicNodes(this.getRootNodes());
                     return node.internalFields.publicNode
                 },
                 getRootNodes: function() {
@@ -17328,7 +17438,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 E2203: "The \"{0}\" field of the \"selectedRange\" configuration object is not valid",
                 W2002: "The {0} data field is absent",
                 W2003: "Tick interval is too small",
-                W2101: "\"{0}\" pane does not exist; \"{1}\" pane is used instead",
+                W2101: "The \"{0}\" pane does not exist; the last pane is used by default",
                 W2102: "Value axis with the \"{0}\" name was created automatically",
                 W2103: "Chart title was hidden due to container size",
                 W2104: "Legend was hidden due to container size",
@@ -23284,8 +23394,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that._axisStripGroup && that._axisStripGroup.clear();
                 that._axisGridGroup && that._axisGridGroup.clear();
                 that._axisConstantLineGroup && that._axisConstantLineGroup.clear();
-                that._axisLabelGroup && that._axisLabelGroup.clear();
-                that._labelAxesGroup && that._labelAxesGroup.clear()
+                that._axisLabelGroup && that._axisLabelGroup.clear()
             },
             _initTickCoord: function(tick, offset) {
                 var coord = this._getTranslatedValue(tick.value, this._axisPosition, offset);
@@ -24428,6 +24537,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         lines = prepareLines(element, this._texts);
                         for (i = 0, ii = lines.length; i < ii; ++i)
                             maxLength = mathMax(maxLength, lines[i].commonLength);
+                        if (maxLength === 1)
+                            return false;
                         requiredLength = mathFloor(maxLength * maxWidth / width);
                         for (i = 0; i < ii; ++i) {
                             lineParts = lines[i].parts;
@@ -26547,6 +26658,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         }
         function adjustStackedSeriesValues() {
             var that = this,
+                negativesAsZeroes = that._options.negativesAsZeroes,
                 series = getVisibleSeries(that),
                 stackKeepers = {
                     positive: {},
@@ -26567,6 +26679,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         stackName = singleSeries.getStackName(),
                         stacks = value >= 0 ? stackKeepers.positive : stackKeepers.negative,
                         currentStack;
+                    if (negativesAsZeroes && value < 0) {
+                        stacks = stackKeepers.positive;
+                        value = 0;
+                        point.resetValue()
+                    }
                     stacks[stackName] = stacks[stackName] || {};
                     currentStack = stacks[stackName];
                     if (currentStack[argument]) {
@@ -29997,10 +30114,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             }});
         function getPointsByArgFromPrevSeries(prevSeries, argument) {
             var result;
-            while (prevSeries) {
-                result = prevSeries._segmentByArg[argument];
-                if (result)
-                    break;
+            while (!result && prevSeries) {
+                result = prevSeries._segmentByArg && prevSeries._segmentByArg[argument];
                 prevSeries = prevSeries._prevSeries
             }
             return result
@@ -30308,6 +30423,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             isVisible: _noop,
             resetCorrection: _noop,
             correctValue: _noop,
+            resetValue: _noop,
             setPercentValue: _noop,
             correctCoordinates: _noop,
             coordsIn: _noop,
@@ -30771,6 +30887,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             resetCorrection: function() {
                 this.value = this.initialValue;
                 this.minValue = CANVAS_POSITION_DEFAULT
+            },
+            resetValue: function() {
+                var that = this;
+                if (that.hasValue()) {
+                    that.value = that.initialValue = 0;
+                    that.minValue = 0;
+                    that.translate();
+                    that._label.setDataField("value", that.value)
+                }
             },
             _getTranslates: function(animationEnabled) {
                 var translateX = this.x,
@@ -35254,6 +35379,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that.callBase.apply(that, arguments);
                 return that
             },
+            _clean: $.noop,
+            _render: $.noop,
             _optionChanged: function(args) {
                 ++this._changedOptions._num;
                 this._changedOptions[args.name] = args.value;
@@ -35661,7 +35788,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _isDefined = commonUtils.isDefined,
             _setCanvasValues = DX.viz.utils.setCanvasValues,
             DEFAULT_OPACITY = 0.3,
-            REINIT_REFRESH_ACTION_OPTIONS = ["adaptiveLayout", "crosshair", "equalBarWidth", "minBubbleSize", "maxBubbleSize", "resolveLabelOverlapping", "seriesSelectionMode", "pointSelectionMode", "adjustOnZoom", "synchronizeMultiAxes", "zoomingMode", "scrollingMode", "useAggregation"];
+            REINIT_REFRESH_ACTION_OPTIONS = ["adaptiveLayout", "crosshair", "equalBarWidth", "minBubbleSize", "maxBubbleSize", "barWidth", "negativesAsZeroes", "negativesAsZeros", "resolveLabelOverlapping", "seriesSelectionMode", "pointSelectionMode", "adjustOnZoom", "synchronizeMultiAxes", "zoomingMode", "scrollingMode", "useAggregation"];
         function checkHeightLabelsInCanvas(points, canvas, isRotated) {
             var commonLabelSize = 0,
                 canvasSize = canvas.end - canvas.start,
@@ -35905,12 +36032,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 _setCanvasValues(that._canvas);
                 that._reinitAxes();
                 if (!_skipRender)
-                    that._initialized = false;
+                    that._skipRender = true;
                 that._updateDataSource();
                 if (!that.series)
                     that._dataSpecificInit(false);
                 if (!_skipRender)
-                    that._initialized = true;
+                    that._skipRender = false;
                 that._correctAxes();
                 _skipRender || that._forceRender()
             },
@@ -36054,7 +36181,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 var that = this,
                     drawOptions,
                     recreateCanvas;
-                if (!that._initialized)
+                if (!that._initialized || that._skipRender)
                     return;
                 if (that._canvas.width === 0 && that._canvas.height === 0)
                     return;
@@ -36757,11 +36884,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     families = [],
                     paneSeries,
                     themeManager = that._themeManager,
+                    negativesAsZeroes = themeManager.getOptions("negativesAsZeroes"),
+                    negativesAsZeros = themeManager.getOptions("negativesAsZeros"),
                     familyOptions = {
                         equalBarWidth: themeManager.getOptions("equalBarWidth"),
                         minBubbleSize: themeManager.getOptions("minBubbleSize"),
                         maxBubbleSize: themeManager.getOptions("maxBubbleSize"),
-                        barWidth: themeManager.getOptions("barWidth")
+                        barWidth: themeManager.getOptions("barWidth"),
+                        negativesAsZeroes: _isDefined(negativesAsZeroes) ? negativesAsZeroes : negativesAsZeros
                     };
                 if (that.seriesFamilies && that.seriesFamilies.length) {
                     _each(that.seriesFamilies, function(_, family) {
@@ -36784,6 +36914,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                                 minBubbleSize: familyOptions.minBubbleSize,
                                 maxBubbleSize: familyOptions.maxBubbleSize,
                                 barWidth: familyOptions.barWidth,
+                                negativesAsZeroes: familyOptions.negativesAsZeroes,
                                 rotated: that._isRotated()
                             });
                         family.add(paneSeries);
@@ -37124,6 +37255,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
         function compareAxes(a, b) {
             return a.priority - b.priority
         }
+        function doesPaneExist(panes, paneName) {
+            var found = false;
+            _each(panes, function(_, pane) {
+                if (pane.name === paneName) {
+                    found = true;
+                    return false
+                }
+            });
+            return found
+        }
         charts._test_prepareSegmentRectPoints = function() {
             var original = prepareSegmentRectPoints.original || prepareSegmentRectPoints;
             if (arguments[0])
@@ -37136,9 +37277,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
         };
         registerComponent("dxChart", viz.charts, charts.AdvancedChart.inherit({
             _chartType: "chart",
-            _getDefaultOptions: function() {
-                return $.extend(this.callBase(), {defaultPane: DEFAULT_PANE_NAME})
-            },
             _initCore: function() {
                 this.paneAxis = {};
                 this._panesClipRects = {};
@@ -37212,34 +37350,30 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 var that = this,
                     panes = that.option("panes"),
                     panesNameCounter = 0,
-                    bottomPaneName;
-                if (panes && _isArray(panes) && !panes.length || $.isEmptyObject(panes))
+                    defaultPane;
+                if (!panes || _isArray(panes) && !panes.length)
                     panes = DEFAULT_PANES;
                 that._cleanPanesClipRects("fixed");
                 that._cleanPanesClipRects("base");
                 that._cleanPanesClipRects("wide");
-                that.defaultPane = that.option("defaultPane");
-                panes = _extend(true, [], _isArray(panes) ? panes : panes ? [panes] : []);
+                defaultPane = that.option("defaultPane");
+                panes = _extend(true, [], _isArray(panes) ? panes : [panes]);
                 _each(panes, function(_, pane) {
                     pane.name = !_isDefined(pane.name) ? DEFAULT_PANE_NAME + panesNameCounter++ : pane.name
                 });
-                if (!that._doesPaneExists(panes, that.defaultPane) && panes.length > 0) {
-                    bottomPaneName = panes[panes.length - 1].name;
-                    that._incidentOccured("W2101", [that.defaultPane, bottomPaneName]);
-                    that.defaultPane = bottomPaneName
+                if (_isDefined(defaultPane)) {
+                    if (!doesPaneExist(panes, defaultPane)) {
+                        that._incidentOccured("W2101", [defaultPane]);
+                        defaultPane = panes[panes.length - 1].name
+                    }
                 }
+                else if (doesPaneExist(panes, DEFAULT_PANE_NAME))
+                    defaultPane = DEFAULT_PANE_NAME;
+                else
+                    defaultPane = panes[panes.length - 1].name;
+                that.defaultPane = defaultPane;
                 panes = that._isRotated() ? panes.reverse() : panes;
                 return panes
-            },
-            _doesPaneExists: function(panes, paneName) {
-                var found = false;
-                _each(panes, function(_, pane) {
-                    if (pane.name === paneName) {
-                        found = true;
-                        return false
-                    }
-                });
-                return found
             },
             _getAxisRenderingOptions: function() {
                 return {
@@ -37400,7 +37534,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         width: 0,
                         height: 0
                     });
-                    layoutManager.layoutElements([that._legend], newCanvas, $.noop, [{canvas: newCanvas}])
+                    layoutManager.layoutElements([that._legend], newCanvas, $.noop, [{canvas: newCanvas}], undefined, {
+                        horizontalAxes: [],
+                        verticalAxes: []
+                    })
                 }
             },
             _prepareTranslators: function(series, _, rotated) {
@@ -38238,7 +38375,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             mathUtils = DX.require("/utils/utils.math"),
             viz = DX.viz,
             _noop = $.noop,
-            DEFAULT_PANE_NAME = 'default';
+            DEFAULT_PANE_NAME = 'default',
+            REINIT_REFRESH_ACTION = "_reinit";
         var PolarChart = charts.AdvancedChart.inherit({
                 _chartType: 'polar',
                 _createPanes: function() {
@@ -38265,6 +38403,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                             isHorizontal: true,
                             showCustomBoundaryTicks: isArgumentAxis
                         }
+                },
+                _handleChangedOptions: function(options) {
+                    this.callBase.apply(this, arguments);
+                    if ("useSpiderWeb" in options)
+                        this._processRefreshData(REINIT_REFRESH_ACTION)
                 },
                 _getExtraOptions: function() {
                     return {spiderWidget: this.option("useSpiderWeb")}
@@ -41553,10 +41696,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_GAUGES) {
                     tickCorrection;
                 if (scaleOptions.isHorizontal) {
                     orientation = isIndentPositive ? {
+                        center: 0.5,
                         middle: 0.5,
                         top: 0,
                         bottom: 1
                     } : {
+                        center: 0.5,
                         middle: 0.5,
                         top: 1,
                         bottom: 0
@@ -41741,7 +41886,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_GAUGES) {
             OPTION_VALUES = "values";
         registerComponent("dxBarGauge", DX.viz.gauges, DX.viz.gauges.dxBaseGauge.inherit({
             _rootClass: "dxbg-bar-gauge",
-            _invalidatingOptions: DX.viz.gauges.dxBaseGauge.prototype._invalidatingOptions.concat(["backgroundColor", "relativeInnerRadius", "barSpacing", "label"]),
+            _invalidatingOptions: DX.viz.gauges.dxBaseGauge.prototype._invalidatingOptions.concat(["backgroundColor", "relativeInnerRadius", "barSpacing", "label", "palette"]),
             _initCore: function() {
                 var that = this;
                 that.callBase.apply(that, arguments);
@@ -43709,6 +43854,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_GAUGES) {
                             case'top':
                                 that._inner = 1;
                                 break;
+                            case'center':
                             case'middle':
                                 that._inner = that._outer = 0.5;
                                 break;
@@ -44509,7 +44655,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             },
             _rootClassPrefix: "dxrs",
             _rootClass: "dxrs-range-selector",
-            _invalidatingOptions: ["scale", "selectedRangeColor", "containerBackgroundColor", "sliderMarker", "sliderHandle", "shutter", OPTION_BACKGROUND, "behavior", "chart", "indent"],
+            _invalidatingOptions: ["scale", "selectedRangeColor", "containerBackgroundColor", "sliderMarker", "sliderHandle", "shutter", "title", OPTION_BACKGROUND, "behavior", "chart", "indent"],
             _dataIsReady: function() {
                 return this._dataSource.isLoaded()
             },
@@ -45798,7 +45944,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                             }
                     })
             };
-        var processSeriesFamilies = function(series, equalBarWidth, minBubbleSize, maxBubbleSize, barWidth) {
+        var processSeriesFamilies = function(series, equalBarWidth, minBubbleSize, maxBubbleSize, barWidth, negativesAsZeroes) {
                 var families = [],
                     types = [];
                 $.each(series, function(i, item) {
@@ -45811,7 +45957,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                             equalBarWidth: equalBarWidth,
                             minBubbleSize: minBubbleSize,
                             maxBubbleSize: maxBubbleSize,
-                            barWidth: barWidth
+                            barWidth: barWidth,
+                            negativesAsZeroes: negativesAsZeroes
                         });
                     family.add(series);
                     family.adjustSeriesValues();
@@ -45846,7 +45993,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 seriesTemplate,
                 themeManager = that._themeManager = createThemeManager(options.chart),
                 topIndent,
-                bottomIndent;
+                bottomIndent,
+                negativesAsZeroes,
+                negativesAsZeros;
             themeManager._fontFields = ["commonSeriesSettings.label.font"];
             themeManager.setTheme(options.chart.theme);
             topIndent = themeManager.getOptions('topIndent');
@@ -45862,7 +46011,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 templatedSeries = viz.utils.processSeriesTemplate(seriesTemplate, options.dataSource);
             that._useAggregation = options.chart.useAggregation;
             that._series = that._calculateSeries(options, templatedSeries);
-            that._seriesFamilies = processSeriesFamilies(that._series, themeManager.getOptions('equalBarWidth'), themeManager.getOptions('minBubbleSize'), themeManager.getOptions('maxBubbleSize'), themeManager.getOptions('barWidth'))
+            negativesAsZeroes = themeManager.getOptions("negativesAsZeroes");
+            negativesAsZeros = themeManager.getOptions("negativesAsZeros");
+            that._seriesFamilies = processSeriesFamilies(that._series, themeManager.getOptions('equalBarWidth'), themeManager.getOptions('minBubbleSize'), themeManager.getOptions('maxBubbleSize'), themeManager.getOptions('barWidth'), commonUtils.isDefined(negativesAsZeroes) ? negativesAsZeroes : negativesAsZeros)
         };
         _SeriesDatasource.prototype = {
             constructor: _SeriesDatasource,
@@ -49068,9 +49219,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
         function transformList(projection, coordinates) {
             var output = [],
                 i,
-                ii = output.length = coordinates.length;
-            for (i = 0; i < ii; ++i)
-                output[i] = projection.transform(coordinates[i]);
+                ii = coordinates.length,
+                item,
+                k = 0;
+            output.length = 2 * ii;
+            for (i = 0; i < ii; ++i) {
+                item = projection.transform(coordinates[i]);
+                output[k++] = item[0];
+                output[k++] = item[1]
+            }
             return output
         }
         function transformPointList(content, projection, coordinates) {
@@ -49767,7 +49924,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 "class": "dxm-layers",
                 clipId: that._clip.id
             }).append(renderer.root).enableLinks();
-            that._subscribeToTracker(params.tracker, renderer, params.tooltip, params.eventTrigger)
+            that._subscribeToTracker(params.tracker, renderer, params.eventTrigger)
         }
         MapLayerCollection.prototype = {
             constructor: MapLayerCollection,
@@ -49777,7 +49934,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 that._offTracker();
                 that._params = that._offTracker = that._layers = that._layerByName = that._clip = that._background = that._container = null
             },
-            _subscribeToTracker: function(tracker, renderer, tooltip, eventTrigger) {
+            _subscribeToTracker: function(tracker, renderer, eventTrigger) {
                 var that = this;
                 that._offTracker = tracker.on({
                     click: function(arg) {
