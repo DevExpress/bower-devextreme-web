@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.9
-* Build date: Apr 7, 2016
+* Version: 15.2.10
+* Build date: May 27, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -1908,9 +1908,13 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var isObservable = function(value) {
                 return support.hasKo && ko.isObservable(value)
             };
+        var isWritableObservable = function(value) {
+                return support.hasKo && ko.isWritableObservable(value)
+            };
         return {
                 unwrapObservable: unwrapObservable,
-                isObservable: isObservable
+                isObservable: isObservable,
+                isWritableObservable: isWritableObservable
             }
     });
     /*! Module core, file utils.locker.js */
@@ -3806,8 +3810,13 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return this._optionAliases
                 },
                 _getOptionAliasesByName: function(optionName) {
-                    return $.map(this._getOptionAliases(), function(aliasedOption, aliasName) {
-                            return optionName === aliasedOption ? aliasName : undefined
+                    return $.map(this._getOptionAliases(), function(aliasName, deprecatedName) {
+                            return optionName === deprecatedName ? aliasName : undefined
+                        })
+                },
+                _getOptionDeprecatesByName: function(optionName) {
+                    return $.map(this._getOptionAliases(), function(aliasName, deprecatedName) {
+                            return optionName === aliasName ? deprecatedName : undefined
                         })
                 },
                 _getDefaultOptions: function() {
@@ -3975,8 +3984,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 _optionChanging: $.noop,
                 _notifyOptionChanged: function(option, value, previousValue) {
                     var that = this;
-                    if (this._initialized)
-                        $.each(that._getOptionAliasesByName(option).concat([option]), function(index, name) {
+                    if (this._initialized) {
+                        var options = that._getOptionAliasesByName(option).concat(that._getOptionDeprecatesByName(option)).concat([option]);
+                        $.each(options, function(index, name) {
                             var args = {
                                     name: name.split(/[.\[]/)[0],
                                     fullName: name,
@@ -3988,6 +3998,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             if (!that._disposed)
                                 that._optionChanged(args)
                         })
+                    }
                 },
                 initialOption: function(optionName) {
                     var options = this._initialOptions;
@@ -4065,10 +4076,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     var normailzeOptionValue = function(name, value) {
                             if (name) {
                                 var alias = normalizeOptionName(name);
-                                if (alias && alias !== name) {
-                                    setOptionsField(alias, value);
-                                    clearOptionsField(name)
-                                }
+                                if (alias && alias !== name)
+                                    setOptionsField(alias, value)
                             }
                         };
                     var getPreviousName = function(fullName) {
@@ -4078,22 +4087,19 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         };
                     var getFieldName = function(fullName) {
                             var splittedNames = fullName.split('.');
-                            return splittedNames[splittedNames.length - 1]
+                            return splittedNames.pop()
                         };
-                    var setOptionsField = function(name, value) {
-                            var previousFieldName = getPreviousName(name),
-                                fieldName = getFieldName(name),
-                                fieldObject = previousFieldName ? getOptionValue(options, previousFieldName, false) || getOptionValue(that._options, previousFieldName, false) : options;
-                            if (fieldObject)
-                                fieldObject[fieldName] = value
-                        };
-                    var clearOptionsField = function(name) {
-                            delete options[name];
-                            var previousFieldName = getPreviousName(name),
-                                fieldName = getFieldName(name),
-                                fieldObject = previousFieldName ? getOptionValue(options, previousFieldName, false) : options;
-                            if (fieldObject)
-                                delete fieldObject[fieldName]
+                    var setOptionsField = function(fullName, value) {
+                            var fieldName = "",
+                                fieldObject;
+                            do {
+                                if (fieldName)
+                                    fieldName = "." + fieldName;
+                                fieldName = getFieldName(fullName) + fieldName;
+                                fullName = getPreviousName(fullName);
+                                fieldObject = fullName ? getOptionValue(options, fullName, false) : options
+                            } while (!fieldObject);
+                            fieldObject[fieldName] = value
                         };
                     var getOptionValue = function(options, name, unwrapObservables) {
                             if (!cachedGetters[name])
@@ -4361,7 +4367,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.9"
+        return "15.2.10"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -4398,8 +4404,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 W0003: "{0} - '{1}' property is deprecated in {2}. {3}",
                 W0004: "Timeout for theme loading is over: {0}",
                 W0005: "'{0}' event is deprecated in {1}. {2}",
-                W0006: "Invalid recurrence rule: '{0}'",
-                W0007: "A 3rd party template should be specified inside a <script> element:\n{0}"
+                W0006: "Invalid recurrence rule: '{0}'"
             })
     });
     /*! Module core, file eventsMixin.js */
@@ -5650,8 +5655,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var toComparable = function(value, caseSensitive) {
                 if (value instanceof Date)
                     return value.getTime();
-                if (value instanceof Guid)
-                    return value.valueOf();
+                if (value instanceof Class && value.valueOf) {
+                    var result = value.valueOf();
+                    if (result !== undefined)
+                        return result
+                }
                 if (!caseSensitive && typeof value === "string")
                     return value.toLowerCase();
                 return value
@@ -6595,8 +6603,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             return ret.join("")
         }
         function parseISO8601(isoString) {
-            var result = new Date(0);
-            var chunks = isoString.replace("Z", "").split("T"),
+            var result = new Date(new Date(0).getTimezoneOffset() * 60 * 1000),
+                chunks = isoString.replace("Z", "").split("T"),
                 date = /(\d{4})-(\d{2})-(\d{2})/.exec(chunks[0]),
                 time = /(\d{2}):(\d{2}):(\d{2})\.?(\d{0,7})?/.exec(chunks[1]);
             result.setFullYear(Number(date[1]));
@@ -6983,10 +6991,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var createODataQueryAdapter = function(queryOptions) {
                 var _sorting = [],
                     _criteria = [],
+                    _expand = queryOptions.expand,
                     _select,
                     _skip,
                     _take,
-                    _countQuery;
+                    _countQuery,
+                    _oDataVersion = queryOptions.version || DEFAULT_PROTOCOL_VERSION;
                 var hasSlice = function() {
                         return _skip || _take !== undefined
                     };
@@ -6999,23 +7009,108 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         }
                         return false
                     };
-                var generateExpand = function() {
-                        var hash = {};
-                        if (queryOptions.expand)
-                            $.each($.makeArray(queryOptions.expand), function() {
-                                hash[serializePropName(this)] = 1
-                            });
-                        if (_select)
-                            $.each(_select, function() {
-                                var path = this.split(".");
-                                if (path.length < 2)
+                var generateSelectExpand = function() {
+                        var hasDot = function(x) {
+                                return /\./.test(x)
+                            };
+                        var generateSelect = function() {
+                                if (!_select)
                                     return;
-                                path.pop();
-                                hash[serializePropName(path.join("."))] = 1
-                            });
-                        return $.map(hash, function(k, v) {
-                                return v
-                            }).join() || undefined
+                                if (_oDataVersion < 4)
+                                    return serializePropName(_select.join());
+                                return $.grep(_select, hasDot, true).join()
+                            };
+                        var generateExpand = function() {
+                                var generatorV2 = function() {
+                                        var hash = {};
+                                        if (_expand)
+                                            $.each($.makeArray(_expand), function() {
+                                                hash[serializePropName(this)] = 1
+                                            });
+                                        if (_select)
+                                            $.each($.makeArray(_select), function() {
+                                                var path = this.split(".");
+                                                if (path.length < 2)
+                                                    return;
+                                                path.pop();
+                                                hash[serializePropName(path.join("."))] = 1
+                                            });
+                                        return $.map(hash, function(k, v) {
+                                                return v
+                                            }).join()
+                                    };
+                                var generatorV4 = function() {
+                                        var format = function(hash) {
+                                                var formatCore = function(hash) {
+                                                        var ret = "",
+                                                            select = [],
+                                                            expand = [];
+                                                        $.each(hash, function(key, value) {
+                                                            if ($.isArray(value))
+                                                                [].push.apply(select, value);
+                                                            if ($.isPlainObject(value))
+                                                                expand.push(key + formatCore(value))
+                                                        });
+                                                        if (select.length || expand.length) {
+                                                            ret += "(";
+                                                            if (select.length)
+                                                                ret += "$select=" + $.map(select, serializePropName).join();
+                                                            if (expand.length) {
+                                                                if (select.length)
+                                                                    ret += ";";
+                                                                ret += "$expand=" + $.map(expand, serializePropName).join()
+                                                            }
+                                                            ret += ")"
+                                                        }
+                                                        return ret
+                                                    };
+                                                var ret = [];
+                                                $.each(hash, function(key, value) {
+                                                    ret.push(key + formatCore(value))
+                                                });
+                                                return ret.join()
+                                            };
+                                        var parseTree = function(exprs, root, stepper) {
+                                                var parseCore = function(exprParts, root, stepper) {
+                                                        var result = stepper(root, exprParts.shift(), exprParts);
+                                                        if (result === false)
+                                                            return;
+                                                        parseCore(exprParts, result, stepper)
+                                                    };
+                                                $.each(exprs, function(_, x) {
+                                                    parseCore(x.split("."), root, stepper)
+                                                })
+                                            };
+                                        var hash = {};
+                                        if (_expand || _select) {
+                                            if (_expand)
+                                                parseTree($.makeArray(_expand), hash, function(node, key, path) {
+                                                    node[key] = node[key] || {};
+                                                    if (!path.length)
+                                                        return false;
+                                                    return node[key]
+                                                });
+                                            if (_select)
+                                                parseTree($.grep($.makeArray(_select), hasDot), hash, function(node, key, path) {
+                                                    if (!path.length) {
+                                                        node[key] = node[key] || [];
+                                                        node[key].push(key);
+                                                        return false
+                                                    }
+                                                    return node[key] = node[key] || {}
+                                                });
+                                            return format(hash)
+                                        }
+                                    };
+                                if (_oDataVersion < 4)
+                                    return generatorV2();
+                                return generatorV4()
+                            };
+                        var turple = {
+                                $select: generateSelect() || undefined,
+                                $expand: generateExpand() || undefined
+                            };
+                        return turple
                     };
                 var requestData = function() {
                         var result = {};
@@ -7026,25 +7121,24 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 result["$skip"] = _skip;
                             if (_take !== undefined)
                                 result["$top"] = _take;
-                            if (_select)
-                                result["$select"] = serializePropName(_select.join());
-                            result["$expand"] = generateExpand()
+                            var turple = generateSelectExpand();
+                            result["$select"] = turple["$select"];
+                            result["$expand"] = turple["$expand"]
                         }
                         if (_criteria.length)
-                            result["$filter"] = compileCriteria(_criteria.length < 2 ? _criteria[0] : _criteria, queryOptions.version);
+                            result["$filter"] = compileCriteria(_criteria.length < 2 ? _criteria[0] : _criteria, _oDataVersion);
                         if (_countQuery)
                             result["$top"] = 0;
                         if (queryOptions.requireTotalCount || _countQuery)
-                            if (queryOptions.version !== 4)
+                            if (_oDataVersion !== 4)
                                 result["$inlinecount"] = "allpages";
                             else
                                 result["$count"] = "true";
                         return result
                     };
-                queryOptions.version = queryOptions.version || DEFAULT_PROTOCOL_VERSION;
                 return {
                         exec: function(url) {
-                            return sendRequest(queryOptions.version, {
+                            return sendRequest(_oDataVersion, {
                                     url: url,
                                     params: $.extend(requestData(), queryOptions && queryOptions.params)
                                 }, {
@@ -7052,7 +7146,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                     jsonp: queryOptions.jsonp,
                                     withCredentials: queryOptions.withCredentials,
                                     countOnly: _countQuery
-                                })
+                                }, queryOptions.deserializeDates)
                         },
                         multiSort: function(args) {
                             var rules;
@@ -7373,7 +7467,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return -1
             },
             clear: function() {
-                this._array = []
+                this.fireEvent("modifying");
+                this._array = [];
+                this.fireEvent("modified")
             }
         })
     })(jQuery, DevExpress);
@@ -7698,7 +7794,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             ctor: function(options) {
                 options = options || {};
                 this.callBase(options);
-                this._useDefaultSearch = false;
+                this._useDefaultSearch = !!options.useDefaultSearch;
                 this._loadFunc = options[LOAD];
                 this._totalCountFunc = options[TOTAL_COUNT];
                 this._byKeyFunc = options[BY_KEY];
@@ -7848,7 +7944,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             var store;
             function createCustomStoreFromLoadFunc() {
                 var storeConfig = {};
-                $.each(["key", "load", "byKey", "lookup", "totalCount", "insert", "update", "remove"], function() {
+                $.each(["useDefaultSearch", "key", "load", "byKey", "lookup", "totalCount", "insert", "update", "remove"], function() {
                     storeConfig[this] = options[this];
                     delete options[this]
                 });
@@ -8920,7 +9016,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 that._hoverStartHandler(args.event);
                                 var $target = args.element;
                                 that._refreshHoveredElement($target)
-                            });
+                            }, {excludeValidators: ["readOnly"]});
                         that._eventBindingTarget().on(nameStart, hoverableSelector, function(e) {
                             startAction.execute({
                                 element: $(e.target),
@@ -9143,7 +9239,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             INVALID_CLASS = "dx-invalid",
             INVALID_MESSAGE = "dx-invalid-message",
             INVALID_MESSAGE_AUTO = "dx-invalid-message-auto",
-            INVALID_MESSAGE_ALWAYS = "dx-invalid-message-always";
+            INVALID_MESSAGE_ALWAYS = "dx-invalid-message-always",
+            VALIDATION_MESSAGE_MIN_WIDTH = 100;
         var Editor = Widget.inherit({
                 _init: function() {
                     this.callBase();
@@ -9243,11 +9340,18 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             closeOnOutsideClick: false,
                             closeOnTargetScroll: false,
                             animation: null,
-                            visible: true
+                            visible: true,
+                            propagateOutsideClick: true
                         });
                         this._$validationMessage.toggleClass(INVALID_MESSAGE_AUTO, validationMessageMode === "auto").toggleClass(INVALID_MESSAGE_ALWAYS, validationMessageMode === "always");
-                        this._$validationMessage.dxOverlay("option", "width", $element.outerWidth())
+                        this._setValidationMessageMaxWidth()
                     }
+                },
+                _setValidationMessageMaxWidth: function() {
+                    if (!this._$validationMessage)
+                        return;
+                    var validationMessageMaxWidth = Math.max(VALIDATION_MESSAGE_MIN_WIDTH, this._getValidationMessageTarget().outerWidth());
+                    this._$validationMessage.dxOverlay("option", "maxWidth", validationMessageMaxWidth)
                 },
                 _getValidationMessageTarget: function() {
                     return this.element()
@@ -9305,7 +9409,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             break;
                         case"width":
                             this.callBase(args);
-                            this._$validationMessage && this._$validationMessage.dxOverlay("option", "width", this.element().outerWidth());
+                            this._setValidationMessageMaxWidth();
                             break;
                         default:
                             this.callBase(args)
@@ -12554,11 +12658,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         TEMPLATE_GENERATORS.dxToolbar = {
             item: function(itemData) {
                 var $itemContent = TEMPLATE_GENERATORS.CollectionWidget.item(itemData);
-                var widget = itemData.widget;
-                if (widget) {
+                var widgetName = itemData.widget;
+                if (widgetName) {
                     var widgetElement = $("<div>").appendTo($itemContent),
-                        widgetName = camelize("dx-" + widget),
                         options = itemData.options || {};
+                    if (widgetName === "button" || widgetName === "tabs" || widgetName === "dropDownMenu")
+                        widgetName = camelize("dx-" + widgetName);
                     widgetElement[widgetName](options)
                 }
                 else if (itemData.text)
@@ -12613,10 +12718,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return element.html();
                 else {
                     element = $("<div>").append(element);
-                    var result = element.html();
-                    if (result.length)
-                        errors.log("W0007", result);
-                    return result
+                    return element.html()
                 }
             };
         registerTemplateEngine("default", {
@@ -12926,7 +13028,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 if (!widgetName)
                     return;
                 ko.virtualElements.emptyNode(element);
-                var markup = $("<div data-bind=\"" + inflector.camelize("dx-" + widgetName) + ": options\">").get(0);
+                if (widgetName === "button" || widgetName === "tabs" || widgetName === "dropDownMenu")
+                    widgetName = inflector.camelize("dx-" + widgetName);
+                var markup = $("<div data-bind=\"" + widgetName + ": options\">").get(0);
                 ko.virtualElements.prepend(element, markup);
                 var innerBindingContext = bindingContext.extend(valueAccessor);
                 ko.applyBindingsToDescendants(innerBindingContext, element);
@@ -13494,11 +13598,14 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         if (!optionDependencies[optionForSubscribe])
                             optionDependencies[optionForSubscribe] = {};
                         optionDependencies[optionForSubscribe][optionPath] = valuePath;
-                        var watchCallback = function(newValue) {
+                        var watchCallback = function(newValue, oldValue) {
                                 if (that._ngLocker.locked(optionPath))
                                     return;
+                                that._ngLocker.obtain(optionPath);
                                 that._component.option(optionPath, newValue);
-                                updateWatcher()
+                                updateWatcher();
+                                if (newValue === oldValue && that._ngLocker.locked(optionPath))
+                                    that._ngLocker.release(optionPath)
                             };
                         var updateWatcher = function() {
                                 var watchMethod = $.isArray(that._scope.$eval(valuePath)) && !forcePlainWatchMethod ? "$watchCollection" : "$watch";
@@ -13516,6 +13623,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         var optionName = args.name,
                             fullName = args.fullName,
                             component = args.component;
+                        if (that._ngLocker.locked(optionName)) {
+                            that._ngLocker.release(optionName);
+                            return
+                        }
                         if (that._scope.$root.$$phase === "$digest" || !optionDependencies || !optionDependencies[optionName])
                             return;
                         try {
@@ -13791,7 +13902,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             var widgetName = $scope.name;
                             if (!widgetName)
                                 return;
-                            var markup = $("<div " + inflector.dasherize("dx-" + widgetName) + "=\"options\">").get(0);
+                            if (widgetName === "button" || widgetName === "tabs" || widgetName === "dropDownMenu")
+                                widgetName = inflector.camelize("dx-" + widgetName);
+                            var markup = $("<div " + inflector.dasherize(widgetName) + "=\"options\">").get(0);
                             $element.after(markup);
                             $compile(markup)($scope)
                         }
@@ -15418,7 +15531,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 _prepareItemTemplate: function($item) {
                     var templateId = ITEM_TEMPLATE_ID_PREFIX + new DX.data.Guid;
                     var templateOptions = "dxTemplate: { name: \"" + templateId + "\" }";
-                    $item.attr("data-options", templateOptions).data("options", templateOptions);
+                    $item.detach().clone().attr("data-options", templateOptions).data("options", templateOptions).appendTo(this.element());
                     return templateId
                 },
                 _dataSourceOptions: function() {
@@ -16126,10 +16239,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (this._cancelOptionChange)
                         return;
                     switch (args.name) {
-                        case"items":
-                            this.callBase(args);
-                            this._clearSelectedItems();
-                            break;
                         case"selectionMode":
                             if (args.value === "multi")
                                 this.option("selectionMode", "multiple");
@@ -16534,6 +16643,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._initAccessors();
                     this._initDataAdapter();
                     this._initDynamicTemplates()
+                },
+                _initDataSource: function() {
+                    this.callBase();
+                    this._dataSource && this._dataSource.paginate(false)
                 },
                 _initDataAdapter: function() {
                     var accessors = this._createDataAdapterAccessors();
@@ -17519,7 +17632,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             },
             isValid: function(value) {
                 var co = this._canvasOptions;
-                return !isNaN(value) && value.valueOf() + co.rangeDoubleError >= co.rangeMin && value.valueOf() - co.rangeDoubleError <= co.rangeMax
+                return value !== null && !isNaN(value) && value.valueOf() + co.rangeDoubleError >= co.rangeMin && value.valueOf() - co.rangeDoubleError <= co.rangeMax
             },
             parse: function(value) {
                 return Number(value)
@@ -17852,6 +17965,59 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 validate("maxVisible", "max");
                 return businessRange
             };
+        function valuesIsDefinedAndEqual(val1, val2) {
+            return isDefined(val1) && isDefined(val2) && val1.valueOf() === val2.valueOf()
+        }
+        function getCanvasBounds(range) {
+            var min = range.min,
+                max = range.max,
+                minVisible = range.minVisible,
+                maxVisible = range.maxVisible,
+                newMin,
+                newMax,
+                base = range.base,
+                isDateTime = commonUtils.isDate(max) || commonUtils.isDate(min),
+                correction = isDateTime ? DATETIME_EQUALITY_CORRECTION : NUMBER_EQUALITY_CORRECTION,
+                isLogarithmic = range.axisType === 'logarithmic';
+            if (isLogarithmic) {
+                maxVisible = getLog(maxVisible, base);
+                minVisible = getLog(minVisible, base);
+                min = getLog(min, base);
+                max = getLog(max, base)
+            }
+            if (valuesIsDefinedAndEqual(min, max)) {
+                newMin = min.valueOf() - correction;
+                newMax = max.valueOf() + correction;
+                if (isDateTime) {
+                    min = new Date(newMin);
+                    max = new Date(newMax)
+                }
+                else {
+                    min = min !== 0 || isLogarithmic ? newMin : 0;
+                    max = newMax
+                }
+            }
+            if (valuesIsDefinedAndEqual(minVisible, maxVisible)) {
+                newMin = minVisible.valueOf() - correction;
+                newMax = maxVisible.valueOf() + correction;
+                if (isDateTime) {
+                    minVisible = newMin < min.valueOf() ? min : new Date(newMin);
+                    maxVisible = newMax > max.valueOf() ? max : new Date(newMax)
+                }
+                else {
+                    if (minVisible !== 0 || isLogarithmic)
+                        minVisible = newMin < min ? min : newMin;
+                    maxVisible = newMax > max ? max : newMax
+                }
+            }
+            return {
+                    base: base,
+                    rangeMin: min,
+                    rangeMax: max,
+                    rangeMinVisible: minVisible,
+                    rangeMaxVisible: maxVisible
+                }
+        }
         _Translator2d = viz.Translator2D = function(businessRange, canvas, options) {
             this.update(businessRange, canvas, options)
         };
@@ -17897,59 +18063,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 var correctedCategoriesCount = categoriesLength - (this._businessRange.stick ? 1 : 0);
                 return correctedCategoriesCount > 0 ? canvasOptions.canvasLength / correctedCategoriesCount : canvasOptions.canvasLength
             },
-            _getCanvasBounds: function(range) {
-                var min = range.min,
-                    max = range.max,
-                    minVisible = range.minVisible,
-                    maxVisible = range.maxVisible,
-                    newMin,
-                    newMax,
-                    base = range.base,
-                    isDateTime = commonUtils.isDate(max) || commonUtils.isDate(min),
-                    correction = isDateTime ? DATETIME_EQUALITY_CORRECTION : NUMBER_EQUALITY_CORRECTION;
-                if (range.axisType === 'logarithmic') {
-                    maxVisible = getLog(maxVisible, base);
-                    minVisible = getLog(minVisible, base);
-                    min = getLog(min, base);
-                    max = getLog(max, base)
-                }
-                if (isDefined(min) && isDefined(max) && min.valueOf() === max.valueOf()) {
-                    newMin = min.valueOf() - correction;
-                    newMax = max.valueOf() + correction;
-                    if (isDateTime) {
-                        min = new Date(newMin);
-                        max = new Date(newMax)
-                    }
-                    else {
-                        min = min !== 0 ? newMin : 0;
-                        max = newMax
-                    }
-                }
-                if (isDefined(minVisible) && isDefined(maxVisible) && minVisible.valueOf() === maxVisible.valueOf()) {
-                    newMin = minVisible.valueOf() - correction;
-                    newMax = maxVisible.valueOf() + correction;
-                    if (isDateTime) {
-                        minVisible = newMin < min.valueOf() ? min : new Date(newMin);
-                        maxVisible = newMax > max.valueOf() ? max : new Date(newMax)
-                    }
-                    else {
-                        if (minVisible !== 0)
-                            minVisible = newMin < min ? min : newMin;
-                        maxVisible = newMax > max ? max : newMax
-                    }
-                }
-                return {
-                        base: base,
-                        rangeMin: min,
-                        rangeMax: max,
-                        rangeMinVisible: minVisible,
-                        rangeMaxVisible: maxVisible
-                    }
-            },
             _prepareCanvasOptions: function() {
                 var that = this,
                     businessRange = that._businessRange,
-                    canvasOptions = that._canvasOptions = that._getCanvasBounds(businessRange),
+                    canvasOptions = that._canvasOptions = getCanvasBounds(businessRange),
                     length,
                     canvas = that._canvas;
                 if (that._options.isHorizontal) {
@@ -20105,8 +20222,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             commonUtils = DX.require("/utils/utils.common"),
             _isDefined = commonUtils.isDefined,
             _isDate = commonUtils.isDate,
-            NUMBER_EQUALITY_CORRECTION = 1,
-            DATETIME_EQUALITY_CORRECTION = 60000,
             minSelector = "min",
             maxSelector = "max",
             minVisibleSelector = "minVisible",
@@ -20153,8 +20268,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 }
             return categories
         }
-        DX.viz.__NUMBER_EQUALITY_CORRECTION = NUMBER_EQUALITY_CORRECTION;
-        DX.viz.__DATETIME_EQUALITY_CORRECTION = DATETIME_EQUALITY_CORRECTION;
         _Range = viz.Range = function(range) {
             range && $.extend(this, range)
         };
@@ -22096,7 +22209,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                             else if (labelIsInside) {
                                 switch (labelHorizontalAlignment) {
                                     case CENTER:
-                                        x += lineBox.x + labelWidth / 2 - box.x - labelWidth / 2;
+                                        x += lineBox.x + lineBox.width / 2 - box.x - labelWidth / 2;
                                         break;
                                     case RIGHT:
                                         x -= paddingLeftRight;
@@ -22883,18 +22996,31 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         };
         Axis.prototype = {
             constructor: Axis,
-            _updateBusinessRangeInterval: function() {
-                var i,
-                    ticks = this._majorTicks,
-                    length = ticks.length,
-                    businessRange = this._translator.getBusinessRange(),
-                    minInterval;
-                if (length < 2 || hasCategories(businessRange))
-                    return;
-                minInterval = _abs(ticks[0].value - ticks[1].value);
-                for (i = 1; i < length - 1; i++)
-                    minInterval = Math.min(_abs(ticks[i].value - ticks[i + 1].value), minInterval);
-                businessRange.addRange({interval: minInterval})
+            _updateIntervalAndBounds: function() {
+                var that = this,
+                    i,
+                    ticks,
+                    length,
+                    minInterval,
+                    translator = that._translator,
+                    businessRange = translator.getBusinessRange(),
+                    bounds;
+                if (!hasCategories(businessRange)) {
+                    ticks = that.getMajorTicks(true);
+                    length = ticks.length;
+                    if (!businessRange.isSynchronized)
+                        bounds = this._tickManager.getTickBounds();
+                    if (length > 1) {
+                        minInterval = _abs(ticks[0].value - ticks[1].value);
+                        for (i = 1; i < length - 1; i++)
+                            minInterval = Math.min(_abs(ticks[i].value - ticks[i + 1].value), minInterval);
+                        bounds = _extend({interval: minInterval}, bounds)
+                    }
+                    if (bounds) {
+                        businessRange.addRange(bounds);
+                        translator.reinit()
+                    }
+                }
             },
             _createAllTicks: function(businessRange) {
                 var that = this;
@@ -22902,16 +23028,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that._majorTicks = that.getMajorTicks(that._options.withoutOverlappingBehavior);
                 that._decimatedTicks = hasCategories(businessRange) ? that.getDecimatedTicks() : [];
                 that._minorTicks = that.getMinorTicks()
-            },
-            _updateTranslatorInterval: function() {
-                var that = this,
-                    translator = that._translator,
-                    businessRange = translator.getBusinessRange();
-                if (!hasCategories(businessRange) && !businessRange.isSynchronized) {
-                    that.getMajorTicks(true);
-                    businessRange.addRange(that._tickManager.getTickBounds());
-                    translator.reinit()
-                }
             },
             _drawAxis: function() {
                 var that = this,
@@ -23635,9 +23751,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that._translator = translator;
                 that._additionalTranslator = additionalTranslator;
                 that.resetTicks();
-                that._updateTranslatorInterval();
-                that._buildTicks();
-                that._updateBusinessRangeInterval()
+                that._updateIntervalAndBounds();
+                that._buildTicks()
             },
             resetTicks: function() {
                 this._deleteLabels();
@@ -23726,9 +23841,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     areLabelsVisible;
                 that._axisGroup && that._clearAxisGroups(adjustAxis);
                 areLabelsVisible = options.label.visible && that._axisElementsGroup && !that._translator.getBusinessRange().stubData;
-                that._updateTranslatorInterval();
+                that._updateIntervalAndBounds();
                 that._buildTicks();
-                that._updateBusinessRangeInterval();
                 that._initAxisPositions();
                 that._initAllTicks();
                 options.visible && that._drawAxis();
@@ -27108,6 +27222,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 return this._options.tagField || "tag"
             },
             getValueFields: _noop,
+            getSizeField: _noop,
             getArgumentField: _noop,
             getPoints: function() {
                 return this._points
@@ -29469,16 +29584,17 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
             },
             getValueFields: function() {
-                var options = this._options;
-                return [options.valueField || "val", options.sizeField || "size"]
+                return [this._options.valueField || "val"]
+            },
+            getSizeField: function() {
+                return this._options.sizeField || "size"
             },
             updateTeamplateFieldNames: function() {
                 var that = this,
                     options = that._options,
-                    valueFields = that.getValueFields(),
                     name = that.name;
-                options.valueField = valueFields[0] + name;
-                options.sizeField = valueFields[1] + name;
+                options.valueField = that.getValueFields()[0] + name;
+                options.sizeField = that.getSizeField() + name;
                 options.tagField = that.getTagField() + name
             },
             _clearingAnimation: function(translators, drawComplete) {
@@ -33116,14 +33232,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         }
         function parseAxisCategories(groups, parsers) {
             var argumentCategories = groups.argumentOptions && groups.argumentOptions.categories,
-                valueParser = parsers[1][1];
+                valueParser = parsers[1];
             _each(groups, function(_, valueGroup) {
                 var categories = valueGroup.valueOptions && valueGroup.valueOptions.categories;
                 if (categories)
                     valueGroup.valueOptions.categories = parseCategories(categories, valueParser)
             });
             if (argumentCategories)
-                groups.argumentOptions.categories = parseCategories(argumentCategories, parsers[0][1])
+                groups.argumentOptions.categories = parseCategories(argumentCategories, parsers[0])
         }
         function processSeries(_, series) {
             series.updateDataType({})
@@ -33173,17 +33289,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     return parseUnit
                 }
         }
-        function createParsers(groups, skipFields, incidentOccurred) {
+        function prepareParsers(groups, skipFields, incidentOccurred) {
             var argumentParser = createParserUnit(groups.argumentType, groups.argumentAxisType, false, skipFields, incidentOccurred),
+                sizeParser,
+                valueParser,
+                iep,
+                categoryParsers = [argumentParser],
                 cache = {},
                 list = [];
             _each(groups, function(_, group) {
                 _each(group, function(_, series) {
-                    var valueParser = createParserUnit(group.valueType, group.valueAxisType, series.getOptions().ignoreEmptyPoints, skipFields, incidentOccurred);
+                    iep = series.getOptions().ignoreEmptyPoints;
+                    valueParser = createParserUnit(group.valueType, group.valueAxisType, iep, skipFields, incidentOccurred);
+                    sizeParser = createParserUnit(NUMERIC, CONTINUOUS, iep, skipFields, incidentOccurred);
                     cache[series.getArgumentField()] = argumentParser;
                     _each(series.getValueFields(), function(_, field) {
+                        !categoryParsers[1] && (categoryParsers[1] = valueParser);
                         cache[field] = valueParser
                     });
+                    if (series.getSizeField())
+                        cache[series.getSizeField()] = sizeParser;
                     if (series.getTagField())
                         cache[series.getTagField()] = eigen
                 })
@@ -33191,6 +33316,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             _each(cache, function(field, parser) {
                 list.push([field, parser])
             });
+            list.length && parseAxisCategories(groups, categoryParsers);
             return list
         }
         function getParsedCell(cell, parsers) {
@@ -33377,9 +33503,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             checkType(data, groups, options.checkTypeForAllData);
             checkAxisType(groups, userArgumentCategories, incidentOccurred);
             if (options.convertToAxisDataType) {
-                parsers = createParsers(groups, skipFields, incidentOccurred);
-                data = parse(data, parsers);
-                parsers.length && parseAxisCategories(groups, parsers)
+                parsers = prepareParsers(groups, skipFields, incidentOccurred);
+                data = parse(data, parsers)
             }
             groupData(data, groups);
             sort(data, groups, options.sortingMethod, userArgumentCategories);
@@ -35360,21 +35485,23 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 that.callBase.apply(that, arguments);
                 if (that._initialized && that._updateLockCount === 1)
-                    that._changedOptions = {
-                        _has: hasAnyOfFields,
-                        _num: 0
-                    };
+                    that._changedOptions = createChangedOptions();
                 return that
             },
             endUpdate: function() {
-                var that = this;
+                var that = this,
+                    changedOptions;
                 if (that._initialized && that._updateLockCount === 1) {
-                    if (that._changedOptions._num) {
+                    changedOptions = that._changedOptions;
+                    that._changedOptions = null;
+                    if (changedOptions._num) {
                         that._renderer.lock();
-                        that._handleChangedOptions(that._changedOptions);
+                        that._changedOptions = createChangedOptions();
+                        that._handleChangedOptions(changedOptions);
+                        if (!that._changedOptions._num && that._updateLockCount === 1)
+                            that._changedOptions = null;
                         that._renderer.unlock()
                     }
-                    that._changedOptions = null
                 }
                 that.callBase.apply(that, arguments);
                 return that
@@ -35512,6 +35639,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 this._loadingIndicator.hide()
             }
         });
+        function createChangedOptions() {
+            return {
+                    _has: hasAnyOfFields,
+                    _num: 0
+                }
+        }
         function hasAnyOfFields(fields) {
             var i,
                 ii = fields.length;
@@ -36239,7 +36372,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 });
                 if (that._scrollBar) {
                     argBusinessRange = that.businessRanges[0].arg;
-                    if (argBusinessRange.categories && argBusinessRange.categories.length <= 1)
+                    if (argBusinessRange.axisType === "discrete" && argBusinessRange.categories && argBusinessRange.categories.length <= 1)
                         zoomMinArg = zoomMaxArg = undefined;
                     else {
                         zoomMinArg = argBusinessRange.minVisible;
@@ -37970,7 +38103,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         zoomingMode: themeManager.getOptions("zoomingMode"),
                         scrollingMode: themeManager.getOptions("scrollingMode"),
                         rotated: that._isRotated(),
-                        crosshair: that._crosshair
+                        crosshair: that._getCrosshairOptions().enabled ? that._crosshair : null
                     })
             },
             _resolveLabelOverlappingStack: function() {
@@ -46180,7 +46313,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
             DEFAULT_HEIGHT = 400,
             nextDataKey = 1,
             RE_STARTS_LAYERS = /^layers/,
-            RE_ENDS_DATA = /\.data$/;
+            RE_ENDS_DATA_SOURCE = /\.(dataSource|data)$/;
         function generateDataKey() {
             return "vectormap-data-" + nextDataKey++
         }
@@ -46240,6 +46373,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                         onMarkerSelectionChanged: {
                             since: "15.2",
                             message: "Use the 'onSelectionChanged' option instead"
+                        },
+                        "layers.data": {
+                            since: "15.2",
+                            message: "Use the 'layers.dataSource' option instead"
                         }
                     })
                 },
@@ -46422,9 +46559,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 _optionChanging: function(name, currentValue, nextValue) {
                     if (currentValue && nextValue) {
                         if (RE_STARTS_LAYERS.test(name))
-                            if (currentValue.data && nextValue.data && currentValue !== nextValue)
+                            if (currentValue.dataSource && nextValue.dataSource && currentValue !== nextValue)
+                                currentValue.dataSource = null;
+                            else if (currentValue.data && nextValue.data && currentValue !== nextValue)
                                 currentValue.data = null;
-                            else if (RE_ENDS_DATA.test(name))
+                            else if (RE_ENDS_DATA_SOURCE.test(name))
                                 this.option(name, null);
                         if (name === "mapData")
                             this._options.mapData = null;
@@ -46553,10 +46692,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
             if (options)
                 layerCollection.__data = options.length ? $.map(options, patch) : patch(options);
             function patch(ops) {
-                ops = ops || {};
-                var data = ops.data;
-                ops.data = undefined;
-                return {data: data}
+                var ret = {};
+                swapData(ops || {}, ret);
+                return ret
             }
         }
         function resumeLayersData(layerCollection, options, renderer) {
@@ -46565,14 +46703,19 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 layerCollection.__data = undefined;
                 if (data.length)
                     $.each(data, function(i, item) {
-                        options[i].data = item.data
+                        swapData(item, options[i])
                     });
                 else
-                    options.data = data.data;
+                    swapData(data, options);
                 renderer.lock();
                 layerCollection.setOptions(options);
                 renderer.unlock()
             }
+        }
+        function swapData(source, target) {
+            var name = !("dataSource" in source) && "data" in source ? "data" : "dataSource";
+            target[name] = source[name];
+            source[name] = undefined
         }
         function applyDeprecatedMode(map) {
             var log = DX.require("/errors").log,
@@ -46596,12 +46739,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 this._layerCollection.setOptions([_extend({}, options.areaSettings, {
                         name: "areas",
                         _deprecated: true,
-                        data: mapData,
+                        dataSource: mapData,
                         type: "area"
                     }), _extend({}, options.markerSettings, {
                         name: "markers",
                         _deprecated: true,
-                        data: markers,
+                        dataSource: markers,
                         type: "marker",
                         elementType: options.markerSettings && options.markerSettings.type
                     })])
@@ -49458,12 +49601,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
                 return this._context
             },
             setOptions: function(options) {
-                var that = this;
+                var that = this,
+                    name;
                 options = that._options = options || {};
-                if ("data" in options && options.data !== that._options_data) {
-                    that._options_data = options.data;
+                name = !("dataSource" in options) && "data" in options ? "data" : "dataSource";
+                if (name in options && options[name] !== that._options_dataSource) {
+                    that._options_dataSource = options[name];
                     that._params.notifyDirty();
-                    that._dataSource.update(wrapToDataSource(options.data))
+                    that._dataSource.update(wrapToDataSource(options[name]))
                 }
                 else if (that._data.count() > 0) {
                     that._params.notifyDirty();
@@ -50123,12 +50268,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_SPARKLINES) {
         function generateDefaultCustomizeTooltipCallback(fontOptions, rtlEnabled) {
             var lineSpacing = fontOptions.lineSpacing,
                 lineHeight = (lineSpacing !== undefined && lineSpacing !== null ? lineSpacing : DEFAULT_LINE_SPACING) + fontOptions.size;
-            DX.viz.sparklines.generated_customize_tooltip = function() {
-                return {
-                        lineHeight: lineHeight,
-                        rtlEnabled: rtlEnabled
-                    }
-            };
             return function(customizeObject) {
                     var html = "",
                         vt = customizeObject.valueText;
@@ -50136,6 +50275,18 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_SPARKLINES) {
                         html += "<tr><td>" + vt[i] + "</td><td style='width: 15px'></td><td style='text-align: " + (rtlEnabled ? "left" : "right") + "'>" + vt[i + 1] + "</td></tr>";
                     return {html: "<table style='border-spacing:0px; line-height: " + lineHeight + "px'>" + html + "</table>"}
                 }
+        }
+        function generateCustomizeTooltipCallback(customizeTooltip, fontOptions, rtlEnabled) {
+            var defaultCustomizeTooltip = generateDefaultCustomizeTooltipCallback(fontOptions, rtlEnabled);
+            if ($.isFunction(customizeTooltip))
+                return function(customizeObject) {
+                        var res = customizeTooltip.call(customizeObject, customizeObject);
+                        if (!("html" in res) && !("text" in res))
+                            $.extend(res, defaultCustomizeTooltip.call(customizeObject, customizeObject));
+                        return res
+                    };
+            else
+                return defaultCustomizeTooltip
         }
         DX.viz.sparklines = {};
         DX.viz.sparklines.BaseSparkline = viz.BaseWidget.inherit({
@@ -50290,7 +50441,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_SPARKLINES) {
                 var tooltip = this._tooltip,
                     options = tooltip && this._getOption("tooltip");
                 tooltip && tooltip.update($.extend({}, options, {
-                    customizeTooltip: !$.isFunction(options.customizeTooltip) ? generateDefaultCustomizeTooltipCallback(options.font, this.option("rtlEnabled")) : options.customizeTooltip,
+                    customizeTooltip: generateCustomizeTooltipCallback(options.customizeTooltip, options.font, this.option("rtlEnabled")),
                     enabled: options.enabled && this._isTooltipEnabled()
                 }))
             },
@@ -51068,13 +51219,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_SPARKLINES) {
                     tooltip = that._tooltip,
                     options = that._allOptions,
                     value = options.value,
-                    target = options.target;
+                    target = options.target,
+                    valueText = tooltip.formatValue(value),
+                    targetText = tooltip.formatValue(target);
                 return {
                         originalValue: value,
                         originalTarget: target,
-                        value: tooltip.formatValue(value),
-                        target: tooltip.formatValue(target),
-                        valueText: ["Actual Value:", value, "Target Value:", target]
+                        value: valueText,
+                        target: targetText,
+                        valueText: ["Actual Value:", valueText, "Target Value:", targetText]
                     }
             },
             _isTooltipEnabled: function() {

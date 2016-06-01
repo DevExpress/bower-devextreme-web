@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.9
-* Build date: Apr 7, 2016
+* Version: 15.2.10
+* Build date: May 27, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -1908,9 +1908,13 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var isObservable = function(value) {
                 return support.hasKo && ko.isObservable(value)
             };
+        var isWritableObservable = function(value) {
+                return support.hasKo && ko.isWritableObservable(value)
+            };
         return {
                 unwrapObservable: unwrapObservable,
-                isObservable: isObservable
+                isObservable: isObservable,
+                isWritableObservable: isWritableObservable
             }
     });
     /*! Module core, file utils.locker.js */
@@ -3806,8 +3810,13 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return this._optionAliases
                 },
                 _getOptionAliasesByName: function(optionName) {
-                    return $.map(this._getOptionAliases(), function(aliasedOption, aliasName) {
-                            return optionName === aliasedOption ? aliasName : undefined
+                    return $.map(this._getOptionAliases(), function(aliasName, deprecatedName) {
+                            return optionName === deprecatedName ? aliasName : undefined
+                        })
+                },
+                _getOptionDeprecatesByName: function(optionName) {
+                    return $.map(this._getOptionAliases(), function(aliasName, deprecatedName) {
+                            return optionName === aliasName ? deprecatedName : undefined
                         })
                 },
                 _getDefaultOptions: function() {
@@ -3975,8 +3984,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 _optionChanging: $.noop,
                 _notifyOptionChanged: function(option, value, previousValue) {
                     var that = this;
-                    if (this._initialized)
-                        $.each(that._getOptionAliasesByName(option).concat([option]), function(index, name) {
+                    if (this._initialized) {
+                        var options = that._getOptionAliasesByName(option).concat(that._getOptionDeprecatesByName(option)).concat([option]);
+                        $.each(options, function(index, name) {
                             var args = {
                                     name: name.split(/[.\[]/)[0],
                                     fullName: name,
@@ -3988,6 +3998,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             if (!that._disposed)
                                 that._optionChanged(args)
                         })
+                    }
                 },
                 initialOption: function(optionName) {
                     var options = this._initialOptions;
@@ -4065,10 +4076,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     var normailzeOptionValue = function(name, value) {
                             if (name) {
                                 var alias = normalizeOptionName(name);
-                                if (alias && alias !== name) {
-                                    setOptionsField(alias, value);
-                                    clearOptionsField(name)
-                                }
+                                if (alias && alias !== name)
+                                    setOptionsField(alias, value)
                             }
                         };
                     var getPreviousName = function(fullName) {
@@ -4078,22 +4087,19 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         };
                     var getFieldName = function(fullName) {
                             var splittedNames = fullName.split('.');
-                            return splittedNames[splittedNames.length - 1]
+                            return splittedNames.pop()
                         };
-                    var setOptionsField = function(name, value) {
-                            var previousFieldName = getPreviousName(name),
-                                fieldName = getFieldName(name),
-                                fieldObject = previousFieldName ? getOptionValue(options, previousFieldName, false) || getOptionValue(that._options, previousFieldName, false) : options;
-                            if (fieldObject)
-                                fieldObject[fieldName] = value
-                        };
-                    var clearOptionsField = function(name) {
-                            delete options[name];
-                            var previousFieldName = getPreviousName(name),
-                                fieldName = getFieldName(name),
-                                fieldObject = previousFieldName ? getOptionValue(options, previousFieldName, false) : options;
-                            if (fieldObject)
-                                delete fieldObject[fieldName]
+                    var setOptionsField = function(fullName, value) {
+                            var fieldName = "",
+                                fieldObject;
+                            do {
+                                if (fieldName)
+                                    fieldName = "." + fieldName;
+                                fieldName = getFieldName(fullName) + fieldName;
+                                fullName = getPreviousName(fullName);
+                                fieldObject = fullName ? getOptionValue(options, fullName, false) : options
+                            } while (!fieldObject);
+                            fieldObject[fieldName] = value
                         };
                     var getOptionValue = function(options, name, unwrapObservables) {
                             if (!cachedGetters[name])
@@ -4361,7 +4367,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.9"
+        return "15.2.10"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -4398,8 +4404,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 W0003: "{0} - '{1}' property is deprecated in {2}. {3}",
                 W0004: "Timeout for theme loading is over: {0}",
                 W0005: "'{0}' event is deprecated in {1}. {2}",
-                W0006: "Invalid recurrence rule: '{0}'",
-                W0007: "A 3rd party template should be specified inside a <script> element:\n{0}"
+                W0006: "Invalid recurrence rule: '{0}'"
             })
     });
     /*! Module core, file eventsMixin.js */
@@ -5650,8 +5655,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var toComparable = function(value, caseSensitive) {
                 if (value instanceof Date)
                     return value.getTime();
-                if (value instanceof Guid)
-                    return value.valueOf();
+                if (value instanceof Class && value.valueOf) {
+                    var result = value.valueOf();
+                    if (result !== undefined)
+                        return result
+                }
                 if (!caseSensitive && typeof value === "string")
                     return value.toLowerCase();
                 return value
@@ -6595,8 +6603,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             return ret.join("")
         }
         function parseISO8601(isoString) {
-            var result = new Date(0);
-            var chunks = isoString.replace("Z", "").split("T"),
+            var result = new Date(new Date(0).getTimezoneOffset() * 60 * 1000),
+                chunks = isoString.replace("Z", "").split("T"),
                 date = /(\d{4})-(\d{2})-(\d{2})/.exec(chunks[0]),
                 time = /(\d{2}):(\d{2}):(\d{2})\.?(\d{0,7})?/.exec(chunks[1]);
             result.setFullYear(Number(date[1]));
@@ -6983,10 +6991,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         var createODataQueryAdapter = function(queryOptions) {
                 var _sorting = [],
                     _criteria = [],
+                    _expand = queryOptions.expand,
                     _select,
                     _skip,
                     _take,
-                    _countQuery;
+                    _countQuery,
+                    _oDataVersion = queryOptions.version || DEFAULT_PROTOCOL_VERSION;
                 var hasSlice = function() {
                         return _skip || _take !== undefined
                     };
@@ -6999,23 +7009,108 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         }
                         return false
                     };
-                var generateExpand = function() {
-                        var hash = {};
-                        if (queryOptions.expand)
-                            $.each($.makeArray(queryOptions.expand), function() {
-                                hash[serializePropName(this)] = 1
-                            });
-                        if (_select)
-                            $.each(_select, function() {
-                                var path = this.split(".");
-                                if (path.length < 2)
+                var generateSelectExpand = function() {
+                        var hasDot = function(x) {
+                                return /\./.test(x)
+                            };
+                        var generateSelect = function() {
+                                if (!_select)
                                     return;
-                                path.pop();
-                                hash[serializePropName(path.join("."))] = 1
-                            });
-                        return $.map(hash, function(k, v) {
-                                return v
-                            }).join() || undefined
+                                if (_oDataVersion < 4)
+                                    return serializePropName(_select.join());
+                                return $.grep(_select, hasDot, true).join()
+                            };
+                        var generateExpand = function() {
+                                var generatorV2 = function() {
+                                        var hash = {};
+                                        if (_expand)
+                                            $.each($.makeArray(_expand), function() {
+                                                hash[serializePropName(this)] = 1
+                                            });
+                                        if (_select)
+                                            $.each($.makeArray(_select), function() {
+                                                var path = this.split(".");
+                                                if (path.length < 2)
+                                                    return;
+                                                path.pop();
+                                                hash[serializePropName(path.join("."))] = 1
+                                            });
+                                        return $.map(hash, function(k, v) {
+                                                return v
+                                            }).join()
+                                    };
+                                var generatorV4 = function() {
+                                        var format = function(hash) {
+                                                var formatCore = function(hash) {
+                                                        var ret = "",
+                                                            select = [],
+                                                            expand = [];
+                                                        $.each(hash, function(key, value) {
+                                                            if ($.isArray(value))
+                                                                [].push.apply(select, value);
+                                                            if ($.isPlainObject(value))
+                                                                expand.push(key + formatCore(value))
+                                                        });
+                                                        if (select.length || expand.length) {
+                                                            ret += "(";
+                                                            if (select.length)
+                                                                ret += "$select=" + $.map(select, serializePropName).join();
+                                                            if (expand.length) {
+                                                                if (select.length)
+                                                                    ret += ";";
+                                                                ret += "$expand=" + $.map(expand, serializePropName).join()
+                                                            }
+                                                            ret += ")"
+                                                        }
+                                                        return ret
+                                                    };
+                                                var ret = [];
+                                                $.each(hash, function(key, value) {
+                                                    ret.push(key + formatCore(value))
+                                                });
+                                                return ret.join()
+                                            };
+                                        var parseTree = function(exprs, root, stepper) {
+                                                var parseCore = function(exprParts, root, stepper) {
+                                                        var result = stepper(root, exprParts.shift(), exprParts);
+                                                        if (result === false)
+                                                            return;
+                                                        parseCore(exprParts, result, stepper)
+                                                    };
+                                                $.each(exprs, function(_, x) {
+                                                    parseCore(x.split("."), root, stepper)
+                                                })
+                                            };
+                                        var hash = {};
+                                        if (_expand || _select) {
+                                            if (_expand)
+                                                parseTree($.makeArray(_expand), hash, function(node, key, path) {
+                                                    node[key] = node[key] || {};
+                                                    if (!path.length)
+                                                        return false;
+                                                    return node[key]
+                                                });
+                                            if (_select)
+                                                parseTree($.grep($.makeArray(_select), hasDot), hash, function(node, key, path) {
+                                                    if (!path.length) {
+                                                        node[key] = node[key] || [];
+                                                        node[key].push(key);
+                                                        return false
+                                                    }
+                                                    return node[key] = node[key] || {}
+                                                });
+                                            return format(hash)
+                                        }
+                                    };
+                                if (_oDataVersion < 4)
+                                    return generatorV2();
+                                return generatorV4()
+                            };
+                        var turple = {
+                                $select: generateSelect() || undefined,
+                                $expand: generateExpand() || undefined
+                            };
+                        return turple
                     };
                 var requestData = function() {
                         var result = {};
@@ -7026,25 +7121,24 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 result["$skip"] = _skip;
                             if (_take !== undefined)
                                 result["$top"] = _take;
-                            if (_select)
-                                result["$select"] = serializePropName(_select.join());
-                            result["$expand"] = generateExpand()
+                            var turple = generateSelectExpand();
+                            result["$select"] = turple["$select"];
+                            result["$expand"] = turple["$expand"]
                         }
                         if (_criteria.length)
-                            result["$filter"] = compileCriteria(_criteria.length < 2 ? _criteria[0] : _criteria, queryOptions.version);
+                            result["$filter"] = compileCriteria(_criteria.length < 2 ? _criteria[0] : _criteria, _oDataVersion);
                         if (_countQuery)
                             result["$top"] = 0;
                         if (queryOptions.requireTotalCount || _countQuery)
-                            if (queryOptions.version !== 4)
+                            if (_oDataVersion !== 4)
                                 result["$inlinecount"] = "allpages";
                             else
                                 result["$count"] = "true";
                         return result
                     };
-                queryOptions.version = queryOptions.version || DEFAULT_PROTOCOL_VERSION;
                 return {
                         exec: function(url) {
-                            return sendRequest(queryOptions.version, {
+                            return sendRequest(_oDataVersion, {
                                     url: url,
                                     params: $.extend(requestData(), queryOptions && queryOptions.params)
                                 }, {
@@ -7052,7 +7146,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                     jsonp: queryOptions.jsonp,
                                     withCredentials: queryOptions.withCredentials,
                                     countOnly: _countQuery
-                                })
+                                }, queryOptions.deserializeDates)
                         },
                         multiSort: function(args) {
                             var rules;
@@ -7373,7 +7467,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return -1
             },
             clear: function() {
-                this._array = []
+                this.fireEvent("modifying");
+                this._array = [];
+                this.fireEvent("modified")
             }
         })
     })(jQuery, DevExpress);
@@ -7698,7 +7794,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             ctor: function(options) {
                 options = options || {};
                 this.callBase(options);
-                this._useDefaultSearch = false;
+                this._useDefaultSearch = !!options.useDefaultSearch;
                 this._loadFunc = options[LOAD];
                 this._totalCountFunc = options[TOTAL_COUNT];
                 this._byKeyFunc = options[BY_KEY];
@@ -7848,7 +7944,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             var store;
             function createCustomStoreFromLoadFunc() {
                 var storeConfig = {};
-                $.each(["key", "load", "byKey", "lookup", "totalCount", "insert", "update", "remove"], function() {
+                $.each(["useDefaultSearch", "key", "load", "byKey", "lookup", "totalCount", "insert", "update", "remove"], function() {
                     storeConfig[this] = options[this];
                     delete options[this]
                 });
@@ -8920,7 +9016,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 that._hoverStartHandler(args.event);
                                 var $target = args.element;
                                 that._refreshHoveredElement($target)
-                            });
+                            }, {excludeValidators: ["readOnly"]});
                         that._eventBindingTarget().on(nameStart, hoverableSelector, function(e) {
                             startAction.execute({
                                 element: $(e.target),
@@ -9143,7 +9239,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             INVALID_CLASS = "dx-invalid",
             INVALID_MESSAGE = "dx-invalid-message",
             INVALID_MESSAGE_AUTO = "dx-invalid-message-auto",
-            INVALID_MESSAGE_ALWAYS = "dx-invalid-message-always";
+            INVALID_MESSAGE_ALWAYS = "dx-invalid-message-always",
+            VALIDATION_MESSAGE_MIN_WIDTH = 100;
         var Editor = Widget.inherit({
                 _init: function() {
                     this.callBase();
@@ -9243,11 +9340,18 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             closeOnOutsideClick: false,
                             closeOnTargetScroll: false,
                             animation: null,
-                            visible: true
+                            visible: true,
+                            propagateOutsideClick: true
                         });
                         this._$validationMessage.toggleClass(INVALID_MESSAGE_AUTO, validationMessageMode === "auto").toggleClass(INVALID_MESSAGE_ALWAYS, validationMessageMode === "always");
-                        this._$validationMessage.dxOverlay("option", "width", $element.outerWidth())
+                        this._setValidationMessageMaxWidth()
                     }
+                },
+                _setValidationMessageMaxWidth: function() {
+                    if (!this._$validationMessage)
+                        return;
+                    var validationMessageMaxWidth = Math.max(VALIDATION_MESSAGE_MIN_WIDTH, this._getValidationMessageTarget().outerWidth());
+                    this._$validationMessage.dxOverlay("option", "maxWidth", validationMessageMaxWidth)
                 },
                 _getValidationMessageTarget: function() {
                     return this.element()
@@ -9305,7 +9409,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             break;
                         case"width":
                             this.callBase(args);
-                            this._$validationMessage && this._$validationMessage.dxOverlay("option", "width", this.element().outerWidth());
+                            this._setValidationMessageMaxWidth();
                             break;
                         default:
                             this.callBase(args)
@@ -12554,11 +12658,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         TEMPLATE_GENERATORS.dxToolbar = {
             item: function(itemData) {
                 var $itemContent = TEMPLATE_GENERATORS.CollectionWidget.item(itemData);
-                var widget = itemData.widget;
-                if (widget) {
+                var widgetName = itemData.widget;
+                if (widgetName) {
                     var widgetElement = $("<div>").appendTo($itemContent),
-                        widgetName = camelize("dx-" + widget),
                         options = itemData.options || {};
+                    if (widgetName === "button" || widgetName === "tabs" || widgetName === "dropDownMenu")
+                        widgetName = camelize("dx-" + widgetName);
                     widgetElement[widgetName](options)
                 }
                 else if (itemData.text)
@@ -12613,10 +12718,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     return element.html();
                 else {
                     element = $("<div>").append(element);
-                    var result = element.html();
-                    if (result.length)
-                        errors.log("W0007", result);
-                    return result
+                    return element.html()
                 }
             };
         registerTemplateEngine("default", {
@@ -12926,7 +13028,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 if (!widgetName)
                     return;
                 ko.virtualElements.emptyNode(element);
-                var markup = $("<div data-bind=\"" + inflector.camelize("dx-" + widgetName) + ": options\">").get(0);
+                if (widgetName === "button" || widgetName === "tabs" || widgetName === "dropDownMenu")
+                    widgetName = inflector.camelize("dx-" + widgetName);
+                var markup = $("<div data-bind=\"" + widgetName + ": options\">").get(0);
                 ko.virtualElements.prepend(element, markup);
                 var innerBindingContext = bindingContext.extend(valueAccessor);
                 ko.applyBindingsToDescendants(innerBindingContext, element);
@@ -13494,11 +13598,14 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         if (!optionDependencies[optionForSubscribe])
                             optionDependencies[optionForSubscribe] = {};
                         optionDependencies[optionForSubscribe][optionPath] = valuePath;
-                        var watchCallback = function(newValue) {
+                        var watchCallback = function(newValue, oldValue) {
                                 if (that._ngLocker.locked(optionPath))
                                     return;
+                                that._ngLocker.obtain(optionPath);
                                 that._component.option(optionPath, newValue);
-                                updateWatcher()
+                                updateWatcher();
+                                if (newValue === oldValue && that._ngLocker.locked(optionPath))
+                                    that._ngLocker.release(optionPath)
                             };
                         var updateWatcher = function() {
                                 var watchMethod = $.isArray(that._scope.$eval(valuePath)) && !forcePlainWatchMethod ? "$watchCollection" : "$watch";
@@ -13516,6 +13623,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         var optionName = args.name,
                             fullName = args.fullName,
                             component = args.component;
+                        if (that._ngLocker.locked(optionName)) {
+                            that._ngLocker.release(optionName);
+                            return
+                        }
                         if (that._scope.$root.$$phase === "$digest" || !optionDependencies || !optionDependencies[optionName])
                             return;
                         try {
@@ -13791,7 +13902,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             var widgetName = $scope.name;
                             if (!widgetName)
                                 return;
-                            var markup = $("<div " + inflector.dasherize("dx-" + widgetName) + "=\"options\">").get(0);
+                            if (widgetName === "button" || widgetName === "tabs" || widgetName === "dropDownMenu")
+                                widgetName = inflector.camelize("dx-" + widgetName);
+                            var markup = $("<div " + inflector.dasherize(widgetName) + "=\"options\">").get(0);
                             $element.after(markup);
                             $compile(markup)($scope)
                         }
@@ -15418,7 +15531,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 _prepareItemTemplate: function($item) {
                     var templateId = ITEM_TEMPLATE_ID_PREFIX + new DX.data.Guid;
                     var templateOptions = "dxTemplate: { name: \"" + templateId + "\" }";
-                    $item.attr("data-options", templateOptions).data("options", templateOptions);
+                    $item.detach().clone().attr("data-options", templateOptions).data("options", templateOptions).appendTo(this.element());
                     return templateId
                 },
                 _dataSourceOptions: function() {
@@ -16126,10 +16239,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (this._cancelOptionChange)
                         return;
                     switch (args.name) {
-                        case"items":
-                            this.callBase(args);
-                            this._clearSelectedItems();
-                            break;
                         case"selectionMode":
                             if (args.value === "multi")
                                 this.option("selectionMode", "multiple");
@@ -16534,6 +16643,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._initAccessors();
                     this._initDataAdapter();
                     this._initDynamicTemplates()
+                },
+                _initDataSource: function() {
+                    this.callBase();
+                    this._dataSource && this._dataSource.paginate(false)
                 },
                 _initDataAdapter: function() {
                     var accessors = this._createDataAdapterAccessors();
@@ -18286,6 +18399,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._crossThumbScrolling = false
                 },
                 _stopHandler: function() {
+                    if (this._thumbScrolling)
+                        this._scrollComplete();
                     this._resetThumbScrolling();
                     this._scrollToBounds()
                 },
@@ -22591,6 +22706,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 if (visible)
                     this._updateRootBox()
             },
+            _attachClickEvent: $.noop,
             _optionChanged: function(args) {
                 switch (args.name) {
                     case"rows":
@@ -22598,6 +22714,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     case"screenByWidth":
                     case"_layoutStrategy":
                     case"singleColumnScreen":
+                        this._clearItemNodeTemplates();
                         this._invalidate();
                         break;
                     case"width":
@@ -23323,9 +23440,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._toggleEmptinessEventHandler()
                 },
                 _isValueValid: function() {
-                    var validity = this._input().get(0).validity;
-                    if (validity)
-                        return validity.valid;
+                    if (this._input().length) {
+                        var validity = this._input().get(0).validity;
+                        if (validity)
+                            return validity.valid
+                    }
                     return true
                 },
                 _toggleEmptiness: function(isEmpty) {
@@ -23374,7 +23493,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         $input.focus()
                     });
                     $placeholder.insertAfter($input);
-                    $placeholder.addClass(TEXTEDITOR_PLACEHOLDER_CLASS)
+                    $placeholder.addClass(TEXTEDITOR_PLACEHOLDER_CLASS);
+                    this._toggleEmptinessEventHandler()
                 },
                 _placeholder: function() {
                     return this._$placeholder || $()
@@ -23462,8 +23582,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 },
                 _renderEmptinessEvent: function() {
                     var $input = this._input();
-                    $input.on("input blur", $.proxy(this._toggleEmptinessEventHandler, this));
-                    this._toggleEmptinessEventHandler()
+                    $input.on("input blur", $.proxy(this._toggleEmptinessEventHandler, this))
                 },
                 _toggleEmptinessEventHandler: function(value) {
                     var text = this._input().val(),
@@ -23920,8 +24039,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _isMaskedValueMode: function() {
                     return this.option("useMaskedValue")
                 },
-                _displayMask: function() {
-                    var caret = this._caret();
+                _displayMask: function(caret) {
+                    caret = caret || this._caret();
                     this._renderValue();
                     this._caret(caret)
                 },
@@ -23982,14 +24101,38 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     return CONTROL_KEYS[e.keyCode] && !e.which || e.metaKey
                 },
                 _maskBackspaceHandler: function(e) {
-                    this._keyPressHandled = true;
-                    this._maskKeyHandler(e, function() {
-                        if (this._hasSelection())
-                            return true;
-                        if (this._tryMoveCaretBackward())
-                            return false;
-                        this._handleKey(EMPTY_CHAR_CODE, BACKWARD_DIRECTION);
-                        return true
+                    var that = this;
+                    that._keyPressHandled = true;
+                    var afterBackspaceHandler = function(needAdjustCaret, callBack) {
+                            if (needAdjustCaret) {
+                                that._direction(FORWARD_DIRECTION);
+                                that._adjustCaret()
+                            }
+                            var currentCaret = that._caret();
+                            clearTimeout(that._backspaceHandlerTimeout);
+                            that._backspaceHandlerTimeout = setTimeout(function() {
+                                callBack(currentCaret)
+                            })
+                        };
+                    that._maskKeyHandler(e, function() {
+                        if (that._hasSelection()) {
+                            afterBackspaceHandler(true, function(currentCaret) {
+                                that._displayMask(currentCaret);
+                                that._maskRulesChain.reset()
+                            });
+                            return
+                        }
+                        if (that._tryMoveCaretBackward()) {
+                            afterBackspaceHandler(false, function(currentCaret) {
+                                that._caret(currentCaret)
+                            });
+                            return
+                        }
+                        that._handleKey(EMPTY_CHAR_CODE, BACKWARD_DIRECTION);
+                        afterBackspaceHandler(true, function(currentCaret) {
+                            that._displayMask(currentCaret);
+                            that._maskRulesChain.reset()
+                        })
                     })
                 },
                 _maskDelHandler: function(e) {
@@ -24144,6 +24287,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 },
                 _dispose: function() {
                     clearTimeout(this._inputHandlerTimer);
+                    clearTimeout(this._backspaceHandlerTimeout);
                     this.callBase()
                 },
                 _optionChanged: function(args) {
@@ -24873,7 +25017,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     var callBase = $.proxy(this.callBase, this);
                     return this._loadItem(this.option("value")).always($.proxy(function(item) {
                             this._setSelectedItem(item);
-                            this._refreshSelected();
                             callBase()
                         }, this))
                 },
@@ -25072,6 +25215,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._refreshList()
                 },
                 _searchDataSource: function() {
+                    this._clearSearchTimer();
                     this._filterDataSource(this._searchValue())
                 },
                 _filterDataSource: function(searchValue) {
@@ -25085,7 +25229,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._dataSource.searchValue() && this._dataSource.searchValue(null)
                 },
                 _dataSourceFiltered: function() {
-                    this._clearSearchTimer();
                     this._refreshList();
                     this._refreshPopupVisibility()
                 },
@@ -27106,6 +27249,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             _pullDownHandler: function(e) {
                 this._pullRefreshAction(e);
                 if (this._dataSource && !this._isDataSourceLoading()) {
+                    this._clearSelectedItems();
                     this._dataSource.pageIndex(0);
                     this._dataSource.load()
                 }
@@ -27146,7 +27290,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 if (collapsibleGroups)
                     $element.on(eventName, selector, $.proxy(function(e) {
                         this._createAction($.proxy(function(e) {
-                            this._collapseGroupHandler($(e.jQueryEvent.currentTarget).parent())
+                            var $group = $(e.jQueryEvent.currentTarget).parent();
+                            this._collapseGroupHandler($group);
+                            if (this.option("focusStateEnabled"))
+                                this.option("focusedElement", $group.find("." + LIST_ITEM_CLASS).eq(0))
                         }, this), {validatingTargetName: "element"})({jQueryEvent: e})
                     }, this))
             },
@@ -27154,7 +27301,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 var deferred = $.Deferred(),
                     $groupBody = $group.children("." + LIST_GROUP_BODY_CLASS);
                 $group.toggleClass(LIST_GROUP_COLLAPSED_CLASS, toggle);
-                this.option("focusedElement", $group.find("." + LIST_ITEM_CLASS).eq(0));
                 var slideMethod = "slideToggle";
                 if (toggle === true)
                     slideMethod = "slideUp";
@@ -27164,6 +27310,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     duration: 200,
                     complete: $.proxy(function() {
                         this.updateDimensions();
+                        this._updateLoadingState(true);
                         deferred.resolve()
                     }, this)
                 });
@@ -27330,7 +27477,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     case"grouped":
                     case"collapsibleGroups":
                     case"groupTemplate":
-                    case"items":
                         this._invalidate();
                         break;
                     case"onGroupRendered":
@@ -27719,12 +27865,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             selectedItemIndices: function() {
                 var selectedIndices = [],
                     items = this._collectionWidget.option("items"),
-                    selected = this._collectionWidget.option("selectedItems");
+                    selected = this._collectionWidget.option("selectedItems"),
+                    dataSource = this._collectionWidget._dataSource;
                 $.each(selected, function(_, selectionInGroup) {
                     var group = groupByKey(items, selectionInGroup.key),
                         groupIndex = $.inArray(group, items);
                     if (!group) {
-                        errors.log("W1003", selectionInGroup.key);
+                        if (!dataSource)
+                            errors.log("W1003", selectionInGroup.key);
                         return
                     }
                     $.each(selectionInGroup.items, function(_, selectedGroupItem) {
@@ -27734,7 +27882,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                 group: groupIndex,
                                 item: itemIndex
                             }));
-                        else
+                        else if (!dataSource)
                             errors.log("W1004", selectedGroupItem, selectionInGroup.key)
                     })
                 });
@@ -30620,12 +30768,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             },
             _dimensionChanged: function() {
                 var selectedIndex = this.option("selectedIndex") || 0;
+                this._stopItemAnimations();
                 this._clearCacheWidth();
                 this._renderDuplicateItems();
                 this._renderItemSizes();
                 this._renderItemPositions();
                 this._renderIndicator();
-                this._renderContainerPosition(this._calculateIndexOffset(selectedIndex))
+                this._renderContainerPosition(this._calculateIndexOffset(selectedIndex), false)
             },
             _renderDragHandler: function() {
                 var eventName = eventUtils.addNamespace("dragstart", this.NAME);
@@ -31191,7 +31340,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             RTL_DIRECTION_CLASS = "dx-rtl",
             ACTIONS = ["onShowing", "onShown", "onHiding", "onHidden", "onPositioning", "onPositioned", "onResizeStart", "onResize", "onResizeEnd"],
             FIRST_Z_INDEX = 1000,
-            Z_INDEX_STACK = [],
+            OVERLAY_STACK = [],
             DISABLED_STATE_CLASS = "dx-state-disabled",
             TAB_KEY = 9;
         var realDevice = devices.real(),
@@ -31215,6 +31364,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
         var getElement = function(value) {
                 return value && $(value instanceof $.Event ? value.target : value)
             };
+        $(document).on(pointerEvents.down, function(e) {
+            for (var i = OVERLAY_STACK.length - 1; i >= 0; i--)
+                if (!OVERLAY_STACK[i]._proxiedDocumentDownHandler(e))
+                    return
+        });
         registerComponent("dxOverlay", ui, Widget.inherit({
             _supportedKeys: function() {
                 var offsetSize = 5,
@@ -31301,7 +31455,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         boundaryOffset: {
                             h: 0,
                             v: 0
-                        }
+                        },
+                        propagateOutsideClick: false
                     })
             },
             _defaultOptionsRules: function() {
@@ -31405,12 +31560,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             _initCloseOnOutsideClickHandler: function() {
                 var that = this;
                 this._proxiedDocumentDownHandler = function() {
-                    that._documentDownHandler.apply(that, arguments)
+                    return that._documentDownHandler.apply(that, arguments)
                 }
             },
             _documentDownHandler: function(e) {
-                if (!this._isTopOverlay())
-                    return;
                 if (this._showAnimationProcessing) {
                     this._stopAnimation();
                     return
@@ -31427,13 +31580,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         this.hide()
                     }
                 }
+                return this.option("propagateOutsideClick")
             },
             _isTopOverlay: function() {
-                var zIndexStack = this._zIndexStack();
-                return zIndexStack[zIndexStack.length - 1] === this._zIndex
+                var overlayStack = this._overlayStack();
+                return overlayStack[overlayStack.length - 1] === this
             },
-            _zIndexStack: function() {
-                return Z_INDEX_STACK
+            _overlayStack: function() {
+                return OVERLAY_STACK
             },
             _zIndexInitValue: function() {
                 return FIRST_Z_INDEX
@@ -31583,21 +31737,19 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 this._toggleSubscriptions(visible)
             },
             _updateZIndexStackPosition: function(pushToStack) {
-                var zIndexStack = this._zIndexStack();
+                var overlayStack = this._overlayStack(),
+                    index = $.inArray(this, overlayStack);
                 if (pushToStack) {
-                    if (!this._zIndex) {
-                        var length = zIndexStack.length;
-                        this._zIndex = (length ? zIndexStack[length - 1] : this._zIndexInitValue()) + 1;
-                        zIndexStack.push(this._zIndex)
+                    if (index === -1) {
+                        var length = overlayStack.length;
+                        this._zIndex = (length ? overlayStack[length - 1]._zIndex : this._zIndexInitValue()) + 1;
+                        overlayStack.push(this)
                     }
                     this._$wrapper.css("z-index", this._zIndex);
                     this._$content.css("z-index", this._zIndex)
                 }
-                else if (this._zIndex) {
-                    var index = $.inArray(this._zIndex, zIndexStack);
-                    zIndexStack.splice(index, 1);
-                    delete this._zIndex
-                }
+                else if (index !== -1)
+                    overlayStack.splice(index, 1)
             },
             _toggleShading: function(visible) {
                 this._$wrapper.toggleClass(OVERLAY_MODAL_CLASS, this.option("shading") && !this.option("container"));
@@ -31635,7 +31787,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             },
             _toggleSubscriptions: function(enabled) {
                 this._toggleHideTopOverlayCallback(enabled);
-                this._toggleDocumentDownHandler(enabled);
                 this._toggleParentsScrollSubscription(enabled)
             },
             _toggleHideTopOverlayCallback: function(subscribe) {
@@ -31645,13 +31796,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     hideTopOverlayCallback.add(this._hideTopOverlayHandler);
                 else
                     hideTopOverlayCallback.remove(this._hideTopOverlayHandler)
-            },
-            _toggleDocumentDownHandler: function(enabled) {
-                var eventName = eventUtils.addNamespace(pointerEvents.down, this.NAME);
-                if (enabled)
-                    $(document).on(eventName, this._proxiedDocumentDownHandler);
-                else
-                    $(document).off(eventName, this._proxiedDocumentDownHandler)
             },
             _toggleParentsScrollSubscription: function(subscribe) {
                 if (!this._position)
@@ -31964,7 +32108,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             _clean: function() {
                 if (!this._contentAlreadyRendered)
                     this.content().empty();
-                this._currentVisible = null;
+                this._renderVisibility(false);
                 this._cleanFocusState()
             },
             _dispose: function() {
@@ -31972,6 +32116,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 this._toggleViewPortSubscriptiion(false);
                 this._toggleSubscriptions(false);
                 this._updateZIndexStackPosition(false);
+                this._toggleTabTerminator(false);
                 this._actions = null;
                 this.callBase();
                 this._$wrapper.remove();
@@ -32036,13 +32181,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     case"closeOnBackButton":
                         this._toggleHideTopOverlayCallback(this.option("visible"));
                         break;
-                    case"closeOnOutsideClick":
-                        this._toggleDocumentDownHandler(this.option("visible"));
-                        break;
                     case"closeOnTargetScroll":
                         this._toggleParentsScrollSubscription(this.option("visible"));
                         break;
+                    case"closeOnOutsideClick":
                     case"animation":
+                    case"propagateOutsideClick":
                         break;
                     default:
                         this.callBase(args)
@@ -32087,6 +32231,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
     (function($, DX, undefined) {
         var ui = DX.ui,
             commonUtils = DX.require("/utils/utils.common"),
+            pointerEvents = DX.require("/ui/events/pointer/ui.events.pointer"),
             registerComponent = DX.require("/componentRegistrator");
         var TOAST_CLASS = "dx-toast",
             TOAST_CLASS_PREFIX = TOAST_CLASS + "-",
@@ -32096,7 +32241,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             TOAST_ICON_CLASS = TOAST_CLASS_PREFIX + "icon",
             WIDGET_NAME = "dxToast",
             toastTypes = ["info", "warning", "error", "success"],
-            Z_INDEX_STACK = [],
+            TOAST_STACK = [],
             FIRST_Z_INDEX_OFFSET = 8000,
             visibleToastInstance = null,
             POSITION_ALIASES = {
@@ -32131,6 +32276,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     offset: "0 0"
                 }
             };
+        $(document).on(pointerEvents.down, function(e) {
+            for (var i = TOAST_STACK.length - 1; i >= 0; i--)
+                if (!TOAST_STACK[i]._proxiedDocumentDownHandler(e))
+                    return
+        });
         registerComponent(WIDGET_NAME, ui, ui.dxOverlay.inherit({
             _getDefaultOptions: function() {
                 return $.extend(this.callBase(), {
@@ -32276,8 +32426,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 visibleToastInstance = null;
                 return this.callBase.apply(this, arguments)
             },
-            _zIndexStack: function() {
-                return Z_INDEX_STACK
+            _overlayStack: function() {
+                return TOAST_STACK
             },
             _zIndexInitValue: function() {
                 return this.callBase() + FIRST_Z_INDEX_OFFSET
@@ -33033,7 +33183,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     })
             },
             _normalizePosition: function() {
-                var position = this._getPosition();
+                var position = $.extend({}, this._getPosition());
                 if (!position.of)
                     position.of = this.option("target");
                 if (!position.collision)
@@ -33098,10 +33248,16 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
     (function($, DX, undefined) {
         var ui = DX.ui,
             registerComponent = DX.require("/componentRegistrator"),
+            pointerEvents = DX.require("/ui/events/pointer/ui.events.pointer"),
             TOOLTIP_CLASS = "dx-tooltip",
             TOOLTIP_WRAPPER_CLASS = "dx-tooltip-wrapper",
-            Z_INDEX_STACK = [],
+            TOOLTIP_STACK = [],
             FIRST_Z_INDEX_OFFSET = -500;
+        $(document).on(pointerEvents.down, function(e) {
+            for (var i = TOOLTIP_STACK.length - 1; i >= 0; i--)
+                if (!TOOLTIP_STACK[i]._proxiedDocumentDownHandler(e))
+                    return
+        });
         registerComponent("dxTooltip", ui, ui.dxPopover.inherit({
             _getDefaultOptions: function() {
                 return $.extend(this.callBase(), {
@@ -33133,8 +33289,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     label = showing ? this._contentId : undefined;
                 this.setAria("describedby", label, $target)
             },
-            _zIndexStack: function() {
-                return Z_INDEX_STACK
+            _overlayStack: function() {
+                return TOOLTIP_STACK
             },
             _zIndexInitValue: function() {
                 return this.callBase() + FIRST_Z_INDEX_OFFSET
@@ -33474,7 +33630,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 ONE_DAY: ONE_DAY,
                 ONE_YEAR: ONE_YEAR,
                 MIN_DATEVIEW_DEFAULT_DATE: new Date(1900, 1, 1),
-                MAX_DATEVIEW_DEFAULT_DATE: new Date((new Date).setHours(23, 59, 59) + 50 * ONE_YEAR),
+                MAX_DATEVIEW_DEFAULT_DATE: function() {
+                    var newDate = new Date;
+                    return new Date(newDate.getFullYear() + 50, newDate.getMonth(), newDate.getDate(), 23, 59, 59)
+                }(),
                 FORMATS_INFO: {
                     date: {
                         standardPattern: "yyyy-MM-dd",
@@ -34144,6 +34303,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             hoverStateEnabled: true,
                             activeStateEnabled: true,
                             currentDate: new Date,
+                            value: null,
                             min: new Date(1000, 0),
                             max: new Date(3000, 0),
                             firstDayOfWeek: undefined,
@@ -34207,7 +34367,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                 e.preventDefault();
                                 var zoomLevel = this.option("zoomLevel");
                                 var currentDate = this.option("currentDate");
-                                var min = this.option("min");
+                                var min = this._dateOption("min");
                                 var date = dateUtils.sameView(zoomLevel, currentDate, min) ? min : dateUtils.getViewFirstCellDate(zoomLevel, currentDate);
                                 this.option("currentDate", date)
                             },
@@ -34215,7 +34375,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                 e.preventDefault();
                                 var zoomLevel = this.option("zoomLevel");
                                 var currentDate = this.option("currentDate");
-                                var max = this.option("max");
+                                var max = this._dateOption("max");
                                 var date = dateUtils.sameView(zoomLevel, currentDate, max) ? max : dateUtils.getViewLastCellDate(zoomLevel, currentDate);
                                 this.option("currentDate", date)
                             },
@@ -34233,10 +34393,28 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                     this._navigateDown();
                                 else {
                                     var value = this._updateTimeComponent(this.option("currentDate"));
-                                    this.option("value", value)
+                                    this._dateOption("value", value)
                                 }
                             }
                         })
+                },
+                _getSerializationFormat: function() {
+                    var value = this.option("value");
+                    if (commonUtils.isNumber(value))
+                        return "number";
+                    if (!commonUtils.isString(value))
+                        return;
+                    return dateUtils.getDateSerializationFormat(value)
+                },
+                _convertToDate: function(value) {
+                    var serializationFormat = this._getSerializationFormat();
+                    return dateUtils.deserializeDate(value, serializationFormat)
+                },
+                _dateOption: function(optionName, optionValue) {
+                    if (arguments.length === 1)
+                        return this._convertToDate(this.option(optionName));
+                    var serializationFormat = this._getSerializationFormat();
+                    this.option(optionName, dateUtils.serializeDate(optionValue, serializationFormat))
                 },
                 _moveCurrentDate: function(offset) {
                     var currentDate = new Date(this.option("currentDate"));
@@ -34283,7 +34461,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         this.option("zoomLevel", minZoomLevel)
                 },
                 _initCurrentDate: function() {
-                    this.option("currentDate", this._getNormalizedDate(this.option("value")) || this._getNormalizedDate(this.option("currentDate")))
+                    var currentDate = this._getNormalizedDate(this._dateOption("value")) || this._getNormalizedDate(this.option("currentDate"));
+                    this.option("currentDate", currentDate)
                 },
                 _getNormalizedDate: function(date) {
                     date = dateUtils.normalizeDate(date, this._getMinDate(), this._getMaxDate());
@@ -34321,10 +34500,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         this._view.option("contouredDate", date)
                 },
                 _getMinDate: function() {
-                    return this.option("min") || new Date(1000, 0)
+                    return this._dateOption("min") || new Date(1000, 0)
                 },
                 _getMaxDate: function() {
-                    return this.option("max") || new Date(3000, 0)
+                    return this._dateOption("max") || new Date(3000, 0)
                 },
                 _getViewsOffset: function(startDate, endDate) {
                     var zoomLevel = this.option("zoomLevel");
@@ -34422,7 +34601,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             min: this._getMinDate(),
                             max: this._getMaxDate(),
                             firstDayOfWeek: this.option("firstDayOfWeek"),
-                            value: this.option("value"),
+                            value: this._dateOption("value"),
                             rtl: this.option("rtlEnabled"),
                             disabled: this.option("disabled") || DevExpress.designMode,
                             tabIndex: undefined,
@@ -34458,13 +34637,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     }
                     else {
                         var newValue = this._updateTimeComponent(e.value);
-                        this.option("value", newValue);
+                        this._dateOption("value", newValue);
                         this._cellClickAction(e)
                     }
                 },
                 _updateTimeComponent: function(date) {
                     var result = new Date(date);
-                    var currentValue = this.option("value");
+                    var currentValue = this._dateOption("value");
                     if (currentValue) {
                         result.setHours(currentValue.getHours());
                         result.setMinutes(currentValue.getMinutes());
@@ -34529,7 +34708,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _isMinZoomLevel: function(zoomLevel) {
                     var min = this._getMinDate(),
                         max = this._getMaxDate();
-                    return dateUtils.sameView(zoomLevel, min, max) || this.option("minZoomLevel") === zoomLevel
+                    return dateUtils.sameView(zoomLevel, min, max) || this._dateOption("minZoomLevel") === zoomLevel
                 },
                 _updateButtonsVisibility: function() {
                     this._navigator.toggleButton("next", !commonUtils.isDefined(this._getRequiredView("next")));
@@ -34668,12 +34847,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _toTodayView: function() {
                     var today = new Date;
                     if (this._isMaxZoomLevel()) {
-                        this.option("value", today);
+                        this._dateOption("value", today);
                         return
                     }
                     this._preventViewChangeAnimation = true;
                     this.option("zoomLevel", this.option("maxZoomLevel"));
-                    this.option("value", today);
+                    this._dateOption("value", today);
                     this._animateShowView();
                     this._preventViewChangeAnimation = false
                 },
@@ -34759,7 +34938,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._afterView && this._afterView.option("value", newValue)
                 },
                 _updateAriaSelected: function(value, previousValue) {
-                    value = value || this.option("value");
+                    value = value || this._dateOption("value");
                     var $prevSelectedCell = this._view._getCellByDate(previousValue);
                     var $selectedCell = this._view._getCellByDate(value);
                     this.setAria("selected", undefined, $prevSelectedCell);
@@ -34815,6 +34994,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             this._updateButtonsVisibility();
                             break;
                         case"value":
+                            value = this._convertToDate(value);
+                            previousValue = this._convertToDate(previousValue);
                             this._updateAriaSelected(value, previousValue);
                             this.option("currentDate", commonUtils.isDefined(value) ? new Date(value) : new Date);
                             this._updateViewsValue(value);
@@ -36967,7 +37148,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             shading: true,
                             closeOnOutsideClick: false,
                             position: undefined,
-                            animation: undefined,
+                            animation: {},
                             pullRefreshEnabled: false,
                             useNativeScrolling: true,
                             pullingDownText: Globalize.localize("dxList-pullingDownText"),
@@ -37103,11 +37284,17 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 },
                 _renderField: function() {
                     var fieldTemplate = this._getTemplateByOption("fieldTemplate");
-                    if (!(fieldTemplate && this.option("fieldTemplate")))
-                        return;
+                    if (fieldTemplate && this.option("fieldTemplate")) {
+                        this._renderFieldTemplate(fieldTemplate);
+                        return
+                    }
+                    this._$field.text(this.option("displayValue") || this.option("placeholder"));
+                    this.element().toggleClass(LOOKUP_EMPTY_CLASS, !this.option("selectedItem"))
+                },
+                _renderFieldTemplate: function(template) {
                     this._$field.empty();
                     var data = this._fieldRenderData();
-                    fieldTemplate.render(data, this._$field)
+                    template.render(data, this._$field)
                 },
                 _fieldRenderData: function() {
                     return this.option("selectedItem")
@@ -37338,8 +37525,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._setListOption("_keyboardProcessor", undefined)
                 },
                 _listContentReadyHandler: function() {
-                    if (this.option("usePopover"))
-                        this._popup.repaint();
+                    this._popup.repaint();
                     this.callBase.apply(this, arguments)
                 },
                 _getPageLoadMode: function() {
@@ -37391,12 +37577,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 },
                 _renderInputValue: function() {
                     return this.callBase().always($.proxy(function() {
-                            this._refreshField()
+                            this._renderField();
+                            this._refreshSelected()
                         }, this))
-                },
-                _refreshField: function() {
-                    this._$field.text(this.option("displayValue") || this.option("placeholder"));
-                    this.element().toggleClass(LOOKUP_EMPTY_CLASS, !this.option("selectedItem"))
                 },
                 _renderPlaceholder: function() {
                     if (this.element().find("input").length === 0)
@@ -37696,7 +37879,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                 }
                             },
                             enter: function(e) {
-                                if (this._list.option("focusedElement") === null && this._input().val() === "") {
+                                if (this._list && this._list.option("focusedElement") === null && this._input().val() === "") {
                                     this.option({
                                         selectedItem: null,
                                         value: null
@@ -37824,8 +38007,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _renderInputValue: function() {
                     return this.callBase().always($.proxy(function() {
                             this._renderTooltip();
-                            this._renderInputAddons()
+                            this._renderInputValueImpl();
+                            this._refreshSelected()
                         }, this))
+                },
+                _renderInputValueImpl: function() {
+                    this._renderInputAddons()
                 },
                 _fitIntoRange: function(value, start, end) {
                     if (value > end)
@@ -38072,7 +38259,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             onValuesChanged: null,
                             showDropButton: false,
                             tagTemplate: "tag",
-                            selectAllText: Globalize.localize("dxList-selectAll")
+                            selectAllText: Globalize.localize("dxList-selectAll"),
+                            onSelectAllChanged: null
                         })
                 },
                 _init: function() {
@@ -38080,7 +38268,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._initValuesChangedAction();
                     this._initDynamicTagTemplate();
                     this._values(this.option("values"));
-                    this._updateValues()
+                    this._updateValues();
+                    this._initSelectAllValueChangedAction()
                 },
                 _initValuesChangedAction: function() {
                     this._valuesChangedAction = this._createActionByOption("onValuesChanged", {excludeValidators: ["disabled", "readonly"]});
@@ -38113,15 +38302,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             e.preventDefault()
                         })
                 },
-                _renderInputValue: function() {
-                    return this.callBase().always($.proxy(function() {
-                            this._renderMultiSelect()
-                        }, this))
+                _renderInputValueImpl: function() {
+                    this._renderMultiSelect()
                 },
                 _listContentReadyHandler: function() {
                     this._suppressingSelectionChanged(function() {
-                        this._valuesChangedAction = $.noop;
-                        this._setListOption("selectedItems", this._selectedItems)
+                        this._valuesChangedAction = $.noop
                     });
                     this.callBase();
                     this._initValuesChangedAction()
@@ -38131,12 +38317,20 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     callback.call(this);
                     this._setListOption("onSelectionChanged", this._getSelectionChangeHandler())
                 },
+                _initSelectAllValueChangedAction: function() {
+                    this._selectAllValueChangeAction = this._createActionByOption("onSelectAllChanged")
+                },
                 _listConfig: function() {
-                    var config = this.callBase();
+                    var that = this,
+                        config = this.callBase();
                     if (this.option("showSelectionControls"))
                         $.extend(config, {
                             selectionMode: "all",
-                            selectAllText: this.option("selectAllText")
+                            selectAllText: this.option("selectAllText"),
+                            onSelectAllChanged: function(e) {
+                                that._selectAllValueChangeAction({value: e.value})
+                            },
+                            selectedItems: this._selectedItems
                         });
                     return config
                 },
@@ -38275,7 +38469,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _values: function(values) {
                     if (!arguments.length)
                         return this._valuesData || [];
-                    this._valuesData = values.slice()
+                    this._valuesData = values ? values.slice() : []
                 },
                 _previousValues: function(previousValues) {
                     if (!arguments.length)
@@ -38335,6 +38529,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 },
                 _optionChanged: function(args) {
                     switch (args.name) {
+                        case"onSelectAllChanged":
+                            this._initSelectAllValueChangedAction();
+                            break;
                         case"displayExpr":
                             this.callBase(args);
                             this._initDynamicTagTemplate();
@@ -38745,6 +38942,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             this._initGroupRegistration();
                             return;
                         case"validationRules":
+                            this.option("isValid") !== undefined && this.validate();
                             return;
                         case"adapter":
                             this._initAdapter();
@@ -38881,31 +39079,25 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         replacementFound = false,
                         newMessage = itemValidationResult.brokenRule && itemValidationResult.brokenRule.message,
                         validator = itemValidationResult.validator;
-                    if (isValid) {
-                        $.each(items, function(index, item) {
-                            if (item.validator === validator) {
+                    $.each(items, function(index, item) {
+                        if (item.validator === validator) {
+                            if (isValid)
                                 elementIndex = index;
-                                replacementFound = true;
-                                return false
-                            }
-                        });
-                        if (replacementFound)
-                            items.splice(elementIndex, 1)
-                    }
-                    else {
-                        $.each(items, function(index, item) {
-                            if (item.validator === validator) {
+                            else
                                 item.text = newMessage;
-                                replacementFound = true;
-                                return false
-                            }
+                            replacementFound = true;
+                            return false
+                        }
+                    });
+                    if (isValid ^ replacementFound)
+                        return;
+                    if (isValid)
+                        items.splice(elementIndex, 1);
+                    else
+                        items.push({
+                            text: newMessage,
+                            validator: validator
                         });
-                        if (!replacementFound)
-                            items.push({
-                                text: newMessage,
-                                validator: validator
-                            })
-                    }
                     items = this._getOrderedItems(this.validators, items);
                     this.option("items", items)
                 },
@@ -39080,9 +39272,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                     return devices.real().generic && !devices.isSimulator()
                                 },
                                 options: {focusStateEnabled: true}
-                            }, {
-                                device: {platform: "generic"},
-                                options: {validationMessageOffset: {h: 3}}
                             }, {
                                 device: [{platform: "android"}, {platform: "win"}],
                                 options: {validationMessageOffset: {v: 0}}
@@ -39380,16 +39569,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         this.element().removeClass(FILEUPLOADER_DRAGOVER_CLASS)
                 },
                 _dropHandler: function(e) {
-                    if (!this._useInputForDrop()) {
-                        e.preventDefault();
-                        var fileList = e.originalEvent.dataTransfer.files,
-                            files = this._getFiles(fileList);
-                        this._changeValues(files);
-                        if (this.option("uploadMode") === "instantly")
-                            this._uploadFiles()
-                    }
                     this._dragEventsCount = 0;
-                    this.element().removeClass(FILEUPLOADER_DRAGOVER_CLASS)
+                    this.element().removeClass(FILEUPLOADER_DRAGOVER_CLASS);
+                    if (this._useInputForDrop())
+                        return;
+                    e.preventDefault();
+                    var fileList = e.originalEvent.dataTransfer.files,
+                        files = this._getFiles(fileList);
+                    if (!this.option("multiple") && files.length > 1)
+                        return;
+                    this._changeValues(files);
+                    if (this.option("uploadMode") === "instantly")
+                        this._uploadFiles()
                 },
                 _renderWrapper: function() {
                     var $wrapper = $("<div>").addClass(FILEUPLOADER_WRAPPER_CLASS).appendTo(this.element());
@@ -39745,6 +39936,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 this.setAria("role", "tabpanel");
                 this._renderLayout()
             },
+            _renderContent: function() {
+                var that = this;
+                this.callBase();
+                if (this.option("templatesRenderAsynchronously"))
+                    this._resizeEventTimer = setTimeout(function() {
+                        that._updateLayout()
+                    }, 0)
+            },
             _renderLayout: function() {
                 var $element = this.element();
                 this._$tabContainer = $("<div>").addClass(TABPANEL_TABS_CLASS).appendTo($element);
@@ -39874,6 +40073,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     default:
                         this.callBase(args)
                 }
+            },
+            _clean: function() {
+                clearTimeout(this._resizeEventTimer);
+                this.callBase()
             }
         }))
     })(jQuery, DevExpress);
@@ -41245,6 +41448,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             this._invalidate();
                             this._triggerOnFieldDataChangedByDataSet(args.value)
                         }
+                        else if ($.isEmptyObject(args.value))
+                            this._resetValues();
                         break;
                     case"items":
                     case"colCount":
@@ -41351,20 +41556,22 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     })
             },
             _updateFieldValue: function(dataField, value) {
-                this.option("formData." + dataField, value)
+                if (utils.isDefined(this.option("formData")))
+                    this.option("formData." + dataField, value)
             },
             _generateItemsFromData: function(items) {
                 var formData = this.option("formData"),
                     result = [];
-                if (utils.isDefined(formData))
+                if (!items && utils.isDefined(formData))
                     $.each(formData, function(dataField, value) {
-                        if (!items || items && $.inArray(dataField, items) > -1)
-                            result.push({dataField: dataField})
+                        result.push({dataField: dataField})
                     });
                 if (items)
                     $.each(items, function(index, item) {
                         if (utils.isObject(item))
-                            result.push(item)
+                            result.push(item);
+                        else
+                            result.push({dataField: item})
                     });
                 return result
             },
@@ -41463,6 +41670,15 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             _dimensionChanged: function() {
                 if (this.option("colCount") === "auto")
                     this._refresh()
+            },
+            _resetValues: function() {
+                $.each(this._editorInstancesByField, function(dataField, editor) {
+                    editor.reset();
+                    editor.option("isValid", true)
+                })
+            },
+            resetValues: function() {
+                this._resetValues()
             },
             updateData: function(data, value) {
                 var that = this;
@@ -41606,8 +41822,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         value: value
                     })
                 }
-                else
-                    layoutData[dataField](value)
+                else if (knockoutUtils.isWritableObservable(layoutData[dataField])) {
+                    var newValue = utils.isFunction(value) ? value() : value;
+                    layoutData[dataField](newValue)
+                }
             },
             _triggerOnFieldDataChanged: function(args) {
                 this._createActionByOption("onFieldDataChanged")(args)
@@ -43587,10 +43805,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     eventName = eventUtils.addNamespace("dxclick", this.NAME),
                     contextMenuAction = this._createAction($.proxy(function() {
                         that.toggle()
-                    }, this));
+                    }, this), {validatingTargetName: "target"});
                 if (this.option("alternativeInvocationMode").enabled && this._getInvokeTarget())
                     $(this._getInvokeTarget()).off(eventName).on(eventName, $.proxy(function(e) {
-                        contextMenuAction({jQueryEvent: e})
+                        contextMenuAction({
+                            jQueryEvent: e,
+                            target: $(e.target)
+                        })
                     }, this))
             },
             _getInvokeTarget: function() {
@@ -43898,6 +44119,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         break;
                     case"target":
                         args.previousValue && this._detachShowContextMenuEvents(args.previousValue);
+                        this.option("position").of = null;
                         this._invalidate();
                         break;
                     case"focusedElement":
@@ -44382,11 +44604,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     rootItem: $rootItem,
                     submenu: submenu
                 });
-                if (this._options.width !== undefined)
-                    if (this._options.rtlEnabled)
-                        $border.css("width", this._$element.width() - $rootItem.position().right);
-                    else
-                        $border.css("width", this._$element.width() - $rootItem.position().left);
                 $border.show();
                 $rootItem.addClass(DX_MENU_ITEM_EXPANDED_CLASS)
             },
@@ -44646,6 +44863,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             DATA_ITEM_ID = "data-item-id",
             DBLCLICK_EVENT_NAME = "dxdblclick";
         var scrollableContainerUpdatedOnInit = $.noop;
+        function normalizeKey(id) {
+            var key = commonUtils.isString(id) ? id : id.toString(),
+                arr = key.match(/[^a-zA-Z0-9]/g);
+            arr && $.each(arr, function(_, sign) {
+                key = key.replace(sign, "_" + sign.charCodeAt() + "_")
+            });
+            return key
+        }
         registerComponent("dxTreeView", ui, HierarchicalCollectionWidget.inherit({
             _supportedKeys: function(e) {
                 var click = function(e) {
@@ -44694,7 +44919,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             _getNodeElementById: function(id) {
-                return this.element().find("[" + DATA_ITEM_ID + "='" + id + "']")
+                return this.element().find("[" + DATA_ITEM_ID + "='" + normalizeKey(id) + "']")
             },
             _activeStateUnit: "." + ITEM_CLASS,
             _widgetClass: function() {
@@ -44969,7 +45194,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 return $container
             },
             _createDOMElement: function($nodeContainer, node) {
-                var $node = $("<li>").addClass(NODE_CLASS).attr(DATA_ITEM_ID, node.internalFields.key).prependTo($nodeContainer);
+                var $node = $("<li>").addClass(NODE_CLASS).attr(DATA_ITEM_ID, normalizeKey(node.internalFields.key)).prependTo($nodeContainer);
                 this.setAria({
                     role: "treeitem",
                     label: this._displayGetter(node.internalFields.item) || "",
@@ -45076,7 +45301,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var node = this._convertItemElementToNode(itemElement);
                 if (this._isVirtualMode()) {
                     var $node = this._getNodeElementById(node.internalFields.key);
-                    this._createLoadIndicator($node)
+                    this._hasChildren(node) && this._createLoadIndicator($node)
                 }
                 var currentState = node.internalFields.expanded;
                 if (node.internalFields.disabled || commonUtils.isDefined(currentState) && currentState === state)
@@ -45085,6 +45310,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     state = !currentState;
                 this._dataAdapter.toggleExpansion(node.internalFields.key, state);
                 node.internalFields.expanded = state;
+                if (this._isVirtualMode() && !this._hasChildren(node))
+                    return;
                 this._updateExpandedItemsUI(node, state, e)
             },
             _createLoadIndicator: function($node) {
@@ -45113,18 +45340,19 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 })
             },
             _updateExpandedItemsUI: function(node, state, e) {
-                var $node = this._getNodeElementById(node.internalFields.key),
+                var that = this,
+                    $node = that._getNodeElementById(node.internalFields.key),
                     $icon = $node.find(">." + TOGGLE_ITEM_VISIBILITY_CLASS),
                     $nodeContainer;
                 $icon.toggleClass(TOGGLE_ITEM_VISIBILITY_OPENED_CLASS, state);
                 if (!state) {
-                    this._updateExpandedItem(node, state, e);
+                    that._updateExpandedItem(node, state, e);
                     return
                 }
                 $nodeContainer = $node.find(" > ." + NODE_CONTAINER_CLASS);
-                this._renderNestedItems($nodeContainer).done($.proxy(function(itemsLoaded) {
-                    itemsLoaded && this._updateExpandedItem(node, state, e)
-                }, this))
+                that._renderNestedItems($nodeContainer).done(function(itemsLoaded) {
+                    itemsLoaded && that._updateExpandedItem(node, state, e)
+                })
             },
             _updateExpandedItem: function(node, state, e) {
                 var $node = this._getNodeElementById(node.internalFields.key),
@@ -45167,25 +45395,25 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             _renderNestedItems: function($container) {
+                var deferred = $.Deferred();
                 if (!$container.is(":empty"))
-                    return $.Deferred().resolve(true).promise();
-                var d = $.Deferred();
+                    return deferred.resolve(true).promise();
                 if (this._isVirtualMode())
                     this._renderVirtualNodes($container).done(function(items) {
-                        d.resolve(items && items.length)
+                        deferred.resolve(items && items.length)
                     });
                 else {
                     var itemElement = $container.parent().find(">." + ITEM_CLASS),
                         node = this._getNodeByItemElement(itemElement),
                         nestedItems = this._getChildNodes(node);
                     this._renderItems($container, nestedItems);
-                    d.resolve(true)
+                    deferred.resolve(true)
                 }
-                return d.promise()
+                return deferred.promise()
             },
             _renderVirtualNodes: function($container) {
-                var itemElement = $container.parent().find(">." + ITEM_CLASS),
-                    node = this._getNodeByItemElement(itemElement),
+                var $node = $container.parent(),
+                    node = this._getNodeByItemElement($node.find(">." + ITEM_CLASS)),
                     that = this;
                 this._dataSource.filter(this._combineFilter([this.option("parentIdExpr"), node.internalFields.key]));
                 return this._dataSource.load().done(function(data) {
@@ -45196,7 +45424,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 $firstChild = that._getNodeElementById(firstItemKey);
                             that._updateParentsState(that._dataAdapter.getNodeByKey(firstItemKey), $firstChild)
                         }
-                        that._normalizeIconState(itemElement, virtualNodes.length)
+                        that._normalizeIconState($node, virtualNodes.length)
                     })
             },
             _getVirtualNodes: function(items) {
@@ -45208,17 +45436,17 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 });
                 return virtualNodes
             },
-            _normalizeIconState: function(itemElement, hasNewItems) {
-                var $loadIndicator = itemElement.siblings(".dx-loadindicator"),
+            _normalizeIconState: function($node, hasNewItems) {
+                var $loadIndicator = $node.find(".dx-loadindicator"),
                     $icon;
                 $loadIndicator.dxLoadIndicator("instance").option("visible", false);
                 if (hasNewItems) {
-                    $icon = itemElement.siblings("." + TOGGLE_ITEM_VISIBILITY_CLASS);
+                    $icon = $node.find("." + TOGGLE_ITEM_VISIBILITY_CLASS);
                     $icon.show();
                     return
                 }
-                itemElement.siblings("." + TOGGLE_ITEM_VISIBILITY_CLASS).removeClass(TOGGLE_ITEM_VISIBILITY_CLASS);
-                itemElement.parent().addClass(IS_LEAF)
+                $node.find("." + TOGGLE_ITEM_VISIBILITY_CLASS).removeClass(TOGGLE_ITEM_VISIBILITY_CLASS);
+                $node.addClass(IS_LEAF)
             },
             _dataSourceChangedHandler: function(newItems) {
                 var isInArray = $.inArray(newItems[0], this.option("items")) + 1;
@@ -45313,8 +45541,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     this._toggleSelectAll({value: false});
                 if (!$node) {
                     var $tmpNode = this._getNodeElementById(node.internalFields.key);
-                    if ($tmpNode.length)
-                        $node = $tmpNode
+                    $node = $tmpNode.length && $tmpNode
                 }
                 if (this._showCheckboxes()) {
                     if ($node)
@@ -45325,8 +45552,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
                 else {
                     this._dataAdapter.toggleSelection(node.internalFields.key, value);
-                    if ($node)
-                        this._toggleSelectedClass($node, value)
+                    $node && this._toggleSelectedClass($node, value)
                 }
                 this._fireOnSelectedEvent(node);
                 this._fireSelectionChanged()
@@ -45863,9 +46089,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     this._updateLockCount++
                 },
                 endUpdate: function() {
-                    this._updateLockCount--;
-                    if (!this._updateLockCount)
-                        this._endUpdateCore()
+                    if (this._updateLockCount > 0) {
+                        this._updateLockCount--;
+                        if (!this._updateLockCount)
+                            this._endUpdateCore()
+                    }
                 },
                 option: function(name) {
                     var component = this.component,
@@ -46349,10 +46577,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             };
                         return options.customizeText ? options.customizeText.call(options, formatObject) : formatObject.valueText
                     },
-                    getDisplayValue: function(column, value, data) {
+                    getDisplayValue: function(column, value, data, rowType) {
                         if (column.displayValueMap && column.displayValueMap[value] !== undefined)
                             return column.displayValueMap[value];
-                        else if (column.calculateDisplayValue && data)
+                        else if (column.calculateDisplayValue && data && rowType !== "group")
                             return column.calculateDisplayValue(data);
                         else if (column.lookup)
                             return column.lookup.calculateCellValue(value);
@@ -46427,9 +46655,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         var result,
                             i;
                         result = DX.data.utils.normalizeSortingInfo(sort);
-                        for (i = 0; i < sort.length; i++)
+                        for (i = 0; i < sort.length; i++) {
                             if (sort && sort[i] && sort[i].isExpanded !== undefined)
                                 result[i].isExpanded = sort[i].isExpanded;
+                            if (sort && sort[i] && sort[i].groupInterval !== undefined)
+                                result[i].groupInterval = sort[i].groupInterval
+                        }
                         return result
                     },
                     getFormatByDataType: function(dataType) {
@@ -46444,11 +46675,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             isSearchByDisplayValue = column.calculateDisplayValue && target === "search",
                             dataType = isSearchByDisplayValue && column.lookup && column.lookup.dataType || column.dataType,
                             filter = null;
-                        if (target === "headerFilter" && filterValue === null)
+                        if (target === "headerFilter" && filterValue === null) {
                             filter = [selector, selectedFilterOperation || "=", null];
+                            if (dataType === "string")
+                                filter = [filter, selectedFilterOperation === "=" ? "or" : "and", [selector, selectedFilterOperation || "=", ""]]
+                        }
                         else if (dataType === "string" && (!column.lookup || isSearchByDisplayValue))
                             filter = [selector, selectedFilterOperation || "contains", filterValue];
-                        else if (column.selectedFilterOperation === "between")
+                        else if (selectedFilterOperation === "between")
                             return getFilterExpressionByRange.apply(column, arguments);
                         else if (dataType === "date" && commonUtils.isDefined(filterValue))
                             return getFilterExpressionForDate.apply(column, arguments);
@@ -46463,19 +46697,26 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             dataField = column.dataField || column.name,
                             groupInterval = this.getGroupInterval(column);
                         if (column.calculateGroupValue)
-                            return remoteGrouping ? [{selector: column.calculateGroupValue}] : $.proxy(column.calculateGroupValue, column);
+                            return remoteGrouping ? [{
+                                        selector: column.calculateGroupValue,
+                                        isExpanded: false
+                                    }] : $.proxy(column.calculateGroupValue, column);
                         if (groupInterval) {
                             $.each(groupInterval, function(index, interval) {
                                 result.push(remoteGrouping ? {
                                     selector: dataField,
-                                    groupInterval: interval
+                                    groupInterval: interval,
+                                    isExpanded: false
                                 } : $.proxy(getIntervalSelector, column, interval))
                             });
                             return result
                         }
-                        return remoteGrouping ? [{selector: dataField}] : function(data) {
+                        return remoteGrouping ? [{
+                                    selector: dataField,
+                                    isExpanded: false
+                                }] : function(data) {
                                 var result = column.calculateCellValue(data);
-                                if (result === undefined)
+                                if (result === undefined || result === "")
                                     result = null;
                                 return result
                             }
@@ -46908,7 +47149,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             }
                         return result
                     };
-                var equalSortParameters = dataGrid.equalSortParameters = function(sortParameters1, sortParameters2) {
+                var equalSortParameters = dataGrid.equalSortParameters = function(sortParameters1, sortParameters2, ignoreIsExpanded) {
                         var i;
                         sortParameters1 = normalizeSortingInfo(sortParameters1);
                         sortParameters2 = normalizeSortingInfo(sortParameters2);
@@ -46917,7 +47158,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 return false;
                             else
                                 for (i = 0; i < sortParameters1.length; i++)
-                                    if (sortParameters1[i].selector !== sortParameters2[i].selector || sortParameters1[i].desc !== sortParameters2[i].desc || Boolean(sortParameters1[i].isExpanded) !== Boolean(sortParameters2[i].isExpanded))
+                                    if (sortParameters1[i].selector !== sortParameters2[i].selector || sortParameters1[i].desc !== sortParameters2[i].desc || sortParameters1[i].groupInterval !== sortParameters2[i].groupInterval || !ignoreIsExpanded && Boolean(sortParameters1[i].isExpanded) !== Boolean(sortParameters2[i].isExpanded))
                                         return false;
                             return true
                         }
@@ -47260,7 +47501,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             this.init()
                         },
                         isInitialized: function() {
-                            return !!this._columns.length
+                            return !!this._columns.length || !!this.option("columns")
                         },
                         isDataSourceApplied: function() {
                             return this._dataSourceApplied
@@ -47539,7 +47780,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 var sortOrder = this && this.sortOrder;
                                 if (isSortOrderValid(sortOrder))
                                     sort.push({
-                                        selector: this.calculateSortValue || useLocalSelector && this.selector || this.dataField || this.calculateCellValue,
+                                        selector: this.calculateSortValue || this.displayField || this.calculateDisplayValue || useLocalSelector && this.selector || this.dataField || this.calculateCellValue,
                                         desc: this.sortOrder === "desc"
                                     })
                             });
@@ -47548,7 +47789,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         getGroupDataSourceParameters: function(useLocalSelector) {
                             var group = [];
                             $.each(this.getGroupColumns(), function() {
-                                var selector = this.calculateGroupValue || useLocalSelector && this.selector || this.dataField || this.calculateCellValue;
+                                var selector = this.calculateGroupValue || this.displayField || this.calculateDisplayValue || useLocalSelector && this.selector || this.dataField || this.calculateCellValue;
                                 if (selector)
                                     group.push({
                                         selector: selector,
@@ -47611,7 +47852,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 column.selector = column.selector || function(data) {
                                     return column.calculateCellValue(data)
                                 };
-                                $.each(["calculateSortValue", "calculateGroupValue"], function(_, calculateCallbackName) {
+                                $.each(["calculateSortValue", "calculateGroupValue", "calculateDisplayValue"], function(_, calculateCallbackName) {
                                     var calculateCallback = column[calculateCallbackName];
                                     if (commonUtils.isFunction(calculateCallback) && !calculateCallback.isProxy) {
                                         column[calculateCallbackName] = function(data) {
@@ -48588,14 +48829,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 that.getController("selection").focusedItemIndex(-1);
                             return that.callBase(value)
                         },
-                        _processDataItem: function() {
+                        _processDataItem: function(item, options) {
                             var that = this,
                                 selectionController = that.getController("selection"),
                                 hasSelectColumn = selectionController.isSelectColumnVisible(),
                                 dataItem = this.callBase.apply(this, arguments);
                             dataItem.isSelected = selectionController.isRowSelected(dataItem.key);
                             if (hasSelectColumn && dataItem.values)
-                                dataItem.values[0] = dataItem.isSelected;
+                                for (var i = 0; i < options.visibleColumns.length; i++)
+                                    if (options.visibleColumns[i].command === "select") {
+                                        dataItem.values[i] = dataItem.isSelected;
+                                        break
+                                    }
                             return dataItem
                         },
                         refresh: function() {
@@ -48767,7 +49012,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 isCommandSelect = $(jQueryEvent.target).closest("." + DATAGRID_COMMAND_SELECT_CLASS).length,
                                 isSelectionDisabled = $(jQueryEvent.target).closest("." + DATAGRID_SELECTION_DISABLED_CLASS).length;
                             if (!isCommandSelect) {
-                                if (!isSelectionDisabled && that.option(SHOW_CHECKBOXES_MODE) !== "always")
+                                if (!isSelectionDisabled && (that.option(SELECTION_MODE) !== "multiple" || that.option(SHOW_CHECKBOXES_MODE) !== "always"))
                                     if (that.getController("selection").changeItemSelection(e.rowIndex, {
                                         control: jQueryEvent.ctrlKey,
                                         shift: jQueryEvent.shiftKey
@@ -49421,16 +49666,22 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         });
                 return false
             },
-            _appendRow: function($table, $row) {
+            _appendRow: function($table, $row, appendTemplate) {
                 var that = this;
                 if (that.option("rowTemplate") && that._delayedTemplates.length && $row)
                     that._delayedTemplates.push({
                         container: $table,
-                        template: appendElementTemplate,
+                        template: appendTemplate || appendElementTemplate,
                         options: $row
                     });
                 else
                     $table.append($row)
+            },
+            _resizeCore: function() {
+                var that = this,
+                    scrollLeft = that._scrollLeft;
+                that._scrollLeft = 0;
+                that.scrollTo({left: scrollLeft})
             },
             _renderCore: function(change) {
                 var $root = this.element().parent();
@@ -49755,6 +50006,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             }
         });
         dataGrid.ColumnChooserView = dataGrid.ColumnsView.inherit({
+            _resizeCore: $.noop,
             _isWinDevice: function() {
                 return !!DX.devices.real().win
             },
@@ -49944,13 +50196,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 if (lastLoadOptions) {
                     operationTypes = {
                         sorting: !dataGrid.equalSortParameters(loadOptions.sort, lastLoadOptions.sort),
-                        grouping: !dataGrid.equalSortParameters(loadOptions.group, lastLoadOptions.group),
+                        grouping: !dataGrid.equalSortParameters(loadOptions.group, lastLoadOptions.group, true),
                         filtering: !dataGrid.equalFilterParameters(loadOptions.filter, lastLoadOptions.filter),
-                        pageIndex: loadOptions.pageIndex !== lastLoadOptions.pageIndex,
-                        pageSize: loadOptions.pageSize !== lastLoadOptions.pageSize
+                        skip: loadOptions.skip !== lastLoadOptions.skip,
+                        take: loadOptions.take !== lastLoadOptions.take
                     };
                     operationTypes.reload = operationTypes.sorting || operationTypes.grouping || operationTypes.filtering;
-                    operationTypes.paging = operationTypes.pageIndex || operationTypes.pageSize
+                    operationTypes.paging = operationTypes.skip || operationTypes.take
                 }
                 return operationTypes
             }
@@ -50018,10 +50270,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         options.originalStoreLoadOptions = options.storeLoadOptions;
                         options.remoteOperations = $.extend({}, this.remoteOperations());
                         var isReload = !that.isLoaded() && !that._isRefreshing;
-                        loadOptions = $.extend({
-                            pageIndex: dataSource.pageIndex(),
-                            pageSize: dataSource.pageSize()
-                        }, options.storeLoadOptions);
+                        loadOptions = $.extend({}, options.storeLoadOptions);
                         operationTypes = calculateOperationTypes(loadOptions, lastLoadOptions);
                         that._customizeRemoteOperations(options, isReload, operationTypes);
                         if (options.isCustomLoading)
@@ -50175,6 +50424,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         }
                     })
                 }
+                if (cachedPagingData)
+                    options.remoteOperations.paging = false;
                 options.cachedStoreData = cachedStoreData;
                 options.cachedPagingData = cachedPagingData;
                 if (!options.isCustomLoading) {
@@ -50355,7 +50606,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             if (options.storeLoadOptions.group) {
                                 if (remoteOperations.grouping && !options.isCustomLoading)
                                     remoteOperations.paging = false;
-                                if (!remoteOperations.grouping && (!remoteOperations.sorting || !remoteOperations.filtering || this._hasCollapsedGroupLevels(options.storeLoadOptions.group)))
+                                if (!remoteOperations.grouping && (!remoteOperations.sorting || !remoteOperations.filtering || options.isCustomLoading || this._hasCollapsedGroupLevels(options.storeLoadOptions.group)))
                                     remoteOperations.paging = false
                             }
                             this.callBase.apply(this, arguments)
@@ -50646,14 +50897,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             var dataSource = this._dataSource;
                             if (dataSource && dataSource.collapseAll(groupIndex)) {
                                 dataSource.pageIndex(0);
-                                dataSource.reload(true)
+                                dataSource.reload()
                             }
                         },
                         expandAll: function(groupIndex) {
                             var dataSource = this._dataSource;
                             if (dataSource && dataSource.expandAll(groupIndex)) {
                                 dataSource.pageIndex(0);
-                                dataSource.reload(true)
+                                dataSource.reload()
                             }
                         },
                         changeRowExpand: function(key) {
@@ -50688,11 +50939,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         },
                         expandRow: function(key) {
                             if (!this.isRowExpanded(key))
-                                this.changeRowExpand(key)
+                                return this.changeRowExpand(key);
+                            return $.Deferred().resolve()
                         },
                         collapseRow: function(key) {
                             if (this.isRowExpanded(key))
-                                this.changeRowExpand(key)
+                                return this.changeRowExpand(key);
+                            return $.Deferred().resolve()
                         },
                         optionChanged: function(args) {
                             if (args.name === "grouping")
@@ -51102,7 +51355,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 data.splice(i, 0, {
                                     key: path[0],
                                     items: [],
-                                    count: collapsedGroup.count
+                                    count: path.length === 1 ? collapsedGroup.count : undefined
                                 });
                             appendCollapsedPath(data[i].items, path.slice(1), groups.slice(1), collapsedGroup, offset)
                         }
@@ -51261,7 +51514,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         item = items[i];
                         if (item) {
                             path.push(item.key);
-                            if (!item.count && !item.items)
+                            if (!item.count && !item.items || item.items === undefined)
                                 return -1;
                             groupInfo = that.findGroupInfo(path);
                             if (!groupInfo)
@@ -52444,7 +52697,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     _updateEditColumn: function() {
                         var that = this,
                             editing = that.option("editing"),
-                            isEditColumnVisible = editing && ((editing.allowUpdating || editing.allowAdding) && isRowEditMode(that) || editing.allowDeleting);
+                            editMode = getEditMode(that),
+                            isEditColumnVisible = editing && ((editing.allowUpdating || editing.allowAdding) && editMode === DATAGRID_EDIT_MODE_ROW || editing.allowUpdating && editMode === DATAGRID_EDIT_MODE_FORM || editing.allowDeleting);
                         that._columnsController.addCommandColumn({
                             command: "edit",
                             visible: isEditColumnVisible,
@@ -53381,13 +53635,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     }
                 },
                 views: {rowsView: {
-                        updateFreeSpaceRowHeight: function() {
+                        updateFreeSpaceRowHeight: function($table) {
                             var that = this,
                                 $rowElements = that._getRowElements(),
-                                $freeSpaceRowElements = that._getFreeSpaceRowElements(),
+                                $freeSpaceRowElements = that._getFreeSpaceRowElements($table),
                                 $freeSpaceRowElement = $freeSpaceRowElements.first(),
                                 $tooltipContent = that.element().find(".dx-invalid-message .dx-overlay-content");
-                            that.callBase();
+                            that.callBase($table);
                             if ($tooltipContent.length && $freeSpaceRowElement && $rowElements.length === 1 && (!$freeSpaceRowElement.is(":visible") || $tooltipContent.outerHeight() > $freeSpaceRowElement.outerHeight())) {
                                 $freeSpaceRowElements.show();
                                 $freeSpaceRowElements.height($tooltipContent.outerHeight())
@@ -54052,6 +54306,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
         var ui = DX.ui,
             dataGrid = ui.dxDataGrid,
             translator = DX.require("/utils/utils.translator"),
+            browser = DX.require("/utils/utils.browser"),
             Class = DevExpress.require("/class");
         var DATAGRID_TABLE_CLASS = "dx-datagrid-table",
             DATAGRID_ROW_CLASS = "dx-row",
@@ -54066,7 +54321,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             SCROLLING_MODE_INFINITE = "infinite",
             SCROLLING_MODE_VIRTUAL = "virtual",
             PIXELS_LIMIT = 250000,
-            CONTENT_HEIHGT_LIMIT = 15000000;
+            CONTENT_HEIHGT_LIMIT = browser.msie ? 4000000 : 15000000;
         dataGrid.__MAX_VIRTUAL_CONTENT_SIZE = CONTENT_HEIHGT_LIMIT;
         var isVirtualMode = function(that) {
                 return that.option("scrolling.mode") === SCROLLING_MODE_VIRTUAL
@@ -54952,13 +55207,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 that._updateContent(that._renderTable());
                 that.callBase.apply(that, arguments)
             },
-            _resizeCore: function() {
-                var that = this;
-                var scrollLeft = that._scrollLeft;
-                that.callBase();
-                that._scrollLeft = 0;
-                that.scrollTo({left: scrollLeft})
-            },
             _renderRows: function() {
                 var that = this;
                 if (that._dataController.isLoaded())
@@ -55753,6 +56001,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             dataGrid = ui.dxDataGrid;
         var DATAGRID_HEADER_PANEL_CLASS = "dx-datagrid-header-panel";
         dataGrid.HeaderPanel = dataGrid.ColumnsView.inherit({
+            _resizeCore: $.noop,
             _renderCore: function() {
                 this.element().addClass(DATAGRID_HEADER_PANEL_CLASS)
             },
@@ -56367,7 +56616,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                         filterValue = column.deserializeValue(filterValue);
                                     filter = column.createFilterExpression(filterValue, isExclude ? "<>" : "=", "headerFilter")
                                 }
-                                filter.columnIndex = column.index;
+                                if (filter)
+                                    filter.columnIndex = column.index;
                                 filterValues.push(filter)
                             });
                             filterValues = dataGrid.combineFilters(filterValues, isExclude ? "and" : "or");
@@ -56836,7 +57086,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     options.useSimulatedScrollbar = !useNativeScrolling
                 }
                 return options
-            };
+            },
+            appendFreeSpaceRowTemplate = {render: function(element, container) {
+                    var $tbody = container.find("tbody");
+                    if ($tbody.length)
+                        $tbody.last().append(element);
+                    else
+                        container.append(element)
+                }};
         dataGrid.createScrollableOptions = createScrollableOptions;
         dataGrid.RowsView = dataGrid.ColumnsView.inherit({
             _getDefaultTemplate: function(column) {
@@ -57055,7 +57312,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 freeSpaceRowElement.addClass(DATAGRID_FREESPACE_CLASS).toggleClass(DATAGRID_COLUMN_LINES_CLASS, that.option("showColumnLines"));
                 for (i = 0; i < columns.length; i++)
                     freeSpaceRowElement.append(that._createCell(columns[i]));
-                that._appendRow(tableElement, freeSpaceRowElement)
+                that._appendRow(tableElement, freeSpaceRowElement, appendFreeSpaceRowTemplate)
             },
             _needUpdateRowHeight: function(itemsCount) {
                 return itemsCount > 0 && !this._rowHeight
@@ -57064,13 +57321,16 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var that = this,
                     tableElement = that._getTableElement(),
                     tableHeight,
+                    freeSpaceRowHeight,
                     itemsCount = that._dataController.items().length,
                     $freeSpaceRowElement;
                 if (tableElement && that._needUpdateRowHeight(itemsCount)) {
                     tableHeight = tableElement.outerHeight();
                     $freeSpaceRowElement = that._getFreeSpaceRowElements().first();
-                    if ($freeSpaceRowElement && $freeSpaceRowElement.is(":visible"))
-                        tableHeight -= $freeSpaceRowElement.outerHeight();
+                    if ($freeSpaceRowElement && $freeSpaceRowElement.is(":visible")) {
+                        freeSpaceRowHeight = parseFloat($freeSpaceRowElement[0].style.height) || 0;
+                        tableHeight -= freeSpaceRowHeight
+                    }
                     that._rowHeight = tableHeight / itemsCount
                 }
             },
@@ -57088,8 +57348,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var $rows = this.callBase(tableElement);
                 return $rows && $rows.not("." + DATAGRID_FREESPACE_CLASS)
             },
-            _getFreeSpaceRowElements: function() {
-                var tableElements = this.getTableElements();
+            _getFreeSpaceRowElements: function($table) {
+                var tableElements = $table || this.getTableElements();
                 return tableElements && tableElements.children("tbody").children("." + DATAGRID_FREESPACE_CLASS)
             },
             _getNoDataText: function() {
@@ -57189,7 +57449,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     scrollingMode: scrollingMode,
                     columnsCountBeforeGroups: columnsCountBeforeGroups
                 }, options));
-                that._renderFreeSpaceRow($table)
+                that._renderFreeSpaceRow($table);
+                if (!that._hasHeight)
+                    that.updateFreeSpaceRowHeight($table)
             },
             _renderRow: function($table, options) {
                 var that = this,
@@ -57229,7 +57491,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     data = row.data,
                     summaryCells = row && row.summaryCells,
                     value = options.value,
-                    displayValue = dataGrid.getDisplayValue(column, value, data),
+                    displayValue = dataGrid.getDisplayValue(column, value, data, row.rowType),
                     groupingOptions = that.option("grouping"),
                     scrollingMode = that.option("scrolling.mode");
                 parameters = $.extend(this.callBase(options), {
@@ -57276,39 +57538,43 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var cellIndex = $cell.length ? $cell[0].cellIndex : -1;
                 return cellIndex
             },
-            updateFreeSpaceRowHeight: function() {
+            updateFreeSpaceRowHeight: function($table) {
                 var that = this,
                     elementHeight,
                     contentElement = that._findContentElement(),
-                    freeSpaceRowElements = that._getFreeSpaceRowElements(),
+                    freeSpaceRowElements = that._getFreeSpaceRowElements($table),
                     contentHeight = 0,
                     freespaceRowCount,
                     scrollingMode,
                     resultHeight;
-                if (freeSpaceRowElements && contentElement) {
-                    freeSpaceRowElements.hide();
-                    elementHeight = that.element().height();
-                    contentHeight = contentElement.outerHeight();
-                    resultHeight = elementHeight - contentHeight - that.getScrollbarWidth(true);
-                    if (that._dataController.items().length > 0) {
-                        if (resultHeight > 0 || !that._dataController.items().length) {
-                            freeSpaceRowElements.height(resultHeight);
-                            freeSpaceRowElements.show()
-                        }
-                        else if (!that._hasHeight) {
+                if (freeSpaceRowElements && contentElement)
+                    if (that._dataController.items().length > 0)
+                        if (!that._hasHeight) {
                             freespaceRowCount = that._dataController.pageSize() - that._dataController.items().length;
                             scrollingMode = that.option("scrolling.mode");
                             if (freespaceRowCount > 0 && that._dataController.pageCount() > 1 && scrollingMode !== "virtual" && scrollingMode !== "infinite") {
                                 freeSpaceRowElements.height(freespaceRowCount * that._rowHeight);
                                 freeSpaceRowElements.show()
                             }
+                            else if ($table)
+                                freeSpaceRowElements.height(0);
+                            else
+                                freeSpaceRowElements.hide()
                         }
-                    }
+                        else {
+                            freeSpaceRowElements.hide();
+                            elementHeight = that.element().height();
+                            contentHeight = contentElement.outerHeight();
+                            resultHeight = elementHeight - contentHeight - that.getScrollbarWidth(true);
+                            if (resultHeight > 0) {
+                                freeSpaceRowElements.height(resultHeight);
+                                freeSpaceRowElements.show()
+                            }
+                        }
                     else {
                         freeSpaceRowElements.height(0);
                         freeSpaceRowElements.show()
                     }
-                }
             },
             _columnOptionChanged: function(e) {
                 var optionNames = e.optionNames;
@@ -57412,7 +57678,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             _resizeCore: function() {
                 var that = this;
-                that.callBase();
                 that._fireColumnResizedCallbacks();
                 that._updateRowHeight();
                 that._updateNoDataText();
@@ -57430,14 +57695,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             height: function(height) {
                 var that = this,
-                    $element = this.element(),
-                    freeSpaceRowElements;
+                    $element = this.element();
                 if (isDefined(height)) {
                     that._hasHeight = height !== "auto";
                     if ($element)
-                        $element.height(height);
-                    freeSpaceRowElements = this._getFreeSpaceRowElements();
-                    freeSpaceRowElements && freeSpaceRowElements.hide()
+                        $element.height(height)
                 }
                 else
                     return $element ? $element.height() : 0
@@ -57782,22 +58044,40 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             return result
         };
         dataGrid.TrackerView = dataGrid.View.inherit({
-            _renderCore: function(options) {
+            _renderCore: function() {
                 this.callBase();
                 this.element().addClass(DATAGRID_TRACKER_CLASS);
                 this.hide()
             },
-            init: function() {
-                var that = this,
-                    $element;
-                that.callBase();
-                that.getController("tablePosition").positionChanged.add(function(position) {
-                    $element = that.element();
+            _unsubscribeFromCallback: function() {
+                if (this._positionChanged)
+                    this._tablePositionController.positionChanged.remove(this._positionChanged)
+            },
+            _subscribeToCallback: function() {
+                var that = this;
+                that._positionChanged = function(position) {
+                    var $element = that.element();
                     if ($element && $element.hasClass(DATAGRID_TRACKER_CLASS)) {
                         $element.css({top: position.top});
                         $element.height(position.height)
                     }
-                })
+                };
+                this._tablePositionController.positionChanged.add(that._positionChanged)
+            },
+            optionChanged: function(args) {
+                if (args.name === "allowColumnResizing") {
+                    this._unsubscribeFromCallback();
+                    if (args.value) {
+                        this._subscribeToCallback();
+                        this._invalidate()
+                    }
+                }
+                this.callBase(args)
+            },
+            init: function() {
+                this.callBase();
+                this._tablePositionController = this.getController("tablePosition");
+                this._subscribeToCallback()
             },
             isVisible: function() {
                 return allowResizing(this)
@@ -57810,6 +58090,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             setHeight: function(value) {
                 this.element().height(value)
+            },
+            dispose: function() {
+                this._unsubscribeFromCallback();
+                this.callBase()
             }
         });
         dataGrid.SeparatorView = dataGrid.View.inherit({
@@ -57849,25 +58133,47 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var $element = this.element();
                 $element.addClass(DATAGRID_COLUMNS_SEPARATOR_CLASS)
             },
-            _subscribeToEvent: function() {
+            _subscribeToCallback: function() {
                 var that = this,
                     $element;
-                that.getController("tablePosition").positionChanged.add(function(position) {
+                that._positionChanged = function(position) {
                     $element = that.element();
                     if ($element) {
                         $element.css({top: position.top});
                         $element.height(position.height)
                     }
-                })
+                };
+                that._tablePositionController.positionChanged.add(that._positionChanged)
+            },
+            _unsubscribeFromCallback: function() {
+                this._positionChanged && this._tablePositionController.positionChanged.remove(this._positionChanged)
+            },
+            _init: function() {
+                this._isTransparent = allowResizing(this);
+                if (this.isVisible())
+                    this._subscribeToCallback()
             },
             isVisible: function() {
                 return this.option("showColumnHeaders") && (allowReordering(this) || allowResizing(this))
             },
+            optionChanged: function(args) {
+                if (args.name === "allowColumnResizing")
+                    if (args.value) {
+                        this._init();
+                        this._invalidate();
+                        this.hide(true)
+                    }
+                    else {
+                        this._unsubscribeFromCallback();
+                        this._isTransparent = allowResizing(this);
+                        this.hide(true)
+                    }
+                this.callBase(args)
+            },
             init: function() {
                 this.callBase();
-                this._isTransparent = allowResizing(this);
-                if (this.isVisible())
-                    this._subscribeToEvent()
+                this._tablePositionController = this.getController("tablePosition");
+                this._init()
             },
             show: function() {
                 var that = this,
@@ -57879,13 +58185,19 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         $element.show();
                 this.callBase()
             },
-            hide: function() {
+            hide: function(force) {
                 var $element = this.element();
-                if ($element && this._isShown)
-                    if (this._isTransparent)
+                if ($element && (this._isShown || force))
+                    if (this._isTransparent) {
                         $element.addClass(DATAGRID_COLUMNS_SEPARATOR_TRANSPARENT);
-                    else
-                        $element.hide();
+                        if ($element.css("display") === "none")
+                            $element.show()
+                    }
+                    else {
+                        if ($element.hasClass(DATAGRID_COLUMNS_SEPARATOR_TRANSPARENT))
+                            $element.removeClass(DATAGRID_COLUMNS_SEPARATOR_TRANSPARENT);
+                        $element.hide()
+                    }
                 this.callBase()
             },
             moveByX: function(outerX) {
@@ -57902,6 +58214,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     $element.css("cursor", cursorName);
                     this._testCursorName = cursorName
                 }
+            },
+            dispose: function() {
+                this._unsubscribeFromCallback();
+                this.callBase()
             }
         });
         dataGrid.BlockSeparatorView = dataGrid.SeparatorView.inherit({
@@ -58159,7 +58475,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     columnsSeparatorWidth = that._columnsSeparatorView.width(),
                     columnsSeparatorOffset = that._columnsSeparatorView.element().offset(),
                     deltaX = columnsSeparatorWidth / 2,
-                    parentOffsetLeft = that._$parentContainer.offset().left,
+                    parentOffset = that._$parentContainer.offset(),
+                    parentOffsetLeft = parentOffset.left,
                     eventData = eventUtils.eventData(e);
                 if (that._isResizing) {
                     if (parentOffsetLeft <= eventData.x && eventData.x <= parentOffsetLeft + that._$parentContainer.width())
@@ -58170,7 +58487,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         }
                 }
                 else if (that._isHeadersRowArea(eventData.y)) {
+                    if (that._previousParentOffset)
+                        if (that._previousParentOffset.left !== parentOffset.left || that._previousParentOffset.top !== parentOffset.top)
+                            that.pointsByColumns(null);
                     that._targetPoint = that._getTargetPoint(that.pointsByColumns(), eventData.x, columnsSeparatorWidth);
+                    that._previousParentOffset = parentOffset;
                     that._isReadyResizing = false;
                     that._columnsSeparatorView.changeCursor();
                     if (that._targetPoint && columnsSeparatorOffset.top <= eventData.y && columnsSeparatorOffset.top + that._columnsSeparatorView.height() >= eventData.y) {
@@ -58307,56 +58628,88 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
                 return isUpdated
             },
-            isResizing: function() {
-                return this._isResizing
+            _subscribeToCallback: function(callback, handler) {
+                callback.add(handler);
+                this._subscribesToCallbacks.push({
+                    callback: callback,
+                    handler: handler
+                })
             },
-            init: function() {
+            _unsubscribeFromCallbacks: function() {
+                var i,
+                    subscribe;
+                for (i = 0; i < this._subscribesToCallbacks.length; i++) {
+                    subscribe = this._subscribesToCallbacks[i];
+                    subscribe.callback.remove(subscribe.handler)
+                }
+                this._subscribesToCallbacks = []
+            },
+            _unsubscribes: function() {
+                this._unsubscribeFromEvents();
+                this._unsubscribeFromCallbacks()
+            },
+            _init: function() {
                 var that = this,
                     gridView,
-                    previousScrollbarVisibility,
+                    generatePointsByColumnsHandler = function() {
+                        if (!that._isResizing)
+                            that.pointsByColumns(null)
+                    },
                     generatePointsByColumnsScrollHandler = function(offset) {
                         if (that._scrollLeft !== offset.left) {
                             that._scrollLeft = offset.left;
                             that.pointsByColumns(null)
                         }
                     },
-                    generatePointsByColumnsHandler = function() {
-                        if (!that._isResizing)
-                            that.pointsByColumns(null)
-                    };
-                that.callBase();
-                if (allowResizing(that)) {
-                    that._columnsSeparatorView = that.getView("columnsSeparatorView");
-                    that._columnHeadersView = that.getView("columnHeadersView");
-                    that._trackerView = that.getView("trackerView");
-                    that._rowsView = that.getView("rowsView");
-                    that._columnsController = that.getController("columns");
-                    that._tablePositionController = that.getController("tablePosition");
-                    that._$parentContainer = that._columnsSeparatorView.component.element();
-                    that._columnHeadersView.renderCompleted.add(generatePointsByColumnsHandler);
-                    that._columnHeadersView.resizeCompleted.add(generatePointsByColumnsHandler);
-                    that._columnsSeparatorView.renderCompleted.add(function() {
-                        that._unsubscribeFromEvents();
-                        that._subscribeToEvents()
-                    });
-                    that._rowsView.renderCompleted.add(function() {
-                        that._rowsView.scrollChanged.remove(generatePointsByColumnsScrollHandler);
-                        that._rowsView.scrollChanged.add(generatePointsByColumnsScrollHandler)
-                    });
-                    gridView = that.getView("gridView");
-                    previousScrollbarVisibility = that._rowsView.getScrollbarWidth() !== 0;
-                    that.getController("tablePosition").positionChanged.add(function() {
-                        if (that._isResizing && !that._rowsView.isResizing) {
-                            var scrollbarVisibility = that._rowsView.getScrollbarWidth() !== 0;
-                            if (previousScrollbarVisibility !== scrollbarVisibility) {
-                                previousScrollbarVisibility = scrollbarVisibility;
-                                gridView.resize()
-                            }
-                            else
-                                that._rowsView.updateFreeSpaceRowHeight()
+                    previousScrollbarVisibility;
+                that._columnsSeparatorView = that.getView("columnsSeparatorView");
+                that._columnHeadersView = that.getView("columnHeadersView");
+                that._trackerView = that.getView("trackerView");
+                that._rowsView = that.getView("rowsView");
+                that._columnsController = that.getController("columns");
+                that._tablePositionController = that.getController("tablePosition");
+                that._$parentContainer = that._columnsSeparatorView.component.element();
+                that._subscribeToCallback(that._columnHeadersView.renderCompleted, generatePointsByColumnsHandler);
+                that._subscribeToCallback(that._columnHeadersView.resizeCompleted, generatePointsByColumnsHandler);
+                that._subscribeToCallback(that._columnsSeparatorView.renderCompleted, function() {
+                    that._unsubscribeFromEvents();
+                    that._subscribeToEvents()
+                });
+                that._subscribeToCallback(that._rowsView.renderCompleted, function() {
+                    that._rowsView.scrollChanged.remove(generatePointsByColumnsScrollHandler);
+                    that._rowsView.scrollChanged.add(generatePointsByColumnsScrollHandler)
+                });
+                gridView = that.getView("gridView");
+                previousScrollbarVisibility = that._rowsView.getScrollbarWidth() !== 0;
+                that._subscribeToCallback(that.getController("tablePosition").positionChanged, function() {
+                    if (that._isResizing && !that._rowsView.isResizing) {
+                        var scrollbarVisibility = that._rowsView.getScrollbarWidth() !== 0;
+                        if (previousScrollbarVisibility !== scrollbarVisibility) {
+                            previousScrollbarVisibility = scrollbarVisibility;
+                            gridView.resize()
                         }
-                    })
-                }
+                        else
+                            that._rowsView.updateFreeSpaceRowHeight()
+                    }
+                })
+            },
+            optionChanged: function(args) {
+                this.callBase(args);
+                if (args.name === "allowColumnResizing")
+                    if (args.value) {
+                        this._init();
+                        this._subscribeToEvents()
+                    }
+                    else
+                        this._unsubscribes()
+            },
+            isResizing: function() {
+                return this._isResizing
+            },
+            init: function() {
+                this._subscribesToCallbacks = [];
+                if (allowResizing(this))
+                    this._init()
             },
             pointsByColumns: function(value) {
                 if (value !== undefined)
@@ -58368,7 +58721,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             dispose: function() {
-                this._unsubscribeFromEvents()
+                this._unsubscribes();
+                this.callBase()
             }
         });
         dataGrid.TablePositionViewController = dataGrid.ViewController.inherit({
@@ -58685,6 +59039,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             DATAGRID_VIEWS = ["rowsView"],
             DATAGRID_EDIT_MODE_ROW = "row",
             DATAGRID_EDIT_MODE_FORM = "form";
+        function isGroupRow($row) {
+            return $row && $row.hasClass(DATAGRID_GROUP_ROW_CLASS)
+        }
+        function isDetailRow($row) {
+            return $row && $row.hasClass(DATAGRID_MASTER_DETAIL_ROW_CLASS)
+        }
         dataGrid.KeyboardNavigationController = dataGrid.ViewController.inherit({
             _isRowEditMode: function() {
                 var editMode = this._editingController.getEditMode();
@@ -58785,7 +59145,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         visibleColumnCount = this._getVisibleColumnCount(rowIndex),
                         editMode = this._editingController.getEditMode(),
                         isEditingCurrentRow = editMode === DATAGRID_EDIT_MODE_ROW ? this._editingController.isEditRow(rowIndex) : this._editingController.isEditing(),
-                        isMasterDetailRow = $cell.parent().hasClass(DATAGRID_MASTER_DETAIL_ROW_CLASS),
+                        isMasterDetailRow = isDetailRow($cell.parent()),
                         isValidGroupSpaceColumn = function() {
                             return !isMasterDetailRow && column && !commonUtils.isDefined(column.groupIndex) || parseInt($cell.attr("colspan")) > 1
                         };
@@ -58799,15 +59159,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var $cell = this._focusedView && this._focusedView.getCell(cellPosition);
                 return this._isCellValid($cell, allCommandColumns)
             },
-            _isGroupRow: function($row) {
-                return $row && $row.hasClass(DATAGRID_GROUP_ROW_CLASS)
-            },
             _focus: function($cell) {
                 var $row = $cell.parent(),
                     $focusedCell = this._getFocusedCell(),
                     $focusElement;
                 $focusedCell && $focusedCell.attr("tabindex", null);
-                if (this._isGroupRow($row)) {
+                if (isGroupRow($row)) {
                     $focusElement = $row;
                     this._focusedCellPosition.rowIndex = this._focusedView.getRowIndex($row)
                 }
@@ -58820,14 +59177,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 this.getController("editorFactory").focus($focusElement)
             },
             _hasSkipRow: function($row) {
-                return $row && ($row.css("display") === "none" || $row.hasClass(DATAGRID_GROUP_FOOTER_CLASS) || $row.hasClass(DATAGRID_MASTER_DETAIL_ROW_CLASS) && !$row.hasClass(DATAGRID_EDIT_FORM_CLASS))
+                return $row && ($row.css("display") === "none" || $row.hasClass(DATAGRID_GROUP_FOOTER_CLASS) || isDetailRow($row) && !$row.hasClass(DATAGRID_EDIT_FORM_CLASS))
             },
             _enterKeyHandler: function(eventArgs, isEditing) {
                 var $cell = this._getFocusedCell(),
                     editingOptions = this.option("editing"),
                     rowIndex = this._focusedCellPosition ? this._focusedCellPosition.rowIndex : null,
                     $row = this._focusedView && this._focusedView.getRow(rowIndex);
-                if (this.option("grouping.allowCollapsing") && this._isGroupRow($row) || this.option("masterDetail.enabled") && $cell && $cell.hasClass(DATAGRID_COMMAND_EXPAND_CLASS)) {
+                if (this.option("grouping.allowCollapsing") && isGroupRow($row) || this.option("masterDetail.enabled") && $cell && $cell.hasClass(DATAGRID_COMMAND_EXPAND_CLASS)) {
                     var key = this._dataController.getKeyByRowIndex(rowIndex),
                         item = this._dataController.items()[rowIndex];
                     if (key !== undefined && item && item.data && !item.data.isContinuation)
@@ -58857,7 +59214,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     $row = this._focusedView && this._focusedView.getRow(rowIndex),
                     directionCode,
                     $cell;
-                if (!isEditing && !this._isGroupRow($row)) {
+                if (!isEditing && $row && !isGroupRow($row) && !isDetailRow($row)) {
                     directionCode = this._getDirectionCodeByKey(eventArgs.key);
                     $cell = this._getNextCell(directionCode);
                     if ($cell && this._isCellValid($cell))
@@ -58875,8 +59232,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             _upDownKeysHandler: function(eventArgs, isEditing) {
                 var rowIndex = this._focusedCellPosition ? this._focusedCellPosition.rowIndex : null,
+                    $row = this._focusedView && this._focusedView.getRow(rowIndex),
                     $cell;
-                if (!isEditing) {
+                if (!isEditing && !isDetailRow($row)) {
                     if (rowIndex === 0 || this._focusedView && rowIndex === this._focusedView.getRowsCount() - 1);
                     $cell = this._getNextCell(eventArgs.key);
                     if ($cell && this._isCellValid($cell))
@@ -58958,8 +59316,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     }
                 }
                 if (isOriginalHandlerRequired) {
-                    if (this._editingController.isEditing() && this._isRowEditMode())
+                    this.getController("editorFactory").loseFocus();
+                    if (this._editingController.isEditing() && !this._isRowEditMode()) {
+                        this._resetFocusedCell();
                         this._editingController.closeEditCell()
+                    }
                 }
                 else
                     eventArgs.originalEvent.preventDefault()
@@ -59152,10 +59513,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     },
                     visibleColumnsCount = this._getVisibleColumnCount(cellPosition.rowIndex),
                     isCheckingCellValid = this._isCellByPositionValid(checkingPosition);
-                if (!this._isLastRow(cellPosition.rowIndex) || isCheckingCellValid)
+                if (!this._isLastRow(cellPosition.rowIndex))
                     return false;
-                else if (cellPosition.columnIndex === visibleColumnsCount - 1)
+                if (cellPosition.columnIndex === visibleColumnsCount - 1)
                     return true;
+                if (isCheckingCellValid)
+                    return false;
                 return this._isLastValidCell(checkingPosition)
             },
             _getVisibleColumnCount: function(rowIndex) {
@@ -59377,7 +59740,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 })
             },
             removeErrorRow: function($row) {
-                $row.hasClass(DATAGRID_ERROR_ROW_CLASS) && $row.remove()
+                var $columnHeaders = this._columnHeadersView && this._columnHeadersView.element();
+                $row = $row || $columnHeaders && $columnHeaders.find("." + DATAGRID_ERROR_ROW_CLASS);
+                $row && $row.hasClass(DATAGRID_ERROR_ROW_CLASS) && $row.remove()
             },
             optionChanged: function(args) {
                 var that = this;
@@ -59403,6 +59768,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 var message = error && error.message || error;
                                 if (that.option("errorRowEnabled"))
                                     errorHandlingController.renderErrorRow(message)
+                            });
+                            that.changed.add(function() {
+                                var errorHandlingController = that.getController("errorHandling"),
+                                    editingController = that.getController("editing");
+                                if (editingController && !editingController.hasChanges())
+                                    errorHandlingController && errorHandlingController.removeErrorRow()
                             })
                         }}}}
         })
@@ -59574,7 +59945,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 totalAggregates,
                                 remoteOperations = options.remoteOperations || {};
                             if (remoteOperations.summary) {
-                                if (!remoteOperations.paging && !remoteOperations.grouping && groups.length) {
+                                if (!remoteOperations.paging && !remoteOperations.grouping && groups.length && summary) {
                                     calculateAggregates(that, {groupAggregates: summary.groupAggregates}, options.data, groups.length);
                                     options.data = sortGroupsBySummary(options.data, groups, summary)
                                 }
@@ -60553,7 +60924,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
         dataGrid.DataProvider = Class.inherit({
             _getGroupValue: function(item) {
                 var groupColumn = this._options.groupColumns[item.groupIndex],
-                    value = dataGrid.getDisplayValue(groupColumn, item.values[item.groupIndex], item.data),
+                    value = dataGrid.getDisplayValue(groupColumn, item.values[item.groupIndex], item.data, item.rowType),
                     result = groupColumn.caption + ": " + dataGrid.formatValue(value, groupColumn),
                     visibleIndex;
                 visibleIndex = this._options.getVisibleIndex(groupColumn.index);
@@ -60635,7 +61006,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         default:
                             column = this._options.columns[cellIndex];
                             if (column) {
-                                value = dataGrid.getDisplayValue(column, itemValues[correctedCellIndex], item.data);
+                                value = dataGrid.getDisplayValue(column, itemValues[correctedCellIndex], item.data, item.rowType);
                                 return !isFinite(value) || column.customizeText ? dataGrid.formatValue(value, column) : value
                             }
                     }
@@ -60929,6 +61300,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 texts = that.option("export.texts"),
                                 menuItems = [{
                                         text: texts.excelFormat,
+                                        exportAction: true,
                                         icon: DATAGRID_EXPORT_EXCEL_ICON
                                     }];
                             commonUtils.isDefined(that._exportContextMenu) && that._exportContextMenu.element().remove();
@@ -60956,7 +61328,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     items: menuItems,
                                     cssClass: DATAGRID_EXPORT_MENU_CLASS,
                                     onItemClick: function(e) {
-                                        if (e.itemData.text && e.itemData.text.indexOf("Excel") > -1)
+                                        if (e.itemData.exportAction)
                                             that._exportController.exportToExcel(that._exportController.selectionOnly())
                                     },
                                     target: this._$exportButton,
@@ -61257,7 +61629,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     footerView = that._footerView,
                     $testDiv;
                 that._initPostRenderHandlers();
-                if (checkSize && this._lastWidth === $rootElement.width() && this._lastHeight === $rootElement.height())
+                if (checkSize && (this._lastWidth === $rootElement.width() && this._lastHeight === $rootElement.height() || !$rootElement.is(":visible")))
                     return;
                 that.updateSize($rootElement);
                 if (height && that._hasHeight ^ height !== "auto") {
@@ -63223,7 +63595,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             foreachTree(viewHeaderItems, function(items) {
                                 var item = items[0],
                                     field = headerDescriptions[items.length - 1] || {};
-                                if (item.type === DATA_TYPE)
+                                if (item.type === DATA_TYPE && !item.isMetric)
                                     item.width = field.width;
                                 item.isLast = !item.children || !item.children.length;
                                 if (item.isLast) {
@@ -64633,7 +65005,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     hierarchyItem;
                 if (dimension) {
                     dimensionValue = dimension.selector(options.data);
-                    pathHash = pathHash ? pathHash + "." + dimensionValue : dimensionValue;
+                    pathHash = pathHash !== undefined ? pathHash + "." + dimensionValue : dimensionValue + "";
                     hierarchyItem = addHierarchyItem(dimensionValue, children, pathHash, options.childrenHash);
                     indexes.push(hierarchyItem.index);
                     if (expandedPathsHash && expandedPathsHash[pathHash] || dimension.expanded) {
@@ -64743,7 +65115,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     if (aggregator.finalize)
                         $.each(cells, function(_, row) {
                             $.each(row, function(_, cell) {
-                                if (cell)
+                                if (cell && cell[aggregatorIndex] !== undefined)
                                     cell[aggregatorIndex] = aggregator.finalize(cell[aggregatorIndex])
                             })
                         })
@@ -66403,9 +66775,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return percentOfGrandTotal(e)
                 }
             },
+            getPrevCellCrossGroup = function(cell, direction) {
+                if (!cell || !cell.parent(direction))
+                    return;
+                var prevCell = cell.prev(direction);
+                if (!prevCell)
+                    prevCell = getPrevCellCrossGroup(cell.parent(direction), direction);
+                return prevCell
+            },
             createRunningTotalExpr = function(getValue, allowGrossGroupCalculation, direction) {
+                direction = direction === COLUMN ? ROW : COLUMN;
                 return function(e) {
-                        var prevCell = e.prev(direction === COLUMN ? ROW : COLUMN, allowGrossGroupCalculation),
+                        var prevCell = allowGrossGroupCalculation ? getPrevCellCrossGroup(e, direction) : e.prev(direction, false),
                             value = getValue(e);
                         return (prevCell && prevCell.value(true) || 0) + (value || 0)
                     }
@@ -67051,17 +67432,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
     });
     /*! Module widgets-web, file ui.scheduler.resourceManager.js */
     DevExpress.define("/ui/widgets/scheduler/ui.scheduler.resourceManager", ["jquery", "/class", "/utils/utils.array", "/utils/utils.common"], function($, Class, arrayUtils, commonUtils) {
-        var dataUtils = DevExpress.data.utils;
+        var data = DevExpress.data,
+            dataUtils = data.utils;
         var DEFAULT_VALUE_EXPR = "id",
             DEFAULT_DISPLAY_EXPR = "text";
         var ResourceManager = Class.inherit({
                 _wrapDataSource: function(dataSource) {
                     var store;
-                    if (dataSource instanceof DevExpress.data.DataSource)
+                    if (dataSource instanceof data.DataSource)
                         store = dataSource.store();
                     else
-                        store = new DevExpress.data.ArrayStore(dataSource);
-                    return new DevExpress.data.DataSource({
+                        store = dataUtils.normalizeDataSourceOptions(dataSource).store;
+                    return new data.DataSource({
                             store: store,
                             pageSize: 0
                         })
@@ -67833,11 +68215,15 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     lastWeekDate.setDate(lastWeekDate.getDate() + weekendDuration);
                 return Globalize.format(firstWeekDate, " d") + "-" + Globalize.format(lastWeekDate, format)
             };
+        var dateGetter = function(date, offset) {
+                return new Date(date[this.setter](date[this.getter]() + offset))
+            };
         var CONFIG = {
                 day: {
                     duration: 1,
                     setter: "setDate",
                     getter: "getDate",
+                    getDate: dateGetter,
                     getCaption: function(date) {
                         return Globalize.format(date, "d MMMM yyyy")
                     }
@@ -67846,12 +68232,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     duration: 7,
                     setter: "setDate",
                     getter: "getDate",
+                    getDate: dateGetter,
                     getCaption: getWeekCaption
                 },
                 workWeek: {
                     duration: 7,
                     setter: "setDate",
                     getter: "getDate",
+                    getDate: dateGetter,
                     getCaption: function(date) {
                         return getWeekCaption.call(this, date, 4, true)
                     }
@@ -67860,6 +68248,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     duration: 1,
                     setter: "setMonth",
                     getter: "getMonth",
+                    getDate: function(date, offset) {
+                        var currentDate = date.getDate();
+                        date.setDate(1);
+                        date = dateGetter.call(this, date, offset);
+                        var lastDate = dateUtils.getLastMonthDay(date);
+                        date.setDate(currentDate < lastDate ? currentDate : lastDate);
+                        return date
+                    },
                     getCaption: function(date) {
                         return Globalize.format(date, "MMMM yyyy")
                     }
@@ -67958,8 +68354,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 _updateCurrentDate: function(direction) {
                     var stepConfig = this._getConfig(),
                         offset = stepConfig.duration * direction,
-                        date = new Date(this.option("date"));
-                    date[stepConfig.setter](date[stepConfig.getter]() + offset);
+                        date = stepConfig.getDate(new Date(this.option("date")), offset);
                     date = dateUtils.normalizeDate(date, this.option("min"), this.option("max"));
                     this.notifyObserver("currentDateUpdated", date)
                 },
@@ -68480,7 +68875,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     this._attachEvents()
                 },
                 _toggleGroupedClass: function() {
-                    this.element().toggleClass(GROUPED_WORKSPACE_CLASS, this.option("groups").length > 0)
+                    this.element().toggleClass(GROUPED_WORKSPACE_CLASS, this._getGroupCount() > 0)
                 },
                 _renderView: function() {
                     this._setFirstViewDate();
@@ -69417,6 +69812,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     var startDateCopy = new Date(startDate);
                     return new Date(startDateCopy.setHours(this.option("endDayHour")))
                 },
+                _getCellPositionByIndex: function(index, groupIndex) {
+                    var position = this.callBase(index, groupIndex),
+                        rowIndex = this._getCellCoordinatesByIndex(index).rowIndex,
+                        calculatedTopOffset = this.getCellHeight() * rowIndex;
+                    if (calculatedTopOffset)
+                        position.top = calculatedTopOffset;
+                    return position
+                },
                 scrollToTime: $.noop
             });
         registerComponent("dxSchedulerWorkSpaceMonth", {}, SchedulerWorkSpaceMonth);
@@ -70045,16 +70448,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             __tmpIndex++
                         }
                     result.sort($.proxy(function(a, b) {
-                        var iterationResult = this._sortCondition(a, b);
-                        if (iterationResult === 0) {
-                            if (a.__tmpIndex < b.__tmpIndex)
-                                return -1;
-                            if (a.__tmpIndex > b.__tmpIndex)
-                                return 1
-                        }
-                        return iterationResult
+                        return this._sortCondition(a, b)
                     }, this));
                     return result
+                },
+                _fixUnstableSorting: function(comparisonResult, a, b) {
+                    if (comparisonResult === 0) {
+                        if (a.__tmpIndex < b.__tmpIndex)
+                            return -1;
+                        if (a.__tmpIndex > b.__tmpIndex)
+                            return 1
+                    }
+                    return comparisonResult
                 },
                 _sortCondition: abstract,
                 _rowCondition: function(a, b) {
@@ -70267,7 +70672,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return coordinates
                 },
                 _sortCondition: function(a, b) {
-                    return this._columnCondition(a, b)
+                    var result = this._columnCondition(a, b);
+                    return this._fixUnstableSorting(result, a, b)
                 },
                 _getMaxAppointmentWidth: function(startDate) {
                     var result;
@@ -70529,8 +70935,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return height
                 },
                 _sortCondition: function(a, b) {
-                    var allDayCondition = a.allDay - b.allDay;
-                    return allDayCondition ? allDayCondition : this._rowCondition(a, b)
+                    var allDayCondition = a.allDay - b.allDay,
+                        result = allDayCondition ? allDayCondition : this._rowCondition(a, b);
+                    return this._fixUnstableSorting(result, a, b)
                 }
             });
         return VerticalRenderingStrategy
@@ -72374,10 +72781,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 _doneButtonClickHandler: function(args) {
                     var validation = this._appointmentForm.validate();
-                    if (validation && !validation.isValid) {
-                        args.cancel = true;
-                        return
-                    }
+                    args.cancel = true;
+                    if (validation && !validation.isValid)
+                        return;
                     this._saveChanges(args);
                     var startDate = this.fire("getField", "startDate", this._appointmentForm.option("formData"));
                     this._workSpace.updateScrollPosition(startDate)
@@ -72571,6 +72977,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         isError = e && e.name === "Error";
                     if (isError)
                         options.error = e;
+                    else if (this._popup && this._popup.option("visible"))
+                        this._popup.hide();
                     action(options)
                 },
                 _showAppointmentPopup: function(appointmentData, showButtons) {
@@ -72691,7 +73099,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     exportingAction = this.option("exportingAction"),
                     exportedAction = this.option("exportedAction"),
                     fileSavingAction = this.option("fileSavingAction"),
-                    data,
                     documentCreator,
                     exportableComponent = options.component;
                 if (exportableComponent) {
@@ -72704,14 +73111,17 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     if (!eventArgs.cancel) {
                         documentCreator = that._getDocumentCreator(exportableComponent, options);
                         documentCreator.ready().done(function() {
-                            data = documentCreator.getData(commonUtils.isFunction(window.Blob));
-                            commonUtils.isDefined(exportedAction) && exportedAction();
-                            if (commonUtils.isDefined(fileSavingAction)) {
-                                eventArgs.data = data;
-                                fileSavingAction(eventArgs)
-                            }
-                            if (!eventArgs.cancel)
-                                DX.dxClientExporter.fileSaver.saveAs(eventArgs.fileName, options.format, data, options.proxyUrl)
+                            var fileData = documentCreator.getData(commonUtils.isFunction(window.Blob)),
+                                saveFile = function(data) {
+                                    commonUtils.isDefined(exportedAction) && exportedAction();
+                                    if (commonUtils.isDefined(fileSavingAction)) {
+                                        eventArgs.data = data;
+                                        fileSavingAction(eventArgs)
+                                    }
+                                    if (!eventArgs.cancel)
+                                        DX.dxClientExporter.fileSaver.saveAs(eventArgs.fileName, options.format, data, options.proxyUrl)
+                                };
+                            fileData && fileData.then ? fileData.then(saveFile) : saveFile(fileData)
                         })
                     }
                 }
@@ -73319,7 +73729,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             getData: function(isBlob) {
                 this._generateContent();
-                return this._zip.generate({
+                return this._zip.generateAsync ? this._zip.generateAsync({
+                        type: isBlob ? "blob" : "base64",
+                        compression: "DEFLATE",
+                        mimeType: exporter.MIME_TYPES["EXCEL"]
+                    }) : this._zip.generate({
                         type: isBlob ? "blob" : "base64",
                         compression: "DEFLATE",
                         mimeType: exporter.MIME_TYPES["EXCEL"]
@@ -76494,6 +76908,7 @@ if (!window.DevExpress || !DevExpress.MOD_FRAMEWORK) {
                     previousViewInfo = that._getPreviousViewInfo(viewInfo),
                     previousViewTemplateId = previousViewInfo === viewInfo ? previousViewInfo.currentViewTemplateId : undefined,
                     result;
+                this._disabledState = false;
                 this._defineCurrentViewTemplateId(viewInfo);
                 if (previousViewTemplateId && previousViewTemplateId === viewInfo.currentViewTemplateId && viewInfo === previousViewInfo) {
                     that.fireEvent("viewShowing", [viewInfo, direction]);
