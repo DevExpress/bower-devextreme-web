@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.10
-* Build date: May 27, 2016
+* Version: 15.2.11
+* Build date: Jun 22, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -405,6 +405,14 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         return raw
                 }
             };
+        var normalizeKey = function(id) {
+                var key = isString(id) ? id : id.toString(),
+                    arr = key.match(/[^a-zA-Z0-9]/g);
+                arr && $.each(arr, function(_, sign) {
+                    key = key.replace(sign, "_" + sign.charCodeAt() + "_")
+                });
+                return key
+            };
         return {
                 isDefined: isDefined,
                 isString: isString,
@@ -421,7 +429,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 splitPair: splitPair,
                 splitQuad: splitQuad,
                 findBestMatches: findBestMatches,
-                getDefaultAlignment: getDefaultAlignment
+                getDefaultAlignment: getDefaultAlignment,
+                normalizeKey: normalizeKey
             }
     });
     /*! Module core, file utils.console.js */
@@ -1683,6 +1692,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     dateDifferences[dateDifferencesConverter[dateUnitInterval] || dateUnitInterval] = true;
                     resultFormat = formatHelper.getDateFormatByDifferences(dateDifferences);
                     return resultFormat
+                },
+                getDateTimeFormatByName: function(patternName) {
+                    return DateTimeFormat[patternName.toLowerCase()]
                 }
             };
         return formatHelper
@@ -1841,8 +1853,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             };
         var getWaveStyleConfig = function(args, config) {
                 var element = config.element,
-                    elementWidth = element.width(),
-                    elementHeight = element.height(),
+                    elementWidth = element.outerWidth(),
+                    elementHeight = element.outerHeight(),
                     elementDiagonal = parseInt(Math.sqrt(elementWidth * elementWidth + elementHeight * elementHeight)),
                     waveSize = Math.min(MAX_WAVE_SIZE, parseInt(elementDiagonal * args.waveSizeCoefficient)),
                     left,
@@ -2138,6 +2150,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         fn.apply(fn, item)
                     });
                     callbacks.add(fn)
+                };
+                this.remove = function(fn) {
+                    callbacks.remove(fn)
                 };
                 this.fire = function() {
                     memory.push(arguments);
@@ -4367,7 +4382,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.10"
+        return "15.2.11"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -12059,10 +12074,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     for (var i = 0; i < animations.length; i++)
                         animations[i].start()
                 },
-                _stopAnimations: function() {
+                _stopAnimations: function(jumpToEnd) {
                     var animations = this._animations;
                     for (var i = 0; i < animations.length; i++)
-                        animations[i].stop()
+                        animations[i].stop(jumpToEnd)
                 },
                 _clearAnimations: function() {
                     var animations = this._animations;
@@ -12110,8 +12125,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     }
                     return result
                 },
-                stop: function() {
-                    this._stopAnimations()
+                stop: function(jumpToEnd) {
+                    this._stopAnimations(jumpToEnd)
                 }
             });
         var optionPrefix = "preset_";
@@ -13562,7 +13577,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 },
                 _initComponent: function(scope) {
                     this._component = new this._componentClass(this._$element, this._evalOptions(scope));
-                    this._component._isHidden = true
+                    this._component._isHidden = true;
+                    this._handleDigestPhase()
                 },
                 _handleDigestPhase: function() {
                     var that = this,
@@ -13584,7 +13600,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         optionDependencies = {};
                     if (!that._ngOptions.bindingOptions)
                         return;
-                    that._handleDigestPhase();
                     $.each(that._ngOptions.bindingOptions, function(optionPath, value) {
                         var separatorIndex = optionPath.search(/\[|\./),
                             optionForSubscribe = separatorIndex > -1 ? optionPath.substring(0, separatorIndex) : optionPath,
@@ -13623,8 +13638,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         var optionName = args.name,
                             fullName = args.fullName,
                             component = args.component;
-                        if (that._ngLocker.locked(optionName)) {
-                            that._ngLocker.release(optionName);
+                        if (that._ngLocker.locked(fullName)) {
+                            that._ngLocker.release(fullName);
                             return
                         }
                         if (that._scope.$root.$$phase === "$digest" || !optionDependencies || !optionDependencies[optionName])
@@ -13873,7 +13888,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     });
     /*! Module core, file ng.components.js */
-    DevExpress.define("/integration/angular/ng.components", ["jquery", "/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function($, ngModule, iconUtils, inflector) {
+    DevExpress.define("/integration/angular/ng.components", ["jquery", "/utils/utils.memorizedCallbacks", "/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function($, MemorizedCallbacks, ngModule, iconUtils, inflector) {
         ngModule.filter('dxGlobalize', function() {
             return function(input, param) {
                     return Globalize.format(input, param)
@@ -13911,8 +13926,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     }
             }]);
         ngModule.service("dxDigestCallbacks", ["$rootScope", function($rootScope) {
-                var begin = $.Callbacks(),
-                    end = $.Callbacks();
+                var begin = new MemorizedCallbacks,
+                    end = new MemorizedCallbacks;
                 var digestPhase = false;
                 $rootScope.$watch(function() {
                     if (digestPhase)
@@ -16502,8 +16517,13 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return $.isNumeric(index)
             },
             _isDOMNode: function(value) {
-                var $value = $(value);
-                return $value.length && $value.get(0).nodeType
+                try {
+                    var $value = $(value);
+                    return $value && $value.length && $value.get(0).nodeType
+                }
+                catch(error) {
+                    return false
+                }
             },
             _isItemIndex: abstract,
             _getNormalizedItemIndex: abstract,
@@ -16974,6 +16994,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 getData: function() {
                     return this._dataStructure
                 },
+                getFullData: function() {
+                    return this._initialDataStructure
+                },
                 getNodeByItem: function(item) {
                     var result = null;
                     $.each(this._dataStructure, function(_, node) {
@@ -17017,7 +17040,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._updateFields()
                 },
                 toggleSelection: function(key, state, selectRecursive) {
-                    var node = this._getByKey(this._dataStructure, key);
+                    var node = !selectRecursive ? this._getByKey(this._dataStructure, key) : this._getByKey(this._initialDataStructure, key);
                     this._setFieldState(node, state, SELECTED);
                     if (this.options.recursiveSelection && !selectRecursive) {
                         state ? this._setChildrenSelection() : this._toggleChildrenSelection(node, state);
@@ -27379,18 +27402,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 that._correctPointsLength(lastPointIndex, points);
                 that._endUpdateData()
             },
-            getTeamplatedFields: function() {
-                var that = this,
-                    fields = that.getValueFields(),
-                    teampleteFields = [];
-                fields.push(that.getTagField());
-                _each(fields, function(_, field) {
-                    var fieldsObject = {};
-                    fieldsObject.teamplateField = field + that.name;
-                    fieldsObject.originalField = field;
-                    teampleteFields.push(fieldsObject)
-                });
-                return teampleteFields
+            getTemplateFields: function() {
+                var that = this;
+                return _map(that.getValueFields().concat(that.getTagField(), that.getSizeField()), function(field) {
+                        return {
+                                templateField: field + that.name,
+                                originalField: field
+                            }
+                    })
             },
             resamplePoints: function(argTranslator, min, max) {
                 var that = this,
@@ -28276,7 +28295,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                             hatching: styleOptions.hatching
                         }
                 },
-                updateTeamplateFieldNames: function() {
+                updateTemplateFieldNames: function() {
                     var that = this,
                         options = that._options;
                     options.valueField = that.getValueFields()[0] + that.name;
@@ -29432,7 +29451,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 _checkData: function(data) {
                     return _isDefined(data.argument) && data.value !== undefined && data.minValue !== undefined
                 },
-                updateTeamplateFieldNames: function() {
+                updateTemplateFieldNames: function() {
                     var that = this,
                         options = that._options,
                         valueFields = that.getValueFields(),
@@ -29589,7 +29608,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             getSizeField: function() {
                 return this._options.sizeField || "size"
             },
-            updateTeamplateFieldNames: function() {
+            updateTemplateFieldNames: function() {
                 var that = this,
                     options = that._options,
                     name = that.name;
@@ -30002,7 +30021,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         fill: style.color || innerColor
                     }
             },
-            updateTeamplateFieldNames: function() {
+            updateTemplateFieldNames: function() {
                 var that = this,
                     options = that._options,
                     valueFields = that.getValueFields(),
@@ -36098,14 +36117,14 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     textField: formatObjectFields.nameField
                 }
         }
-        function setTemplateFields(data, teamplateData, series) {
+        function setTemplateFields(data, templateData, series) {
             _each(data, function(_, data) {
-                _each(series.getTeamplatedFields(), function(_, field) {
-                    data[field.teamplateField] = data[field.originalField]
+                _each(series.getTemplateFields(), function(_, field) {
+                    data[field.templateField] = data[field.originalField]
                 });
-                teamplateData.push(data)
+                templateData.push(data)
             });
-            series.updateTeamplateFieldNames()
+            series.updateTemplateFieldNames()
         }
         function checkOverlapping(firstRect, secondRect) {
             return (firstRect.x <= secondRect.x && secondRect.x <= firstRect.x + firstRect.width || firstRect.x >= secondRect.x && firstRect.x <= secondRect.x + secondRect.width) && (firstRect.y <= secondRect.y && secondRect.y <= firstRect.y + firstRect.height || firstRect.y >= secondRect.y && firstRect.y <= secondRect.y + secondRect.height)
@@ -36684,7 +36703,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     that._templatedSeries = vizUtils.processSeriesTemplate(seriesTemplate, data);
                     that._populateSeries();
                     delete that._templatedSeries;
-                    data = that.teamplateData || data
+                    data = that.templateData || data
                 }
                 that._groupSeries();
                 parsedData = viz.validateData(data, that._groupedSeries, that._incidentOccured, dataValidatorOptions);
@@ -36753,7 +36772,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     };
                 that._disposeSeries();
                 that.series = [];
-                that.teamplateData = [];
+                that.templateData = [];
                 themeManager.resetPalette();
                 for (i = 0; i < allSeriesOptions.length; i++) {
                     particularSeriesOptions = _extend(true, {}, allSeriesOptions[i], extraOptions);
@@ -36781,7 +36800,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         that._processSingleSeries(particularSeries);
                         that.series.push(particularSeries);
                         if (hasSeriesTemplate)
-                            setTemplateFields(data, that.teamplateData, particularSeries)
+                            setTemplateFields(data, that.templateData, particularSeries)
                     }
                 }
                 return that.series
@@ -44808,13 +44827,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     "touch-action": "pan-y",
                     "-ms-touch-action": "pan-y"
                 });
-                that._updateSelectedRangeCallback = function(range) {
-                    that.option(SELECTED_RANGE, range);
-                    that._eventTrigger(SELECTED_RANGE_CHANGED, {
-                        startValue: range.startValue,
-                        endValue: range.endValue
-                    })
-                };
                 that._clipRect = renderer.clipRect();
                 rangeViewGroup = renderer.g().attr({"class": "dxrs-view"}).append(root);
                 slidersGroup = renderer.g().attr({
@@ -44836,13 +44848,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     renderer: renderer,
                     root: slidersGroup,
                     trackersGroup: trackersGroup,
-                    updateSelectedRange: that._updateSelectedRangeCallback,
+                    updateSelectedRange: function(range) {
+                        that.option(SELECTED_RANGE, range);
+                        that._eventTrigger(SELECTED_RANGE_CHANGED, {
+                            startValue: range.startValue,
+                            endValue: range.endValue
+                        })
+                    },
                     translator: that._translator
                 });
                 that._axis = new AxisWrapper({
                     renderer: renderer,
                     root: scaleGroup,
-                    updateSelectedRange: that._updateSelectedRangeCallback,
+                    updateSelectedRange: function(range) {
+                        that.setSelectedRange(range)
+                    },
                     translator: that._translator
                 });
                 that._tracker = new rangeSelector.Tracker({
@@ -44898,7 +44918,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     that._options[SELECTED_RANGE] = null;
                     that._updateDataSource()
                 }
-                if (SELECTED_RANGE in options)
+                if (SELECTED_RANGE in options && !("scale" in options))
                     that.setSelectedRange($.extend({}, oldSelectedRange, options[SELECTED_RANGE], newSelectedRange))
             },
             _applySize: function() {
@@ -46113,12 +46133,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             };
         function setTemplateFields(data, templateData, series) {
             $.each(data, function(_, data) {
-                $.each(series.getTeamplatedFields(), function(_, field) {
-                    data[field.teamplateField] = data[field.originalField]
+                $.each(series.getTemplateFields(), function(_, field) {
+                    data[field.templateField] = data[field.originalField]
                 });
                 templateData.push(data)
             });
-            series.updateTeamplateFieldNames()
+            series.updateTemplateFieldNames()
         }
         _SeriesDatasource = rangeSelector.SeriesDataSource = function(options) {
             var that = this,
@@ -46165,7 +46185,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     dataSourceField,
                     i,
                     newSeries;
-                that.teamplateData = [];
+                that.templateData = [];
                 if (options.dataSource && !allSeriesOptions) {
                     if (isArrayOfSimpleTypes(options.dataSource))
                         options.dataSource = convertToArrayOfObjects(options.dataSource);
@@ -46188,9 +46208,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         series.push(newSeries)
                     }
                     if (hasSeriesTemplate)
-                        setTemplateFields(data, that.teamplateData, newSeries)
+                        setTemplateFields(data, that.templateData, newSeries)
                 }
-                data = hasSeriesTemplate ? that.teamplateData : data;
+                data = hasSeriesTemplate ? that.templateData : data;
                 groupSeries = [series];
                 groupSeries.argumentOptions = {
                     categories: options.categories,

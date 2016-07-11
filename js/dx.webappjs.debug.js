@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.10
-* Build date: May 27, 2016
+* Version: 15.2.11
+* Build date: Jun 22, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -405,6 +405,14 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         return raw
                 }
             };
+        var normalizeKey = function(id) {
+                var key = isString(id) ? id : id.toString(),
+                    arr = key.match(/[^a-zA-Z0-9]/g);
+                arr && $.each(arr, function(_, sign) {
+                    key = key.replace(sign, "_" + sign.charCodeAt() + "_")
+                });
+                return key
+            };
         return {
                 isDefined: isDefined,
                 isString: isString,
@@ -421,7 +429,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 splitPair: splitPair,
                 splitQuad: splitQuad,
                 findBestMatches: findBestMatches,
-                getDefaultAlignment: getDefaultAlignment
+                getDefaultAlignment: getDefaultAlignment,
+                normalizeKey: normalizeKey
             }
     });
     /*! Module core, file utils.console.js */
@@ -1683,6 +1692,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     dateDifferences[dateDifferencesConverter[dateUnitInterval] || dateUnitInterval] = true;
                     resultFormat = formatHelper.getDateFormatByDifferences(dateDifferences);
                     return resultFormat
+                },
+                getDateTimeFormatByName: function(patternName) {
+                    return DateTimeFormat[patternName.toLowerCase()]
                 }
             };
         return formatHelper
@@ -1841,8 +1853,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             };
         var getWaveStyleConfig = function(args, config) {
                 var element = config.element,
-                    elementWidth = element.width(),
-                    elementHeight = element.height(),
+                    elementWidth = element.outerWidth(),
+                    elementHeight = element.outerHeight(),
                     elementDiagonal = parseInt(Math.sqrt(elementWidth * elementWidth + elementHeight * elementHeight)),
                     waveSize = Math.min(MAX_WAVE_SIZE, parseInt(elementDiagonal * args.waveSizeCoefficient)),
                     left,
@@ -2138,6 +2150,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         fn.apply(fn, item)
                     });
                     callbacks.add(fn)
+                };
+                this.remove = function(fn) {
+                    callbacks.remove(fn)
                 };
                 this.fire = function() {
                     memory.push(arguments);
@@ -4367,7 +4382,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.10"
+        return "15.2.11"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -12059,10 +12074,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     for (var i = 0; i < animations.length; i++)
                         animations[i].start()
                 },
-                _stopAnimations: function() {
+                _stopAnimations: function(jumpToEnd) {
                     var animations = this._animations;
                     for (var i = 0; i < animations.length; i++)
-                        animations[i].stop()
+                        animations[i].stop(jumpToEnd)
                 },
                 _clearAnimations: function() {
                     var animations = this._animations;
@@ -12110,8 +12125,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     }
                     return result
                 },
-                stop: function() {
-                    this._stopAnimations()
+                stop: function(jumpToEnd) {
+                    this._stopAnimations(jumpToEnd)
                 }
             });
         var optionPrefix = "preset_";
@@ -13562,7 +13577,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 },
                 _initComponent: function(scope) {
                     this._component = new this._componentClass(this._$element, this._evalOptions(scope));
-                    this._component._isHidden = true
+                    this._component._isHidden = true;
+                    this._handleDigestPhase()
                 },
                 _handleDigestPhase: function() {
                     var that = this,
@@ -13584,7 +13600,6 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         optionDependencies = {};
                     if (!that._ngOptions.bindingOptions)
                         return;
-                    that._handleDigestPhase();
                     $.each(that._ngOptions.bindingOptions, function(optionPath, value) {
                         var separatorIndex = optionPath.search(/\[|\./),
                             optionForSubscribe = separatorIndex > -1 ? optionPath.substring(0, separatorIndex) : optionPath,
@@ -13623,8 +13638,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         var optionName = args.name,
                             fullName = args.fullName,
                             component = args.component;
-                        if (that._ngLocker.locked(optionName)) {
-                            that._ngLocker.release(optionName);
+                        if (that._ngLocker.locked(fullName)) {
+                            that._ngLocker.release(fullName);
                             return
                         }
                         if (that._scope.$root.$$phase === "$digest" || !optionDependencies || !optionDependencies[optionName])
@@ -13873,7 +13888,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         })
     });
     /*! Module core, file ng.components.js */
-    DevExpress.define("/integration/angular/ng.components", ["jquery", "/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function($, ngModule, iconUtils, inflector) {
+    DevExpress.define("/integration/angular/ng.components", ["jquery", "/utils/utils.memorizedCallbacks", "/integration/angular/ng.module", "/utils/utils.icon", "/utils/utils.inflector"], function($, MemorizedCallbacks, ngModule, iconUtils, inflector) {
         ngModule.filter('dxGlobalize', function() {
             return function(input, param) {
                     return Globalize.format(input, param)
@@ -13911,8 +13926,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     }
             }]);
         ngModule.service("dxDigestCallbacks", ["$rootScope", function($rootScope) {
-                var begin = $.Callbacks(),
-                    end = $.Callbacks();
+                var begin = new MemorizedCallbacks,
+                    end = new MemorizedCallbacks;
                 var digestPhase = false;
                 $rootScope.$watch(function() {
                     if (digestPhase)
@@ -16502,8 +16517,13 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 return $.isNumeric(index)
             },
             _isDOMNode: function(value) {
-                var $value = $(value);
-                return $value.length && $value.get(0).nodeType
+                try {
+                    var $value = $(value);
+                    return $value && $value.length && $value.get(0).nodeType
+                }
+                catch(error) {
+                    return false
+                }
             },
             _isItemIndex: abstract,
             _getNormalizedItemIndex: abstract,
@@ -16974,6 +16994,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 getData: function() {
                     return this._dataStructure
                 },
+                getFullData: function() {
+                    return this._initialDataStructure
+                },
                 getNodeByItem: function(item) {
                     var result = null;
                     $.each(this._dataStructure, function(_, node) {
@@ -17017,7 +17040,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     this._updateFields()
                 },
                 toggleSelection: function(key, state, selectRecursive) {
-                    var node = this._getByKey(this._dataStructure, key);
+                    var node = !selectRecursive ? this._getByKey(this._dataStructure, key) : this._getByKey(this._initialDataStructure, key);
                     this._setFieldState(node, state, SELECTED);
                     if (this.options.recursiveSelection && !selectRecursive) {
                         state ? this._setChildrenSelection() : this._toggleChildrenSelection(node, state);
@@ -21591,7 +21614,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 return this._renderOrAnimate()
             },
             _dispose: function() {
-                this.transitionExecutor.stop();
+                this.transitionExecutor.stop(true);
                 if (this._renderTask)
                     this._renderTask.abort();
                 this._actions = null;
@@ -22829,7 +22852,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     if (!this._inkRipple)
                         return;
                     var config = {
-                            element: $element,
+                            element: this._$content,
                             jQueryEvent: e
                         };
                     if (value)
@@ -25736,7 +25759,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         isValid = true;
                     else if (!isNumber && !isValueValid)
                         isValid = false;
-                    this.option("isValid", isValid);
+                    this.option({
+                        isValid: isValid,
+                        validationError: isValid ? null : {editorSpecific: true}
+                    });
                     return isValid
                 },
                 _normalizeInputValue: function() {
@@ -25768,8 +25794,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _optionChanged: function(args) {
                     switch (args.name) {
                         case"value":
-                            this.callBase(args);
                             this._validateValue(args.value);
+                            this.callBase(args);
                             this._resumeValueChangeAction();
                             break;
                         case"step":
@@ -27017,7 +27043,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         var $item = that.option("focusedElement"),
                             isItemVisible = true;
                         if (!$item)
-                            return;
+                            return $();
                         while (isItemVisible) {
                             var $nextItem = $item[direction]();
                             if (!$nextItem.length)
@@ -37478,7 +37504,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _registerSearchKeyHandlers: function() {
                     this._searchBox.registerKeyHandler("escape", $.proxy(this.close, this));
                     this._searchBox.registerKeyHandler("enter", $.proxy(this._selectListItemHandler, this));
-                    this._searchBox.registerKeyHandler("space", $.proxy(this._selectListItemHandler, this))
+                    this._searchBox.registerKeyHandler("space", $.proxy(this._selectListItemHandler, this));
+                    this._searchBox.registerKeyHandler("end", $.noop);
+                    this._searchBox.registerKeyHandler("home", $.noop)
                 },
                 _renderSearchVisibility: function() {
                     if (this._popup)
@@ -38004,6 +38032,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     else
                         this._list.scrollToItem(this._$list.find("." + this._selectedItemClass()))
                 },
+                _listContentReadyHandler: function() {
+                    this.callBase();
+                    if (this._dataSource.paginate() && this._isEditable())
+                        return;
+                    this._list.scrollToItem(this._list.option("selectedItem"))
+                },
                 _renderInputValue: function() {
                     return this.callBase().always($.proxy(function() {
                             this._renderTooltip();
@@ -38474,7 +38508,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 _previousValues: function(previousValues) {
                     if (!arguments.length)
                         return this._previousValuesData || [];
-                    this._previousValuesData = previousValues.slice()
+                    this._previousValuesData = $.isArray(previousValues) ? previousValues.slice() : previousValues
                 },
                 _optionValuesEqual: function(name, value, prevValue) {
                     if (name === "value")
@@ -39578,9 +39612,47 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         files = this._getFiles(fileList);
                     if (!this.option("multiple") && files.length > 1)
                         return;
-                    this._changeValues(files);
+                    this._changeValues(this._filterFiles(files));
                     if (this.option("uploadMode") === "instantly")
                         this._uploadFiles()
+                },
+                _filterFiles: function(files) {
+                    if (!files.length)
+                        return files;
+                    var accept = this.option("accept");
+                    if (!accept.length)
+                        return files;
+                    var result = [],
+                        allowedTypes = this._getAllowedFileTypes(accept);
+                    for (var i = 0, n = files.length; i < n; i++)
+                        if (this._isFileTypeAllowed(files[i], allowedTypes))
+                            result.push(files[i]);
+                    return result
+                },
+                _getAllowedFileTypes: function(acceptString) {
+                    if (!acceptString.length)
+                        return [];
+                    var acceptArray = acceptString.split(',');
+                    $.map(acceptArray, function(value) {
+                        return $.trim(value)
+                    });
+                    return acceptArray
+                },
+                _isFileTypeAllowed: function(file, allowedTypes) {
+                    for (var i = 0, n = allowedTypes.length; i < n; i++) {
+                        var allowedType = allowedTypes[i];
+                        if (allowedType[0] === ".") {
+                            allowedType = allowedType.replace(".", "\\.");
+                            if (file.name.match(allowedType))
+                                return true
+                        }
+                        else {
+                            allowedType = allowedType.replace("*", "");
+                            if (file.type.match(allowedType))
+                                return true
+                        }
+                    }
+                    return false
                 },
                 _renderWrapper: function() {
                     var $wrapper = $("<div>").addClass(FILEUPLOADER_WRAPPER_CLASS).appendTo(this.element());
@@ -42460,7 +42532,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         height: undefined,
                         itemTitleTemplate: "title",
                         onItemTitleClick: null,
-                        onItemTitleHold: null,
                         selectedIndex: 0,
                         collapsible: false,
                         multiple: false,
@@ -42647,7 +42718,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         this.option("selectionRequired", !this.option("collapsible"));
                         break;
                     case"itemTitleTemplate":
-                    case"onItemTitleHold":
                     case"height":
                     case"deferRendering":
                         this._invalidate();
@@ -43709,6 +43779,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     $parentItem = $curItem.parents("." + DX_MENU_ITEM_EXPANDED_CLASS).first();
                 if ($parentItem.length) {
                     this._hideSubmenusOnSameLevel($parentItem);
+                    this._hideSubmenu($curItem.closest("." + DX_SUBMENU_CLASS));
                     return $parentItem
                 }
                 this._actions.onCloseRootSubmenu($curItem);
@@ -43734,7 +43805,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             _renderContentImpl: function() {
                 this._renderContextMenuOverlay();
-                this._detachShowContextMenuEvents(this.option("target"));
                 this._attachShowContextMenuEvents();
                 this._attachInvokeContextMenuEvents();
                 this.callBase()
@@ -43757,48 +43827,41 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             _detachShowContextMenuEvents: function(target) {
                 var eventName = eventUtils.addNamespace("dxcontextmenu", this.NAME);
-                if (this._showContextMenuEventHandler)
-                    $(document).off(eventName, this._getTargetSelector(target), this._showContextMenuEventHandler).off(eventName);
-                else
-                    $(target).off(eventName);
-                this._overlay && this._overlay.content().off(eventName)
+                $(document).off(eventName, this._showContextMenuEventHandler).off(eventName, this._documentContextMenuEventHandler).off(eventName, this._documentLiveContextMenuEventHandler);
+                $(target).off(eventName, this._showContextMenuEventHandler)
             },
             _attachShowContextMenuEvents: function() {
                 var that = this,
+                    target = this.option("target"),
                     eventName = eventUtils.addNamespace("dxcontextmenu", this.NAME),
-                    contextMenuAction = this._createAction($.proxy(function(e) {
+                    contextMenuAction = this._createAction(this._createAction($.proxy(function(e) {
                         if (!that.option("alternativeInvocationMode").enabled)
                             that._show(e.jQueryEvent)
-                    }, this), {validatingTargetName: "target"}),
-                    handler = $.proxy(function(e) {
-                        contextMenuAction({
-                            jQueryEvent: e,
-                            target: $(e.currentTarget)
-                        })
-                    }, this);
-                contextMenuAction = this._createAction(contextMenuAction);
-                this._overlay && this._overlay.content().on(eventName, $.noop);
-                if (this.option("target") instanceof $)
-                    this._attachShowEventHandler(eventName, this.option("target"), handler);
-                else
-                    this._attachLiveShowEventHandler(eventName, this.option("target"), handler)
-            },
-            _attachShowEventHandler: function(eventName, $target, handler) {
-                this._showContextMenuEventHandler = undefined;
-                $target.on(eventName, handler)
-            },
-            _attachLiveShowEventHandler: function(eventName, targetSelector, handler) {
-                this._showContextMenuEventHandler = handler;
-                var that = this;
-                $(document).on(eventName, targetSelector, function(e) {
+                    }, this), {validatingTargetName: "target"}));
+                this._showContextMenuEventHandler = $.proxy(function(e) {
+                    contextMenuAction({
+                        jQueryEvent: e,
+                        target: $(e.currentTarget)
+                    })
+                }, this);
+                this._documentLiveContextMenuEventHandler = function(e) {
                     that._showContextMenuEventHandler(e);
                     e.liveEvent = true
-                }).on(eventName, function(e) {
+                };
+                this._documentContextMenuEventHandler = function(e) {
                     e._cancel = !e.liveEvent
-                })
+                };
+                if (!commonUtils.isString(target))
+                    $(target).on(eventName, this._showContextMenuEventHandler);
+                else
+                    $(document).on(eventName, this.option("target"), this._documentLiveContextMenuEventHandler).on(eventName, this._documentContextMenuEventHandler)
             },
             _getTargetSelector: function(target) {
-                return target instanceof $ ? target.selector : target
+                if (target instanceof $)
+                    return target.selector;
+                if (commonUtils.isString(target))
+                    return target;
+                return "#window"
             },
             _attachInvokeContextMenuEvents: function() {
                 var that = this,
@@ -43949,7 +44012,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 this._hideSubmenusOnSameLevel($item);
                 if (isItemHasSubmenu) {
                     this.callBase($item);
-                    $item.closest("." + DX_MENU_ITEMS_CONTAINER_CLASS).find("." + DX_MENU_ITEM_EXPANDED_CLASS).removeClass(DX_MENU_ITEM_EXPANDED_CLASS);
                     if (!$item.children("." + DX_SUBMENU_CLASS).length)
                         this._renderSubmenuItems(node, $item, 2);
                     isSubmenuVisible = this._isSubmenuVisible($item.children("." + DX_SUBMENU_CLASS));
@@ -43960,7 +44022,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             _hideSubmenusOnSameLevel: function($item) {
-                var $expandedItems = $item.closest("." + DX_MENU_ITEMS_CONTAINER_CLASS).find("." + DX_MENU_ITEM_EXPANDED_CLASS);
+                var $expandedItems = $item.parent("." + DX_MENU_ITEM_WRAPPER_CLASS).siblings().find("." + DX_MENU_ITEM_EXPANDED_CLASS);
                 if ($expandedItems.length) {
                     $expandedItems.removeClass(DX_MENU_ITEM_EXPANDED_CLASS);
                     this._hideSubmenu($expandedItems.find("." + DX_SUBMENU_CLASS))
@@ -44781,7 +44843,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 this._updateSelectedItemOnClick(actionArgs);
                 if (this._visibleSubmenu)
                     if (this._visibleSubmenu === currentSubmenu) {
-                        this._hideSubmenu(this._visibleSubmenu);
+                        if (this.option("showFirstSubmenuMode") === "onClick")
+                            this._hideSubmenu(this._visibleSubmenu);
                         return
                     }
                     else
@@ -44863,14 +44926,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             DATA_ITEM_ID = "data-item-id",
             DBLCLICK_EVENT_NAME = "dxdblclick";
         var scrollableContainerUpdatedOnInit = $.noop;
-        function normalizeKey(id) {
-            var key = commonUtils.isString(id) ? id : id.toString(),
-                arr = key.match(/[^a-zA-Z0-9]/g);
-            arr && $.each(arr, function(_, sign) {
-                key = key.replace(sign, "_" + sign.charCodeAt() + "_")
-            });
-            return key
-        }
         registerComponent("dxTreeView", ui, HierarchicalCollectionWidget.inherit({
             _supportedKeys: function(e) {
                 var click = function(e) {
@@ -44919,7 +44974,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             _getNodeElementById: function(id) {
-                return this.element().find("[" + DATA_ITEM_ID + "='" + normalizeKey(id) + "']")
+                return this.element().find("[" + DATA_ITEM_ID + "='" + commonUtils.normalizeKey(id) + "']")
             },
             _activeStateUnit: "." + ITEM_CLASS,
             _widgetClass: function() {
@@ -44987,7 +45042,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             _removeSelection: function() {
                 var that = this;
-                $.each(this._dataAdapter.getData(), function(_, node) {
+                $.each(this._dataAdapter.getFullData(), function(_, node) {
                     if (!that._hasChildren(node))
                         return;
                     that._dataAdapter.toggleSelection(node.internalFields.key, false, true)
@@ -45194,7 +45249,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 return $container
             },
             _createDOMElement: function($nodeContainer, node) {
-                var $node = $("<li>").addClass(NODE_CLASS).attr(DATA_ITEM_ID, normalizeKey(node.internalFields.key)).prependTo($nodeContainer);
+                var $node = $("<li>").addClass(NODE_CLASS).attr(DATA_ITEM_ID, commonUtils.normalizeKey(node.internalFields.key)).prependTo($nodeContainer);
                 this.setAria({
                     role: "treeitem",
                     label: this._displayGetter(node.internalFields.item) || "",
@@ -46068,6 +46123,51 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             DEFAULT_DATE_INTERVAL = ["year", "month", "day"];
+        var CallBacks = function(options) {
+                options = options || {};
+                var list = [],
+                    firing,
+                    firingIndex,
+                    fireCore = function(context, args) {
+                        firing = true;
+                        for (firingIndex = 0; firingIndex < list.length; firingIndex++)
+                            if (list[firingIndex] && list[firingIndex].apply(context, args) === false && options.stopOnFalse)
+                                break;
+                        firing = false
+                    },
+                    that = {
+                        add: function(fn) {
+                            if (typeof fn === "function" && !that.has(fn))
+                                list.push(fn);
+                            return this
+                        },
+                        has: function(fn) {
+                            return fn ? $.inArray(fn, list) > -1 : !!list.length
+                        },
+                        remove: function(fn) {
+                            var index = $.inArray(fn, list);
+                            if (index > -1) {
+                                list.splice(index, 1);
+                                if (firing && index <= firingIndex)
+                                    firingIndex--
+                            }
+                            return this
+                        },
+                        fireWith: function(context, args) {
+                            args = args || [];
+                            fireCore(context, args.slice ? args.slice() : args)
+                        },
+                        fire: function() {
+                            that.fireWith(this, arguments);
+                            return this
+                        },
+                        empty: function() {
+                            list = [];
+                            return this
+                        }
+                    };
+                return that
+            };
         var ModuleItem = Class.inherit({
                 _endUpdateCore: function(){},
                 ctor: function(component) {
@@ -46078,7 +46178,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     that._actionConfigs = {};
                     $.each(this.callbackNames() || [], function(index, name) {
                         var flags = that.callbackFlags(name);
-                        that[this] = $.Callbacks(flags)
+                        that[this] = CallBacks(flags)
                     })
                 },
                 init: function(){},
@@ -46751,7 +46851,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         return key
                     }
                 }
-        }())
+        }());
+        ui.dxDataGrid.__internals.CallBacks = CallBacks
     })(jQuery, DevExpress);
     /*! Module widgets-web, file ui.dataGrid.stateStoring.js */
     (function($, DX) {
@@ -47009,6 +47110,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
         var ui = DX.ui,
             errors = DX.require("/ui/ui.errors"),
             dataGrid = ui.dxDataGrid,
+            formatHelper = DX.require("/utils/utils.formatHelper"),
             normalizeSortingInfo = dataGrid.normalizeSortingInfo,
             normalizeIndexes = DX.require("/utils/utils.array").normalizeIndexes,
             objectUtils = DX.require("/utils/utils.object"),
@@ -47019,7 +47121,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             dataUtils = DX.data.utils,
             isDefined = commonUtils.isDefined;
         var USER_STATE_FIELD_NAMES_15_1 = ["filterValues", "filterType", "fixed", "fixedPosition"],
-            USER_STATE_FIELD_NAMES = ["visibleIndex", "dataField", "name", "dataType", "width", "visible", "sortOrder", "sortIndex", "groupIndex", "filterValue", "selectedFilterOperation"].concat(USER_STATE_FIELD_NAMES_15_1),
+            USER_STATE_FIELD_NAMES = ["visibleIndex", "dataField", "name", "dataType", "width", "visible", "sortOrder", "sortIndex", "groupIndex", "filterValue", "selectedFilterOperation", "added"].concat(USER_STATE_FIELD_NAMES_15_1),
             DATAGRID_COMMAND_EXPAND_CLASS = "dx-command-expand";
         dataGrid.checkChanges = function(changes, changeNames) {
             var changesWithChangeNamesCount = 0,
@@ -47258,6 +47360,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             columnCountById = {},
                             resultColumns = [],
                             column,
+                            columnUserState,
                             userStateColumnIndex,
                             i;
                         function applyFieldsState(column, userStateColumn) {
@@ -47278,7 +47381,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     column[fieldName] = userStateColumn[fieldName]
                             }
                         }
-                        function findUserStateColumn(columnsUserState, column, columnIndex) {
+                        function findUserStateColumn(columnsUserState, column) {
                             var id = column.name || column.dataField,
                                 count = columnCountById[id] || 0;
                             for (var j = 0; j < columnsUserState.length; j++)
@@ -47295,13 +47398,21 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         if (columnsUserState) {
                             for (i = 0; i < columns.length; i++) {
                                 column = columns[i];
-                                userStateColumnIndex = findUserStateColumn(columnsUserState, column, i);
+                                userStateColumnIndex = findUserStateColumn(columnsUserState, column);
                                 column = $.extend({}, column);
                                 applyFieldsState(column, columnsUserState[userStateColumnIndex]);
                                 if (userStateColumnIndex >= 0 && isDefined(columnsUserState[userStateColumnIndex].initialIndex))
                                     resultColumns[userStateColumnIndex] = column;
                                 else
                                     resultColumns.push(column)
+                            }
+                            for (i = 0; i < columnsUserState.length; i++) {
+                                columnUserState = columnsUserState[i];
+                                if (columnUserState.added && findUserStateColumn(columns, columnUserState) < 0) {
+                                    column = createColumn(that, columnUserState.added);
+                                    applyFieldsState(column, columnUserState);
+                                    resultColumns.push(column)
+                                }
                             }
                             assignColumns(that, resultColumns)
                         }
@@ -47351,22 +47462,21 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             that._columnChanges = undefined;
                             if (columnChanges.optionNames && (columnChanges.optionNames.dataField || columnChanges.optionNames.lookup))
                                 that.reinit();
-                            else {
-                                that.columnsChanged.firing = true;
-                                that.columnsChanged.fire(columnChanges);
-                                that.columnsChanged.firing = false
-                            }
+                            else
+                                that.columnsChanged.fire(columnChanges)
                         }
                     };
                 var columnOptionCore = function(that, column, optionName, value, notFireEvent) {
                         var optionGetter = dataUtils.compileGetter(optionName),
                             columnIndex = column.index,
+                            prevValue,
                             optionSetter,
                             columns,
                             changeType;
                         if (arguments.length === 3)
                             return optionGetter(column, {functionsAsIs: true});
-                        if (optionGetter(column, {functionsAsIs: true}) !== value) {
+                        prevValue = optionGetter(column, {functionsAsIs: true});
+                        if (prevValue !== value) {
                             if (optionName === "groupIndex")
                                 changeType = "grouping";
                             else if (optionName === "sortIndex" || optionName === "sortOrder")
@@ -47375,6 +47485,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 changeType = "columns";
                             optionSetter = dataUtils.compileSetter(optionName);
                             optionSetter(column, value, {functionsAsIs: true});
+                            if (!isDefined(prevValue) && !isDefined(value))
+                                notFireEvent = true;
                             if (!notFireEvent) {
                                 if ($.inArray(optionName, USER_STATE_FIELD_NAMES) < 0 && optionName !== "visibleWidth") {
                                     columns = that.option("columns");
@@ -48072,6 +48184,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         addColumn: function(options) {
                             var that = this,
                                 column = createColumn(that, options);
+                            column.added = options;
                             that._columns.push(column);
                             updateIndexes(that, column);
                             that.updateColumns(that._dataSource)
@@ -48168,7 +48281,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                                     result = false
                                             }
                                             else if (column.dataType === "date") {
-                                                parsedValue = Globalize.parseDate(text);
+                                                var format = formatHelper.getDateTimeFormatByName(column.format) || column.format;
+                                                parsedValue = Globalize.parseDate(text, format);
                                                 if (parsedValue)
                                                     result = parsedValue
                                             }
@@ -50645,8 +50759,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         if (groupInfo.data && groupInfo.data.offset !== groupInfo.offset) {
                             groupsInfo.splice(index, 1);
                             groupInfo.offset = groupInfo.data.offset;
-                            for (var parentIndex = 0; parentIndex < parents.length; parentIndex++)
-                                parents[parentIndex].offset = groupInfo.offset;
+                            if (parents)
+                                for (var parentIndex = 0; parentIndex < parents.length; parentIndex++)
+                                    parents[parentIndex].offset = groupInfo.offset;
                             newIndex = getGroupInfoIndexByOffset(groupsInfo, groupInfo.offset);
                             groupsInfo.splice(newIndex, 0, groupInfo);
                             if (newIndex > index)
@@ -50705,7 +50820,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         }
                         this._itemsCount = calculateItemsCount(this, data, groupsCount)
                     },
-                    foreachGroups: function(callback, childrenAtFirst, foreachCollapsedGroups, updateOffsets) {
+                    foreachGroups: function(callback, childrenAtFirst, foreachCollapsedGroups, updateOffsets, updateParentOffsets) {
                         var that = this;
                         function foreachGroupsCore(groupsInfo, callback, childrenAtFirst, parents) {
                             var i,
@@ -50734,7 +50849,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             }
                             var currentParents = parents.slice(0);
                             return updateOffsets && $.when.apply($, callbackResults).always(function() {
-                                    updateGroupInfoOffsets(groupsInfo, currentParents)
+                                    updateGroupInfoOffsets(groupsInfo, updateParentOffsets && currentParents)
                                 })
                         }
                         return foreachGroupsCore(that._groupsInfo, callback, childrenAtFirst, [])
@@ -51119,7 +51234,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return that.foreachGroups(function(groupInfo) {
                             if (!groupInfo.isExpanded)
                                 return callback(groupInfo)
-                        }, false, false, updateOffsets)
+                        }, false, false, updateOffsets, true)
                 };
             var correctSkipLoadOption = function(that, skip) {
                     var skipCorrection = 0,
@@ -52663,12 +52778,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 that._editColumnIndex = -1;
                                 that._editRowIndex = -1
                             };
-                        if (that._beforeSaveEditData()) {
+                        if (that._beforeSaveEditData() || that._saving) {
                             that._afterSaveEditData();
-                            return
+                            return result.resolve().promise()
                         }
                         that._saveEditDataCore(deferreds, processedKeys);
                         if (deferreds.length) {
+                            that._saving = true;
                             $.when.apply($, deferreds).done(function() {
                                 if (that._processSaveEditDataResult(arguments, processedKeys)) {
                                     resetEditIndices(that);
@@ -52678,8 +52794,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                         result.resolve()
                                     })
                                 }
+                                else
+                                    result.resolve()
                             }).fail(result.resolve);
-                            return result.promise()
+                            return result.always(function() {
+                                    that._saving = false
+                                }).promise()
                         }
                         if (isRowEditMode(that)) {
                             if (!that.hasChanges())
@@ -53138,7 +53258,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             if (firstChild && firstChild.className && firstChild.className.indexOf(CHECKBOX_CLASS) >= 0)
                                 $cell.addClass(DATAGRID_EDITOR_INLINE_BLOCK).toggleClass(DATAGRID_CELL_FOCUS_DISABLED_CLASS, isCommandCell || !isEditableCell);
                             var modifiedValues = parameters.row && (parameters.row.inserted ? parameters.row.values : parameters.row.modifiedValues);
-                            if (modifiedValues && modifiedValues[columnIndex] !== undefined && parameters.column && !isCommandCell) {
+                            if (modifiedValues && modifiedValues[columnIndex] !== undefined && parameters.column && !isCommandCell && parameters.column.setCellValue) {
                                 editingController.createHighlightCell($cell);
                                 $cell.addClass(DATAGRID_CELL_MODIFIED)
                             }
@@ -53714,7 +53834,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     },
                     callbackFlags: function(name) {
                         if (name === "dataErrorOccurred")
-                            return "stopOnFalse"
+                            return {stopOnFalse: true}
                     },
                     publicMethods: function() {
                         return ["beginCustomLoading", "endCustomLoading", "refresh", "filter", "clearFilter", "getCombinedFilter", "keyOf", "byKey", "getDataByKeys", "pageIndex", "pageSize", "pageCount", "totalCount", "_disposeDataSource", "getKeyByRowIndex", "getRowIndexByKey"]
@@ -53813,13 +53933,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             that.pageChanged.fire()
                         }
                         else if (changeTypes.columns) {
-                            if (optionNames.filterValues || optionNames.filterValue || optionNames.selectedFilterOperation)
-                                if (this.option("filterRow.applyFilter") !== "onClick" || optionNames.filterValues) {
-                                    filterValue = that._columnsController.columnOption(e.columnIndex, "filterValue");
-                                    filterValues = that._columnsController.columnOption(e.columnIndex, "filterValues");
-                                    if (commonUtils.isArray(filterValues) || e.columnIndex === undefined || commonUtils.isDefined(filterValue) || !optionNames.selectedFilterOperation || optionNames.filterValue)
-                                        that._applyFilter()
-                                }
+                            if (optionNames.filterValues || optionNames.filterValue || optionNames.selectedFilterOperation) {
+                                filterValue = that._columnsController.columnOption(e.columnIndex, "filterValue");
+                                filterValues = that._columnsController.columnOption(e.columnIndex, "filterValues");
+                                if (commonUtils.isArray(filterValues) || e.columnIndex === undefined || commonUtils.isDefined(filterValue) || !optionNames.selectedFilterOperation || optionNames.filterValue)
+                                    that._applyFilter()
+                            }
                             if (!that._needApplyFilter && !dataGrid.checkChanges(optionNames, ["width", "visibleWidth", "filterValue", "selectedFilterOperation", "filterValues", "filterType"]))
                                 that._columnsController.columnsChanged.add(updateItemsHandler)
                         }
@@ -55449,6 +55568,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             DATAGRID_FILTER_RANGE_CONTENT_CLASS = "dx-filter-range-content",
             DATAGRID_FILTER_RANGE_START_CLASS = "dx-datagrid-filter-range-start",
             DATAGRID_FILTER_RANGE_END_CLASS = "dx-datagrid-filter-range-end";
+        function isOnClickApplyFilterMode(that) {
+            return that.option("filterRow.applyFilter") === "onClick"
+        }
         var ColumnHeadersViewFilterRowExtender = function() {
                 var getEditorInstance = function($editorContainer) {
                         var $editor = $editorContainer && $editorContainer.children(),
@@ -55457,8 +55579,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         if (editor instanceof Editor)
                             return editor
                     };
-                var getRangeTextByFilterValue = function(column) {
-                        var filterValue = column.filterValue,
+                var getRangeTextByFilterValue = function(that, column) {
+                        var filterValue = getColumnFilterValue(that, column),
                             result = "";
                         if (commonUtils.isArray(filterValue)) {
                             result = dataGrid.formatValue(filterValue[0], column);
@@ -55469,9 +55591,17 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             result = dataGrid.formatValue(filterValue, column);
                         return result
                     };
+                var getColumnFilterValue = function(that, column) {
+                        if (column)
+                            return isOnClickApplyFilterMode(that) && column.bufferedFilterValue !== undefined ? column.bufferedFilterValue : column.filterValue
+                    };
+                var getColumnSelectedFilterOperation = function(that, column) {
+                        if (column)
+                            return isOnClickApplyFilterMode(that) && column.bufferedSelectedFilterOperation !== undefined ? column.bufferedSelectedFilterOperation : column.selectedFilterOperation
+                    };
                 var getFilterValue = function(that, columnIndex, $editorContainer) {
                         var column = that._columnsController.columnOption(columnIndex),
-                            filterValue = column && column.filterValue,
+                            filterValue = getColumnFilterValue(that, column),
                             isFiltrerRange = $editorContainer.closest("." + DATAGRID_FILTER_RANGE_OVERLAY_CLASS).length,
                             isRangeStart = $editorContainer.hasClass(DATAGRID_FILTER_RANGE_START_CLASS);
                         if (filterValue && commonUtils.isArray(filterValue))
@@ -55481,23 +55611,25 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 return filterValue[1];
                         return !isFiltrerRange ? filterValue : undefined
                     };
-                var normalizeFilterValue = function(filterValue, column, $editorContainer) {
-                        if (column.selectedFilterOperation === "between")
+                var normalizeFilterValue = function(that, filterValue, column, $editorContainer) {
+                        if (getColumnSelectedFilterOperation(that, column) === "between") {
+                            var columnFilterValue = getColumnFilterValue(that, column);
                             if ($editorContainer.hasClass(DATAGRID_FILTER_RANGE_START_CLASS))
-                                return [filterValue, commonUtils.isArray(column.filterValue) ? column.filterValue[1] : undefined];
+                                return [filterValue, commonUtils.isArray(columnFilterValue) ? columnFilterValue[1] : undefined];
                             else
-                                return [commonUtils.isArray(column.filterValue) ? column.filterValue[0] : column.filterValue, filterValue];
+                                return [commonUtils.isArray(columnFilterValue) ? columnFilterValue[0] : columnFilterValue, filterValue]
+                        }
                         return filterValue
                     };
                 var updateFilterValue = function(that, options) {
-                        var value = options.value === "" ? undefined : options.value,
+                        var value = options.value === "" ? null : options.value,
                             $editorContainer = options.container,
                             column = that._columnsController.columnOption(options.column.index),
                             filterValue = getFilterValue(that, column.index, $editorContainer);
                         if (!commonUtils.isDefined(filterValue) && !commonUtils.isDefined(value))
                             return;
                         that._applyFilterViewController.setHighLight($editorContainer, filterValue !== value);
-                        that._columnsController.columnOption(column.index, "filterValue", normalizeFilterValue(value, column, $editorContainer), options.notFireEvent)
+                        that._columnsController.columnOption(column.index, isOnClickApplyFilterMode(that) ? "bufferedFilterValue" : "filterValue", normalizeFilterValue(that, value, column, $editorContainer), options.notFireEvent)
                     };
                 return {
                         _updateEditorValue: function(column, $editorContainer) {
@@ -55516,13 +55648,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 $editorRangeElements,
                                 $rangeContent,
                                 $menu;
-                            if (dataGrid.checkChanges(optionNames, ["filterValue", "selectedFilterOperation"]) && e.columnIndex !== undefined) {
+                            if (dataGrid.checkChanges(optionNames, ["filterValue", "bufferedFilterValue", "selectedFilterOperation", "bufferedSelectedFilterOperation"]) && e.columnIndex !== undefined) {
                                 visibleIndex = that.getController("columns").getVisibleIndex(e.columnIndex);
                                 column = that.getController("columns").columnOption(e.columnIndex);
                                 $cell = that.getCellElement(that.element().find("." + DATAGRID_FILTER_ROW_CLASS).index(), visibleIndex) || $();
                                 $rangeContent = $cell.find("." + DATAGRID_FILTER_RANGE_CONTENT_CLASS);
                                 $editorContainer = $cell.find("." + DATAGRID_EDITOR_CONTAINER_CLASS).first();
-                                if (optionNames.filterValue) {
+                                if (optionNames.filterValue || optionNames.bufferedFilterValue) {
                                     that._updateEditorValue(column, $editorContainer);
                                     overlayInstance = $cell.find("." + DATAGRID_FILTER_RANGE_OVERLAY_CLASS).data("dxOverlay");
                                     if (overlayInstance) {
@@ -55531,14 +55663,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                         that._updateEditorValue(column, $editorRangeElements.last())
                                     }
                                     if (!overlayInstance || !overlayInstance.option("visible"))
-                                        that._updateFilterRangeContent($cell, getRangeTextByFilterValue(column))
+                                        that._updateFilterRangeContent($cell, getRangeTextByFilterValue(that, column))
                                 }
-                                if (optionNames.selectedFilterOperation)
+                                if (optionNames.selectedFilterOperation || optionNames.bufferedSelectedFilterOperation)
                                     if (visibleIndex >= 0 && column) {
                                         $menu = $cell.find("." + DATAGRID_MENU_CLASS);
                                         if ($menu.length) {
                                             that._updateFilterOperationChooser($menu, column, $editorContainer);
-                                            if (column.selectedFilterOperation === "between") {
+                                            if (getColumnSelectedFilterOperation(that, column) === "between") {
                                                 that._renderFilterRangeContent($cell, column);
                                                 that._showFilterRange($cell, column)
                                             }
@@ -55620,8 +55752,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     onHidden: function() {
                                         var updatedColumn = that._columnsController.columnOption(column.index);
                                         $cell.find("." + DATAGRID_MENU_CLASS).parent().addClass(DATAGRID_EDITOR_WITH_MENU_CLASS);
-                                        if (updatedColumn.selectedFilterOperation === "between") {
-                                            that._updateFilterRangeContent($cell, getRangeTextByFilterValue(updatedColumn));
+                                        if (getColumnSelectedFilterOperation(that, updatedColumn) === "between") {
+                                            that._updateFilterRangeContent($cell, getRangeTextByFilterValue(that, updatedColumn));
                                             that.component.updateDimensions()
                                         }
                                     }
@@ -55677,7 +55809,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     $cell.addClass(DATAGRID_EDITOR_CELL_CLASS);
                                     $container = $("<div />").appendTo($cell);
                                     $editorContainer = $("<div />").addClass(DATAGRID_EDITOR_CONTAINER_CLASS).appendTo($container);
-                                    if (column.selectedFilterOperation === "between")
+                                    if (getColumnSelectedFilterOperation(that, column) === "between")
                                         that._renderFilterRangeContent($cell, column);
                                     else
                                         that._renderEditor($editorContainer, that._getEditorOptions($editorContainer, column));
@@ -55706,7 +55838,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                         })
                                     }
                                 });
-                            if (column.selectedFilterOperation === "between")
+                            if (getColumnSelectedFilterOperation(that, column) === "between")
                                 if ($editorContainer.hasClass(DATAGRID_FILTER_RANGE_START_CLASS))
                                     result.placeholder = that.option("filterRow.betweenStartText");
                                 else
@@ -55724,7 +55856,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             $("<div/>").addClass(DATAGRID_FILTER_RANGE_CONTENT_CLASS).attr("tabindex", 0).on("focusin", function(e) {
                                 that._showFilterRange($cell, column)
                             }).appendTo($editorContainer);
-                            that._updateFilterRangeContent($cell, getRangeTextByFilterValue(column))
+                            that._updateFilterRangeContent($cell, getRangeTextByFilterValue(that, column))
                         },
                         _updateFilterRangeContent: function($cell, value) {
                             var $filterRangeContent = $cell.find("." + DATAGRID_FILTER_RANGE_CONTENT_CLASS);
@@ -55746,28 +55878,29 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 hideSubmenuOnMouseLeave: true,
                                 items: [{
                                         disabled: column.filterOperations && column.filterOperations.length ? false : true,
-                                        icon: OPERATION_ICONS[column.selectedFilterOperation || "default"],
+                                        icon: OPERATION_ICONS[getColumnSelectedFilterOperation(that, column) || "default"],
                                         selectable: false,
                                         items: that._getFilterOperationMenuItems(column)
                                     }],
                                 onItemClick: function(properties) {
                                     var selectedFilterOperation = properties.itemData.name,
+                                        columnSelectedFilterOperation = getColumnSelectedFilterOperation(that, column),
                                         notFocusEditor = false,
+                                        isOnClickMode = isOnClickApplyFilterMode(that),
                                         options = {};
-                                    if (properties.itemData.items || selectedFilterOperation === column.selectedFilterOperation)
+                                    if (properties.itemData.items || selectedFilterOperation === columnSelectedFilterOperation)
                                         return;
                                     if (selectedFilterOperation) {
-                                        options.selectedFilterOperation = selectedFilterOperation;
-                                        if (selectedFilterOperation === "between" || column.selectedFilterOperation === "between") {
+                                        options[isOnClickMode ? "bufferedSelectedFilterOperation" : "selectedFilterOperation"] = selectedFilterOperation;
+                                        if (selectedFilterOperation === "between" || columnSelectedFilterOperation === "between") {
                                             notFocusEditor = selectedFilterOperation === "between";
-                                            options.filterValue = undefined
+                                            options[isOnClickMode ? "bufferedFilterValue" : "filterValue"] = null
                                         }
                                     }
-                                    else
-                                        options = {
-                                            selectedFilterOperation: column.defaultSelectedFilterOperation,
-                                            filterValue: undefined
-                                        };
+                                    else {
+                                        options[isOnClickMode ? "bufferedSelectedFilterOperation" : "selectedFilterOperation"] = column.defaultSelectedFilterOperation || null;
+                                        options[isOnClickMode ? "bufferedFilterValue" : "filterValue"] = null
+                                    }
                                     that._columnsController.columnOption(column.index, options);
                                     that._applyFilterViewController.setHighLight($editorContainer, true);
                                     !notFocusEditor && that._focusEditor($editorContainer)
@@ -55809,7 +55942,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 result = $.map(column.filterOperations, function(value) {
                                     return {
                                             name: value,
-                                            selected: (column.selectedFilterOperation || column.defaultFilterOperation) === value,
+                                            selected: (getColumnSelectedFilterOperation(that, column) || column.defaultFilterOperation) === value,
                                             text: operationDescriptions[value],
                                             icon: OPERATION_ICONS[value]
                                         }
@@ -55851,22 +55984,36 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return dataGrid.combineFilters(filters)
                 }};
         dataGrid.ApplyFilterViewController = dataGrid.ViewController.inherit({
-            _isOnClick: function() {
-                return this.option("filterRow.applyFilter") === "onClick"
-            },
             _getHeaderPanel: function() {
                 if (!this._headerPanel)
                     this._headerPanel = this.getView("headerPanel");
                 return this._headerPanel
             },
             setHighLight: function($element, value) {
-                if (this._isOnClick()) {
+                if (isOnClickApplyFilterMode(this)) {
                     $element && $element.toggleClass(DATAGRID_HIGHLIGHT_OUTLINE_CLASS, value);
                     this._getHeaderPanel().enableApplyButton(value)
                 }
             },
+            applyFilter: function() {
+                var columnsController = this.getController("columns"),
+                    columns = columnsController.getColumns();
+                columnsController.beginUpdate();
+                for (var i = 0; i < columns.length; i++) {
+                    if (columns[i].bufferedFilterValue !== undefined) {
+                        columnsController.columnOption(i, "filterValue", columns[i].bufferedFilterValue);
+                        columns[i].bufferedFilterValue = undefined
+                    }
+                    if (columns[i].bufferedSelectedFilterOperation !== undefined) {
+                        columnsController.columnOption(i, "selectedFilterOperation", columns[i].bufferedSelectedFilterOperation);
+                        columns[i].bufferedSelectedFilterOperation = undefined
+                    }
+                }
+                columnsController.endUpdate();
+                this.removeHighLights()
+            },
             removeHighLights: function() {
-                if (this._isOnClick()) {
+                if (isOnClickApplyFilterMode(this)) {
                     var columnHeadersView = this.getView("columnHeadersView");
                     columnHeadersView.element().find("." + DATAGRID_FILTER_ROW_CLASS + " ." + DATAGRID_HIGHLIGHT_OUTLINE_CLASS).removeClass(DATAGRID_HIGHLIGHT_OUTLINE_CLASS);
                     this._getHeaderPanel().enableApplyButton(false)
@@ -55952,8 +56099,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     hint: that.option("filterRow.applyFilterText"),
                                     icon: "apply-filter",
                                     onClick: function() {
-                                        that._dataController._applyFilter();
-                                        that._applyFilterViewController.removeHighLights()
+                                        that._applyFilterViewController.applyFilter()
                                     }
                                 });
                                 that._$applyButton = that._applyButton.element()
@@ -56725,9 +56871,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             var keyName = null,
                                 event = e.jQueryEvent,
                                 $cellElement = $(event.currentTarget),
-                                columnIndex = $cellElement.index(),
-                                visibleColumns = that._columnsController.getVisibleColumns(),
-                                column = visibleColumns[columnIndex];
+                                $tableElement = $cellElement.closest("table"),
+                                column = $cellElement.length && that.getColumns($tableElement)[$cellElement[0].cellIndex];
                             if (column && !commonUtils.isDefined(column.groupIndex) && !column.command) {
                                 if (event.shiftKey)
                                     keyName = "shift";
@@ -57632,9 +57777,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     scrollbarWidth = 0;
                 if (scrollableContainer)
                     if (!isHorizontal)
-                        scrollbarWidth = scrollableContainer.offsetWidth - scrollableContainer.clientWidth;
+                        scrollbarWidth = scrollableContainer.clientWidth ? scrollableContainer.offsetWidth - scrollableContainer.clientWidth : 0;
                     else
-                        scrollbarWidth = scrollableContainer.offsetHeight - scrollableContainer.clientHeight;
+                        scrollbarWidth = scrollableContainer.clientHeight ? scrollableContainer.offsetHeight - scrollableContainer.clientHeight : 0;
                 return scrollbarWidth > 0 ? scrollbarWidth : 0
             },
             _fireColumnResizedCallbacks: function() {
@@ -57659,10 +57804,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     this.element().removeClass(DATAGRID_LAST_ROW_BORDER)
             },
             _updateScrollable: function() {
-                var dxScrollable = this.element().data("dxScrollable");
+                var that = this,
+                    dxScrollable = this.element().data("dxScrollable");
                 if (dxScrollable) {
-                    dxScrollable._visibilityChanged(true);
-                    this._updateHorizontalScrollPosition()
+                    that._updateHorizontalScrollPosition();
+                    dxScrollable._visibilityChanged(true)
                 }
             },
             _updateLoadPanel: function() {
@@ -57673,7 +57819,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             _updateHorizontalScrollPosition: function() {
                 var scrollable = this.getScrollable(),
                     scrollLeft = scrollable && scrollable.scrollOffset().left;
-                if (scrollLeft === 0 && scrollLeft !== this._scrollLeft)
+                if (scrollLeft !== this._scrollLeft)
                     scrollable.scrollTo({x: this._scrollLeft})
             },
             _resizeCore: function() {
@@ -59360,6 +59506,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             _keyDownHandler: function(e) {
                 var isEditing = this._editingController.isEditing(),
+                    needStopPropagation = true,
                     args = {
                         handled: false,
                         jQueryEvent: e.originalEvent
@@ -59402,9 +59549,15 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             break;
                         case"F":
                             this._ctrlFKeyHandler(e);
+                            break;
+                        default:
+                            this._isNeedFocus = false;
+                            this._isNeedScroll = false;
+                            needStopPropagation = false;
                             break
                     }
-                    e.originalEvent.stopPropagation()
+                    if (needStopPropagation)
+                        e.originalEvent.stopPropagation()
                 }
             },
             _isLastRow: function(rowIndex) {
@@ -60698,9 +60851,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         this.callBase()
                 },
                 _updateScrollable: function() {
+                    this.callBase();
                     var scrollable = this.getScrollable(),
                         scrollTop = scrollable && scrollable.scrollOffset().top;
-                    this.callBase();
                     this._updateFixedTablePosition(-scrollTop)
                 },
                 _renderContent: function(contentElement, tableElement) {
@@ -60952,7 +61105,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             getGroupLevel: function(rowIndex) {
                 var item = this._options.items[rowIndex],
                     groupIndex = item.groupIndex;
-                if (item.isTotalSummary)
+                if (item.rowType === "totalFooter")
                     return 0;
                 return commonUtils.isDefined(groupIndex) ? groupIndex : this._options.groupColumns.length
             },
@@ -60969,6 +61122,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             ready: function() {
                 var options = this._options;
                 return $.when(options.items).done(function(items) {
+                        options.customizeExportData && options.customizeExportData(options.columns, items);
                         options.items = items
                     })
             },
@@ -60983,7 +61137,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 if (item) {
                     itemValues = item.values;
                     switch (item.rowType) {
-                        case"summaryFooter":
+                        case"groupFooter":
+                        case"totalFooter":
                             if (correctedCellIndex < itemValues.length) {
                                 value = itemValues[correctedCellIndex];
                                 if (commonUtils.isDefined(value))
@@ -61020,7 +61175,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     item = items[rowIndex],
                     correctCellIndex = this._correctCellIndex(cellIndex),
                     isSummaryAlignByColumn = item.summaryCells && item.summaryCells[correctCellIndex] && item.summaryCells[correctCellIndex].length > 0 && item.summaryCells[correctCellIndex][0].alignByColumn;
-                return item && item.rowType === "summaryFooter" || isSummaryAlignByColumn
+                return item && item.rowType === "groupFooter" || item.rowType === "totalFooter" || isSummaryAlignByColumn
             }
         });
         dataGrid.ExportController = dataGrid.ViewController.inherit({
@@ -61056,8 +61211,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     }
                     result.push({
                         values: values,
-                        rowType: "summaryFooter",
-                        isTotalSummary: isTotal
+                        rowType: isTotal ? "totalFooter" : "groupFooter"
                     })
                 } while (i++ < estimatedItemsCount - 1);
                 return result
@@ -61197,16 +61351,17 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             getDataProvider: function() {
                 var groupColumns = this._columnsController.getGroupColumns(),
-                    startEndIndexces = this._getStartEndValueIndexces(this._columnsController.getVisibleColumns());
+                    startEndIndexes = this._getStartEndValueIndexces(this._columnsController.getVisibleColumns());
                 return new dataGrid.DataProvider({
                         columns: this._getColumns(),
                         groupColumns: groupColumns,
                         items: !!this._selectionOnly ? this._getSelectedItems() : this._getAllItems(),
                         getVisibleIndex: $.proxy(this._columnsController.getVisibleIndex, this._columnsController),
-                        startValueIndex: startEndIndexces.startIndex,
-                        endValueIndex: startEndIndexces.endIndex,
+                        startValueIndex: startEndIndexes.startIndex,
+                        endValueIndex: startEndIndexes.endIndex,
                         isHeadersVisible: this.option("showColumnHeaders"),
-                        summaryTexts: this.option("summary.texts")
+                        summaryTexts: this.option("summary.texts"),
+                        customizeExportData: this.option("customizeExportData")
                     })
             },
             exportToExcel: function(selectionOnly) {
@@ -61411,10 +61566,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 if (!that._refreshSizesHandler) {
                     that._refreshSizesHandler = function(e) {
                         that._dataController.changed.remove(that._refreshSizesHandler);
-                        if (that._columnsController.columnsChanged.firing) {
-                            (window.setImmediate || setTimeout)($.proxy(that._refreshSizesHandler, that, e));
-                            return
-                        }
                         var changeType = e && e.changeType;
                         if (!e || changeType === "refresh" || changeType === "prepend" || changeType === "append")
                             that.resize();
@@ -61618,18 +61769,22 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             updateDimensions: function(checkSize) {
                 var that = this,
                     dataController = that._dataController,
+                    rowsView = that._rowsView,
+                    columnHeadersView = that._columnHeadersView,
+                    footerView = that._footerView,
                     $rootElement = that.component.element(),
                     rootElementHeight = $rootElement && ($rootElement.get(0).clientHeight || $rootElement.height()),
+                    maxHeight = parseFloat($rootElement.css("maxHeight")),
+                    scrollable = rowsView.getScrollable(),
+                    overflowContentHeight = scrollable ? scrollable.content().children().height() - scrollable.clientHeight() : 0,
+                    maxHeightHappened = maxHeight && rootElementHeight + overflowContentHeight >= maxHeight,
                     loadPanelOptions = that.option("loadPanel"),
                     height = that.option("height"),
                     rowsViewHeight,
                     editorFactory = that.getController("editorFactory"),
-                    rowsView = that._rowsView,
-                    columnHeadersView = that._columnHeadersView,
-                    footerView = that._footerView,
                     $testDiv;
                 that._initPostRenderHandlers();
-                if (checkSize && (this._lastWidth === $rootElement.width() && this._lastHeight === $rootElement.height() || !$rootElement.is(":visible")))
+                if (checkSize && (that._lastWidth === $rootElement.width() && that._lastHeight === $rootElement.height() || !$rootElement.is(":visible")))
                     return;
                 that.updateSize($rootElement);
                 if (height && that._hasHeight ^ height !== "auto") {
@@ -61637,8 +61792,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     that._hasHeight = !!$testDiv.height();
                     $testDiv.remove()
                 }
-                if (that._hasHeight && rootElementHeight > 0 && that.option("scrolling")) {
-                    rowsViewHeight = rootElementHeight;
+                if (that.option("scrolling") && (that._hasHeight && rootElementHeight > 0 || maxHeightHappened)) {
+                    rowsViewHeight = maxHeightHappened ? maxHeight : rootElementHeight;
                     $.each(that.getViews(), function() {
                         if (this.isVisible() && this.getHeight)
                             rowsViewHeight -= this.getHeight()
@@ -61665,8 +61820,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         view.resize()
                 });
                 editorFactory && editorFactory.resize();
-                this._lastWidth = $rootElement.width();
-                this._lastHeight = $rootElement.height()
+                that._lastWidth = $rootElement.width();
+                that._lastHeight = $rootElement.height()
             },
             optionChanged: function(args) {
                 switch (args.name) {
@@ -62135,37 +62290,35 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             _renderFieldChooser: function() {
                 var that = this,
                     container = that._pivotGridContainer,
-                    fieldChooserOptions = that.option("fieldChooser") || {};
+                    fieldChooserOptions = that.option("fieldChooser") || {},
+                    fieldChooserComponentOptions = {
+                        layout: fieldChooserOptions.layout,
+                        texts: fieldChooserOptions.texts || {},
+                        dataSource: that.getDataSource(),
+                        width: undefined,
+                        height: undefined
+                    },
+                    fieldChooserPopup = that._fieldChooserPopup;
                 var popupOptions = {
-                        visible: false,
                         shading: false,
                         title: fieldChooserOptions.title,
                         width: fieldChooserOptions.width,
                         height: fieldChooserOptions.height,
                         showCloseButton: true,
+                        resizeEnabled: true,
+                        minWidth: fieldChooserOptions.minWidth,
+                        minHeight: fieldChooserOptions.minHeight,
+                        onResize: function(e) {
+                            e.component.content().dxPivotGridFieldChooser("updateDimensions")
+                        },
                         onShown: function(e) {
-                            var popup = e.component,
-                                $content = e.component.content();
-                            that._createComponent($content, "dxPivotGridFieldChooser", {
-                                layout: fieldChooserOptions.layout,
-                                texts: fieldChooserOptions.texts || {},
-                                dataSource: that.getDataSource(),
-                                width: undefined,
-                                height: undefined
-                            });
-                            that._createComponent($content.parent(), "dxResizable", {
-                                handles: that.option('rtlEnabled') ? "left bottom" : "right bottom",
-                                onResize: function(e) {
-                                    popup._setContentHeight();
-                                    $content.dxPivotGridFieldChooser("updateDimensions")
-                                },
-                                minWidth: fieldChooserOptions.minWidth,
-                                minHeight: fieldChooserOptions.minHeight
-                            })
+                            that._createComponent(e.component.content(), "dxPivotGridFieldChooser", fieldChooserComponentOptions)
                         }
                     };
-                if (that._fieldChooserPopup)
-                    that._fieldChooserPopup.option(popupOptions);
+                if (fieldChooserPopup) {
+                    fieldChooserPopup.option(popupOptions);
+                    fieldChooserPopup.content().dxPivotGridFieldChooser(fieldChooserComponentOptions)
+                }
                 else
                     that._fieldChooserPopup = that._createComponent($('<div>').addClass('dx-fieldchooser-popup').appendTo(container), "dxPopup", popupOptions)
             },
@@ -67139,8 +67292,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 _tooltipContent: function(appointmentData, singleAppointmentData) {
                     var $tooltip = $("<div>").addClass(APPOINTMENT_TOOLTIP_CLASS);
                     var isAllDay = this.instance.appointmentTakesAllDay(appointmentData),
-                        startDate = this.instance.fire("getField", "startDate", appointmentData),
-                        endDate = this.instance.fire("getField", "endDate", appointmentData),
+                        startDate = this.instance.fire("getField", "startDate", singleAppointmentData),
+                        endDate = this.instance.fire("getField", "endDate", singleAppointmentData),
                         text = this.instance.fire("getField", "text", appointmentData);
                     $("<div>").text(text).addClass(APPOINTMENT_TOOLTIP_TITLE_CLASS).appendTo($tooltip);
                     $("<div>").addClass(APPOINTMENT_TOOLTIP_DATE_CLASS).text(this._formatTooltipDate(startDate, endDate, isAllDay)).appendTo($tooltip);
@@ -68366,9 +68519,24 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     this._renderCaptionKeys()
                 },
                 _renderPopover: function() {
-                    this._popover = this._createComponent("<div>", "dxPopover", {
-                        target: this._caption.element(),
-                        onContentReady: $.proxy(this._popoverContentReadyHandler, this)
+                    var overlayType = !devices.current().generic ? "dxPopup" : "dxPopover";
+                    this._popover = this._createComponent("<div>", overlayType, {
+                        onContentReady: $.proxy(this._popoverContentReadyHandler, this),
+                        defaultOptionsRules: [{
+                                device: function(device) {
+                                    return !devices.current().generic
+                                },
+                                options: {
+                                    fullScreen: true,
+                                    showCloseButton: false,
+                                    buttons: [{shortcut: "cancel"}]
+                                }
+                            }, {
+                                device: function(device) {
+                                    return devices.current().generic
+                                },
+                                options: {target: this._caption.element()}
+                            }]
                     });
                     this._popover.element().appendTo(this.element())
                 },
@@ -71272,7 +71440,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 $.each(resources, function(name, values) {
                                     var attr = "data-" + name.toLowerCase() + "-";
                                     for (var i = 0; i < values.length; i++)
-                                        $appointment.attr(attr + values[i], true)
+                                        $appointment.attr(attr + commonUtils.normalizeKey(values[i]), true)
                                 })
                         }
                     })
@@ -71764,6 +71932,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     options.callback(this._getCoordinates(dates, itemResources, allDay))
                 },
                 showAppointmentTooltip: function(options) {
+                    options.skipDateCalculation = true;
                     var appointmentData = options.data,
                         $appointment = $(options.target),
                         singleAppointmentData = this._getSingleAppointmentData(appointmentData, options, $appointment);
@@ -72909,7 +73078,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 _getSingleAppointmentData: function(appointmentData, options, $appointment) {
                     var target = appointmentData,
-                        updatedData = this._getUpdatedData(options),
+                        updatedData = options.skipDateCalculation ? {} : this._getUpdatedData(options),
                         appointment = $.extend({}, target, updatedData),
                         allDay = this.fire("getField", "allDay", target),
                         allowAllDay = this._workSpace.supportAllDayRow() && allDay,
@@ -72920,7 +73089,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     if (commonUtils.isDefined($appointment)) {
                         var coordinates = translator.locate($appointment),
                             cellData = this._workSpace.getCellDataByCoordinates(coordinates, allowAllDay);
-                        updatedStartDate = cellData.startDate
+                        updatedStartDate = cellData.startDate;
+                        updatedStartDate.setHours(startDate.getHours());
+                        updatedStartDate.setMinutes(startDate.getMinutes())
                     }
                     else
                         updatedStartDate = appointmentData.startDate;
