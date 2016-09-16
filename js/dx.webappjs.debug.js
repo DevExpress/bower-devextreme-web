@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.11
-* Build date: Jun 22, 2016
+* Version: 15.2.12
+* Build date: Aug 29, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -1033,7 +1033,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 }
                 if (realDevice.android)
                     windowUtils.resizeCallbacks.add(function() {
-                        document.activeElement.scrollIntoViewIfNeeded()
+                        setTimeout(function() {
+                            document.activeElement.scrollIntoViewIfNeeded()
+                        })
                     })
             };
         var triggerVisibilityChangeEvent = function(eventName) {
@@ -4382,7 +4384,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.11"
+        return "15.2.12"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -4427,6 +4429,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         return {
                 ctor: function() {
                     this._events = {}
+                },
+                hasEvent: function(eventName) {
+                    var callbacks = this._events[eventName];
+                    if (callbacks)
+                        return callbacks.has();
+                    return false
                 },
                 fireEvent: function(eventName, eventArgs) {
                     var callbacks = this._events[eventName];
@@ -8316,6 +8324,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     function handleSuccess(data, extra) {
                         function processResult() {
                             var loadResult;
+                            if (data && !$.isArray(data) && data.data) {
+                                extra = data;
+                                data = data.data
+                            }
                             loadResult = $.extend({
                                 data: data,
                                 extra: extra
@@ -13489,11 +13501,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             SKIP_APPLY_ACTION_CATEGORIES = ["rendering"];
         var safeApply = function(func, scope) {
                 if (scope.$root.$$phase)
-                    func(scope);
+                    return func(scope);
                 else
-                    scope.$apply(function() {
-                        func(scope)
-                    })
+                    return scope.$apply(function() {
+                            return func(scope)
+                        })
             };
         var ComponentBuilder = Class.inherit({
                 ctor: function(options) {
@@ -13619,7 +13631,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 that._ngLocker.obtain(optionPath);
                                 that._component.option(optionPath, newValue);
                                 updateWatcher();
-                                if (newValue === oldValue && that._ngLocker.locked(optionPath))
+                                if (that._component._optionValuesEqual(optionPath, oldValue, newValue) && that._ngLocker.locked(optionPath))
                                     that._ngLocker.release(optionPath)
                             };
                         var updateWatcher = function() {
@@ -13642,20 +13654,24 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             that._ngLocker.release(fullName);
                             return
                         }
-                        if (that._scope.$root.$$phase === "$digest" || !optionDependencies || !optionDependencies[optionName])
+                        if (!optionDependencies || !optionDependencies[optionName])
                             return;
-                        try {
-                            that._ngLocker.obtain(fullName);
-                            safeApply(function(scope) {
-                                $.each(optionDependencies[optionName], function(optionPath, valuePath) {
-                                    var value = component.option(optionPath);
-                                    that._parse(valuePath).assign(that._scope, value)
-                                })
-                            }, that._scope)
-                        }
-                        finally {
-                            that._ngLocker.release(fullName)
-                        }
+                        that._ngLocker.obtain(fullName);
+                        safeApply(function(scope) {
+                            $.each(optionDependencies[optionName], function(optionPath, valuePath) {
+                                var value = component.option(optionPath);
+                                that._parse(valuePath).assign(that._scope, value);
+                                var scopeValue = that._parse(valuePath)(that._scope);
+                                if (scopeValue !== value)
+                                    that._component.option(optionPath, scopeValue)
+                            })
+                        }, that._scope);
+                        var releaseOption = function() {
+                                if (that._ngLocker.locked(fullName))
+                                    that._ngLocker.release(fullName);
+                                that._digestCallbacks.end.remove(releaseOption)
+                            };
+                        that._digestCallbacks.end.add(releaseOption)
                     })
                 },
                 _compilerByTemplate: function(template) {
@@ -13681,9 +13697,22 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 templateScope = that._scope;
                             if (scopeItemsPath)
                                 that._synchronizeScopes(templateScope, scopeItemsPath, index);
-                            safeApply(that._compile($resultMarkup, that._transcludeFn), templateScope);
+                            that._applyAsync(that._compile($resultMarkup, that._transcludeFn), templateScope);
                             return $resultMarkup
                         }
+                },
+                _applyAsync: function(func, scope) {
+                    var that = this;
+                    func(scope);
+                    if (!scope.$root.$$phase) {
+                        clearTimeout(that._renderingTimer);
+                        that._renderingTimer = setTimeout(function() {
+                            scope.$apply()
+                        });
+                        that._componentDisposing.add(function() {
+                            clearTimeout(that._renderingTimer)
+                        })
+                    }
                 },
                 _getScopeItemsPath: function() {
                     if (this._componentClass.subclassOf(DevExpress.ui.CollectionWidget) && this._ngOptions.bindingOptions && this._ngOptions.bindingOptions.items)
@@ -13765,14 +13794,15 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                     args = arguments;
                                 if (!scope || !scope.$root || scope.$root.$$phase)
                                     return action.apply(that, args);
-                                return scope.$apply(function() {
+                                return safeApply(function() {
                                         return action.apply(that, args)
-                                    })
+                                    }, scope)
                             };
                         return wrappedAction
                     };
                     result.nestedComponentOptions = function(component) {
                         return {
+                                templatesRenderAsynchronously: true,
                                 templateCompiler: component.option("templateCompiler"),
                                 modelByElement: component.option("modelByElement"),
                                 onActionCreated: component.option("onActionCreated"),
@@ -15712,9 +15742,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             this._invalidate();
                             break;
                         case"dataSource":
+                            this.option("items", []);
                             this._refreshDataSource();
-                            if (!this._dataSource)
-                                this.option("items", []);
                             this._renderEmptyMessage();
                             break;
                         case"noDataText":
@@ -16875,7 +16904,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     for (var i = length - 1; i >= 0; i--) {
                         var node = this._dataStructure[i],
                             parent = this.options.dataConverter._getByKey(node.internalFields.parentKey);
-                        if (node.internalFields.parentKey !== this.options.rootValue) {
+                        if (parent && node.internalFields.parentKey !== this.options.rootValue) {
                             var newParentState = this._calculateSelectedState(parent);
                             this._setFieldState(parent, newParentState, SELECTED)
                         }
@@ -16909,9 +16938,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (node.internalFields.parentKey === this.options.rootValue)
                         return;
                     var parent = this.options.dataConverter._getByKey(node.internalFields.parentKey);
-                    $.isFunction(callback) && callback(parent);
-                    if (parent.internalFields.parentKey !== this.options.rootValue)
-                        this._iterateParents(parent, callback)
+                    if (parent) {
+                        $.isFunction(callback) && callback(parent);
+                        if (parent.internalFields.parentKey !== this.options.rootValue)
+                            this._iterateParents(parent, callback)
+                    }
                 },
                 _calculateSelectedState: function(node) {
                     var itemsCount = node.internalFields.childrenKeys.length,
@@ -17172,7 +17203,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         if (node.internalFields.parentKey === that._rootValue)
                             return;
                         var parent = that._getByKey(node.internalFields.parentKey);
-                        parent.internalFields.childrenKeys.push(node.internalFields.key)
+                        parent && parent.internalFields.childrenKeys.push(node.internalFields.key)
                     })
                 },
                 _makeObjectFromPrimitive: function(item) {
@@ -21452,9 +21483,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             PENDING_RENDERING_CLASS = "dx-pending-rendering",
             PENDING_RENDERING_MANUAL_CLASS = "dx-pending-rendering-manual",
             PENDING_RENDERING_ACTIVE_CLASS = "dx-pending-rendering-active",
+            VISIBLE_WHILE_PENDING_RENDERING_CLASS = "dx-visible-while-pending-rendering",
             INVISIBLE_WHILE_PENDING_RENDERING_CLASS = "dx-invisible-while-pending-rendering",
+            DEFER_RENDERING_RENDERED_CLASS = "dx-deferrendering-rendered",
             LOADINDICATOR_CONTAINER_CLASS = "dx-loadindicator-container",
-            DEFER_DEFER_RENDERING_LOAD_INDICATOR = "dx-deferrendering-load-indicator",
+            DEFER_RENDERING_LOAD_INDICATOR = "dx-deferrendering-load-indicator",
             ANONYMOUS_TEMPLATE_NAME = "content",
             ACTIONS = ["onRendered", "onShown"];
         registerComponent("dxDeferRendering", ui, Widget.inherit({
@@ -21563,14 +21596,16 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 return this._animate()
             },
             _setLoadingState: function() {
-                var $element = this.element();
+                var $element = this.element(),
+                    hasCustomLoadIndicator = !!$element.find("." + VISIBLE_WHILE_PENDING_RENDERING_CLASS).length;
                 $element.addClass(PENDING_RENDERING_CLASS);
-                $element.children().addClass(INVISIBLE_WHILE_PENDING_RENDERING_CLASS);
+                if (!hasCustomLoadIndicator)
+                    $element.children().addClass(INVISIBLE_WHILE_PENDING_RENDERING_CLASS);
                 if (this.option("showLoadIndicator"))
                     this._showLoadIndicator($element)
             },
             _showLoadIndicator: function($container) {
-                this._$loadIndicator = $('<div/>').dxLoadIndicator({visible: true}).addClass(DEFER_DEFER_RENDERING_LOAD_INDICATOR);
+                this._$loadIndicator = $('<div/>').dxLoadIndicator({visible: true}).addClass(DEFER_RENDERING_LOAD_INDICATOR);
                 $container.append(this._$loadIndicator)
             },
             _setRenderedState: function() {
@@ -21579,7 +21614,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this._$loadIndicator.remove();
                 $element.removeClass(PENDING_RENDERING_CLASS);
                 $element.removeClass(PENDING_RENDERING_ACTIVE_CLASS);
-                $element.children().removeClass(INVISIBLE_WHILE_PENDING_RENDERING_CLASS);
+                $element.addClass(DEFER_RENDERING_RENDERED_CLASS);
                 utils.triggerShownEvent($element.children())
             },
             _optionChanged: function(args) {
@@ -23556,7 +23591,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     var that = this,
                         $input = that._input();
                     $.each(EVENTS_LIST, function(_, event) {
-                        if (that.option("on" + event)) {
+                        var eventName = event.charAt(0).toLowerCase() + event.substr(1);
+                        if (that.option("on" + event) || that.hasEvent(eventName)) {
                             var action = that._createActionByOption("on" + event, {excludeValidators: ["readOnly"]});
                             $input.on(eventUtils.addNamespace(event.toLowerCase(), that.NAME), function(e) {
                                 if (that._disposed)
@@ -23709,6 +23745,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     this.option("value", "")
                 }
             });
+        var originalOnMethod = TextEditorBase.prototype.on;
+        TextEditorBase.prototype.on = function(eventName, eventHandler) {
+            originalOnMethod.call(this, eventName, eventHandler);
+            var event = eventName.charAt(0).toUpperCase() + eventName.substr(1);
+            if ($.inArray(event, EVENTS_LIST) >= 0)
+                this._refreshEvents()
+        };
         return TextEditorBase
     });
     /*! Module widgets-base, file ui.textEditor.mask.rule.js */
@@ -24609,6 +24652,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     fieldTemplate.render(data, $container);
                     if (!this._input().length)
                         throw errors.Error("E1010");
+                    this._refreshEvents();
                     this._refreshValueChangeEvent();
                     isFocused && this._input().focus();
                     this._renderFocusState()
@@ -25249,7 +25293,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     return dataSource.load().done($.proxy(this._dataSourceFiltered, this))
                 },
                 _clearFilter: function() {
-                    this._dataSource.searchValue() && this._dataSource.searchValue(null)
+                    var dataSource = this._dataSource;
+                    dataSource.searchValue() && dataSource.searchValue(null)
                 },
                 _dataSourceFiltered: function() {
                     this._refreshList();
@@ -25724,11 +25769,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         this.callBase(e, isNaN(value) ? null : value);
                         return
                     }
+                    if (inputValue === "." || inputValue === "-")
+                        return;
+                    this.callBase(e, value);
                     if (this._isValueIncomplete(inputValue))
                         return;
                     if (Number(inputValue) !== value)
-                        $input.val(valueFormat(value));
-                    this.callBase(e, value)
+                        $input.val(valueFormat(value))
                 },
                 _inputIsInvalid: function() {
                     var isNumberMode = this.option("mode") === "number";
@@ -31664,18 +31711,24 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     deferred.resolve()
                 }
                 else {
-                    this._renderVisibility(true);
-                    this._animate(showAnimation, function() {
-                        if (that.option("focusStateEnabled"))
-                            that._focusTarget().focus();
-                        completeShowAnimation.apply(this, arguments);
-                        that._showAnimationProcessing = false;
-                        that._actions.onShown();
-                        deferred.resolve()
-                    }, function() {
-                        startShowAnimation.apply(this, arguments);
-                        that._showAnimationProcessing = true
-                    })
+                    var show = $.proxy(function() {
+                            this._renderVisibility(true);
+                            this._animate(showAnimation, function() {
+                                if (that.option("focusStateEnabled"))
+                                    that._focusTarget().focus();
+                                completeShowAnimation.apply(this, arguments);
+                                that._showAnimationProcessing = false;
+                                that._actions.onShown();
+                                deferred.resolve()
+                            }, function() {
+                                startShowAnimation.apply(this, arguments);
+                                that._showAnimationProcessing = true
+                            })
+                        }, this);
+                    if (this.option("templatesRenderAsynchronously"))
+                        this._asyncShowTimeout = setTimeout(show);
+                    else
+                        show()
                 }
                 return deferred.promise()
             },
@@ -31744,6 +31797,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     return;
                 this._currentVisible = visible;
                 this._stopAnimation();
+                clearTimeout(this._asyncShowTimeout);
                 if (!visible)
                     domUtils.triggerHidingEvent(this._$content);
                 this._toggleVisibility(visible);
@@ -35481,7 +35535,15 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             };
         var DateView = Editor.inherit({
                 _valueOption: function() {
-                    return new Date(this.option("value")) === "Invalid Date" ? new Date : new Date(this.option("value"))
+                    var value = this.option("value"),
+                        date = new Date(value);
+                    return !value || isNaN(date) ? this._getDefaultDate() : date
+                },
+                _getDefaultDate: function() {
+                    var date = new Date;
+                    if (this.option("format") === FORMAT.date)
+                        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                    return date
                 },
                 _getDefaultOptions: function() {
                     return $.extend(this.callBase(), {
@@ -35659,7 +35721,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     return ""
                 },
                 _getCurrentDate: function() {
-                    var curDate = this.option("value"),
+                    var curDate = this._valueOption(),
                         minDate = this.option("minDate"),
                         maxDate = this.option("maxDate");
                     if (minDate && curDate.getTime() <= minDate.getTime())
@@ -36028,7 +36090,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         value = this.dateOption("value"),
                         patternKey = uiDateUtils.FORMATS_MAP[mode],
                         pattern = this._getPattern(patternKey);
-                    this._validateValue(value);
                     if (mode !== "text")
                         this.option("text", uiDateUtils.toStandardDateFormat(value, mode, pattern));
                     else
@@ -36178,6 +36239,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             this.callBase.apply(this, arguments);
                             this._updateSize();
                             break;
+                        case"value":
+                            this.callBase.apply(this, arguments);
+                            this._validateValue(dateUtils.deserializeDate(args.value, this._getSerializationFormat(args.value)));
+                            break;
                         case"showDropButton":
                         case"invalidDateMessage":
                         case"dateOutOfRangeMessage":
@@ -36186,8 +36251,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                             this.callBase.apply(this, arguments)
                     }
                 },
-                _getSerializtionFormat: function() {
-                    var value = this.option("value");
+                _getSerializationFormat: function(value) {
+                    value = value || this.option("value");
                     if (commonUtils.isNumber(value))
                         return "number";
                     if (!commonUtils.isString(value))
@@ -36195,7 +36260,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     return this.option("format") === "date" ? "yyyy'/'MM'/'dd" : "yyyy'/'MM'/'dd HH:mm:ss"
                 },
                 dateOption: function(optionName, value) {
-                    var serializationFormat = this._getSerializtionFormat();
+                    var serializationFormat = this._getSerializationFormat();
                     if (arguments.length === 1)
                         return dateUtils.deserializeDate(this.option(optionName), serializationFormat);
                     this.option(optionName, dateUtils.serializeDate(value, serializationFormat))
@@ -36645,7 +36710,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         }
                 },
                 _updateValue: function() {
-                    this._widget && this._widget.option("value", this.dateBoxValue() || new Date)
+                    this._widget && this._widget.option("value", this.dateBoxValue())
                 }
             });
         return DateViewStrategy
@@ -36988,6 +37053,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             LOADPANEL_CONTENT_WRAPPER_CLASS = "dx-loadpanel-content-wrapper",
             LOADPANEL_PANE_HIDDEN_CLASS = "dx-loadpanel-pane-hidden";
         registerComponent("dxLoadPanel", ui, ui.dxOverlay.inherit({
+            _supportedKeys: function() {
+                return $.extend(this.callBase(), {escape: $.noop})
+            },
             _getDefaultOptions: function() {
                 return $.extend(this.callBase(), {
                         message: Globalize.localize("Loading"),
@@ -37010,6 +37078,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
             },
             _init: function() {
                 this.callBase.apply(this, arguments)
+            },
+            _initOptions: function() {
+                this.callBase.apply(this, arguments);
+                this.option("templatesRenderAsynchronously", false)
             },
             _render: function() {
                 this.callBase();
@@ -37907,7 +37979,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                                 }
                             },
                             enter: function(e) {
-                                if (this._list && this._list.option("focusedElement") === null && this._input().val() === "") {
+                                if (this._input().val() === "" && this.option("value")) {
                                     this.option({
                                         selectedItem: null,
                                         value: null
@@ -40107,6 +40179,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         this.callBase(args);
                         break;
                     case"items":
+                        this._setTabsOption(name, value);
+                        this._updateLayout();
+                        this.callBase(args);
+                        break;
                     case"selectedIndex":
                     case"selectedItem":
                     case"itemHoldTimeout":
@@ -41303,8 +41379,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                 return this.option("scrollingEnabled") ? this._scrollable.content() : this._$form
             },
             _renderForm: function() {
-                this._$form = $("<form>").appendTo(this.element());
-                this.setAria("role", "form")
+                var $element = this.element();
+                this._$form = $("<form>").appendTo($element);
+                this.setAria("role", "form", $element)
             },
             _renderValidationGroup: function() {
                 this._$form.dxValidationGroup()
@@ -41597,8 +41674,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                         }
                         break;
                     case"formData":
+                        var dataField = nameParts.slice(1).join(".");
                         this._triggerOnFieldDataChanged({
-                            dataField: nameParts[nameParts.length - 1],
+                            dataField: dataField,
                             value: args.value
                         });
                         break
@@ -41749,17 +41827,30 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_BASE) {
                     editor.option("isValid", true)
                 })
             },
+            _updateData: function(data, value, isComplexData) {
+                var that = this,
+                    _data = isComplexData ? value : data;
+                if (utils.isObject(_data))
+                    $.each(_data, function(dataField, fieldValue) {
+                        that._updateData(isComplexData ? data + "." + dataField : dataField, fieldValue, utils.isObject(fieldValue))
+                    });
+                else if (utils.isString(data))
+                    that._updateFieldValue(data, value)
+            },
+            registerKeyHandler: function(key, handler) {
+                this.callBase(key, handler);
+                $.each(this._editorInstancesByField, function(dataField, editor) {
+                    editor.registerKeyHandler(key, handler)
+                })
+            },
+            _focusTarget: function() {
+                return this.element().find(".dx-field-item-content [tabindex]").first()
+            },
             resetValues: function() {
                 this._resetValues()
             },
             updateData: function(data, value) {
-                var that = this;
-                if (utils.isObject(data))
-                    $.each(data, function(dataField, fieldValue) {
-                        that._updateFieldValue(dataField, fieldValue)
-                    });
-                else if (typeof data === "string")
-                    that._updateFieldValue(data, value)
+                this._updateData(data, value)
             },
             getEditor: function(field) {
                 return this._editorInstancesByField[field]
@@ -43697,6 +43788,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     selectedItem: true
                 })
             },
+            _focusInHandler: $.noop,
             _itemContainer: function() {
                 return this._overlay && this._overlay.content()
             },
@@ -43929,16 +44021,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 return overlayOptions
             },
             _overlayShowingActionHandler: function(arg) {
-                this._actions.onShowing(arg);
-                this._clearFocusedItem()
+                this._actions.onShowing(arg)
             },
             _overlayShownActionHandler: function(arg) {
-                this._actions.onShown(arg);
-                this._clearFocusedItem()
-            },
-            _clearFocusedItem: function() {
-                this._removeFocusedItem();
-                this.option("focusedElement", null)
+                this._actions.onShown(arg)
             },
             _overlayHidingActionHandler: function(arg) {
                 this._actions.onHiding(arg);
@@ -44204,7 +44290,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     promise;
                 if (canShowMenu && this._overlay) {
                     this._setOptionSilent("visible", true);
-                    this.option("focusedElement", this._itemElements().first());
                     promise = this._overlay.show();
                     this._overlay.content().attr({
                         id: id,
@@ -45169,14 +45254,22 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 this._renderItems($container, this._dataAdapter.getChildrenNodes(parentId))
             },
             _getOldContainer: function($itemElement) {
-                return $itemElement.length ? $itemElement.find(" > ." + NODE_CONTAINER_CLASS) : this._scrollableContainer.content().children()
+                if ($itemElement.length)
+                    return $itemElement.find(" > ." + NODE_CONTAINER_CLASS);
+                if (this._scrollableContainer)
+                    return this._scrollableContainer.content().children();
+                return $()
             },
             _getContainerByParentKey: function(parentId) {
                 var $container,
                     $itemElement = this._findItemElementByIndex(parentId).parent();
                 this._getOldContainer($itemElement).remove();
                 $container = this._renderNodeContainer($itemElement);
-                this._isRootLevel(parentId) && this._scrollableContainer.content().append($container);
+                if (this._isRootLevel(parentId)) {
+                    if (!this._scrollableContainer)
+                        this._renderScrollableContainer();
+                    this._scrollableContainer.content().append($container)
+                }
                 return $container
             },
             _isRootLevel: function(parentId) {
@@ -46108,9 +46201,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 quarter: function(value) {
                     return value && Math.floor(value.getMonth() / 3) + 1
-                },
-                dayOfWeek: function(value) {
-                    return value && value.getDay()
                 },
                 hour: function(value) {
                     return value && value.getHours()
@@ -47601,6 +47691,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     }
                                     return that.updateColumns(dataSource, forceApplying)
                                 }
+                                else
+                                    that._dataSourceApplied = false
                         },
                         reset: function() {
                             this._dataSourceApplied = false;
@@ -47990,7 +48082,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     if (!isDefined(column.filterOperations))
                                         column.filterOperations = !lookup && DATATYPE_OPERATIONS[dataType] || [];
                                     column.defaultFilterOperation = column.filterOperations && column.filterOperations[0] || "=";
-                                    column.defaultSelectedFilterOperation = column.selectedFilterOperation;
                                     column.showEditorAlways = isDefined(column.showEditorAlways) ? column.showEditorAlways : dataType === "boolean" && !column.cellTemplate
                                 }
                             })
@@ -48317,6 +48408,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 });
                             if (columnOptions.dataType)
                                 calculatedColumnOptions.userDataType = columnOptions.dataType;
+                            if (columnOptions.selectedFilterOperation)
+                                calculatedColumnOptions.defaultSelectedFilterOperation = columnOptions.selectedFilterOperation;
                             if (columnOptions.lookup)
                                 calculatedColumnOptions.lookup = {
                                     calculateCellValue: function(value, skipDeserialization) {
@@ -49629,6 +49722,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 cell.style.textAlign = alignment;
                 var $cell = $(cell);
                 this.setAria("role", "gridcell", $cell);
+                if (column.colspan)
+                    $cell.attr("colspan", column.colspan);
                 if (!commonUtils.isDefined(column.groupIndex) && column.cssClass)
                     $cell.addClass(column.cssClass);
                 if (column.command === "expand")
@@ -49702,9 +49797,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     var jQueryEvent = e.jQueryEvent;
                     if (!$(jQueryEvent.target).closest("a").length) {
                         e.rowIndex = that.getRowIndex(jQueryEvent.currentTarget);
-                        e.rowElement = $(jQueryEvent.currentTarget);
-                        e.columns = that.getColumns();
-                        that._rowClick(e)
+                        if (e.rowIndex >= 0) {
+                            e.rowElement = $(jQueryEvent.currentTarget);
+                            e.columns = that.getColumns();
+                            that._rowClick(e)
+                        }
                     }
                 }));
                 return $table
@@ -51151,12 +51248,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             var that = this,
                                 dataController = that.getController("data"),
                                 $expandElement = $(e.jQueryEvent.target).closest("." + DATAGRID_EXPAND_CLASS),
-                                key;
+                                row;
                             if ($expandElement.length) {
-                                key = dataController.getKeyByRowIndex(e.rowIndex);
-                                dataController.changeRowExpand(key);
-                                e.jQueryEvent.preventDefault();
-                                e.handled = true
+                                row = dataController.items()[e.rowIndex];
+                                if (row.rowType !== "detail") {
+                                    dataController.changeRowExpand(row.key);
+                                    e.jQueryEvent.preventDefault();
+                                    e.handled = true
+                                }
                             }
                             that.callBase(e)
                         },
@@ -52558,7 +52657,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 beforeFocusCallback();
                             $cell && $cell.find("[tabindex], input").first().focus()
                         }
-                        if (devices.real().ios)
+                        if (devices.real().ios || devices.real().android)
                             inputFocus();
                         else
                             setTimeout(inputFocus)
@@ -52876,7 +52975,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         }
                         that._updateEditButtons()
                     },
-                    updateFieldValue: function(options, value, text) {
+                    updateFieldValue: function(options, value, text, forceUpdateRow) {
                         var that = this,
                             data = {},
                             rowKey = options.key,
@@ -52904,7 +53003,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     that._editRowIndex = options.row.rowIndex;
                                     that._focusEditingCell()
                                 });
-                            else if (options.row && (text !== undefined || options.column.setCellValue !== options.column.defaultSetCellValue))
+                            else if (options.row && (forceUpdateRow || options.column.setCellValue !== options.column.defaultSetCellValue))
                                 that._dataController.updateItems({
                                     changeType: "update",
                                     rowIndices: [options.row.rowIndex]
@@ -53190,7 +53289,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             return template || that.callBase(options)
                         },
                         _isNativeClick: function() {
-                            return devices.real().ios && this.option("editing.allowUpdating")
+                            return (devices.real().ios || devices.real().android) && this.option("editing.allowUpdating")
                         },
                         _createTable: function() {
                             var that = this,
@@ -53277,7 +53376,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 if (value === undefined)
                                     return cellOptions.value;
                                 else
-                                    this.getController("editing").updateFieldValue(cellOptions, value, text || '')
+                                    this.getController("editing").updateFieldValue(cellOptions, value, text, true)
                         }
                     },
                     headerPanel: {
@@ -53374,7 +53473,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                                 editingController.updateFieldValue({
                                                     key: editData.key,
                                                     column: this.column
-                                                }, value, true)
+                                                }, value, null, true)
                                         });
                                     isValid = isValid && validationResult.isValid
                                 }
@@ -53441,7 +53540,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                     $container.toggleClass(DATAGRID_INVALIDATE_CLASS, !options.isValid)
                                 }
                             };
-                        if (!commonUtils.isArray(column.validationRules))
+                        if (!commonUtils.isArray(column.validationRules) || commonUtils.isDefined(column.command))
                             return;
                         if (editIndex < 0 && column.showEditorAlways)
                             editIndex = editingController._addEditData({key: parameters.key});
@@ -54504,8 +54603,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
         }
         var VirtualScrollController = Class.inherit(function() {
                 var getViewportPageCount = function(that) {
-                        var pageSize = that._dataSource.pageSize();
-                        return pageSize && that._viewportSize >= 0 ? Math.ceil(that._viewportSize / pageSize) : 1
+                        var pageSize = that._dataSource.pageSize(),
+                            preventPreload = that.option('scrolling.preventPreload');
+                        if (preventPreload)
+                            return 0;
+                        return pageSize && that._viewportSize > 0 ? Math.ceil(that._viewportSize / pageSize) : 1
                     };
                 var getPreloadPageCount = function(that) {
                         var preloadEnabled = that.option('scrolling.preloadEnabled'),
@@ -54529,10 +54631,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         changed(args);
                         that._isChangedFiring = false
                     };
-                var processDelayChanged = function(that, changed) {
+                var processDelayChanged = function(that, changed, args) {
                         if (that._isDelayChanged) {
                             that._isDelayChanged = false;
-                            fireChanged(that, changed);
+                            fireChanged(that, changed, args);
                             return true
                         }
                     };
@@ -54757,8 +54859,16 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 if (beginPageIndex >= 0) {
                                     if (isVirtualMode(that) && beginPageIndex + that._cache.length !== dataSource.pageIndex() && beginPageIndex - 1 !== dataSource.pageIndex())
                                         that._cache = [];
-                                    if (isAppendMode(that) && dataSource.pageIndex() === 0)
-                                        that._cache = []
+                                    if (isAppendMode(that))
+                                        if (dataSource.pageIndex() === 0)
+                                            that._cache = [];
+                                        else if (dataSource.pageIndex() < getEndPageIndex(that)) {
+                                            fireChanged(that, callBase, {
+                                                changeType: "append",
+                                                items: []
+                                            });
+                                            return
+                                        }
                                 }
                                 cacheItem = {
                                     pageIndex: dataSource.pageIndex(),
@@ -54767,7 +54877,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                 if (that.option("scrolling.removeInvisiblePages"))
                                     removeInvisiblePages = that._cache.length > Math.max(getPreloadPageCount(this), 2);
                                 else
-                                    processDelayChanged(that, callBase);
+                                    processDelayChanged(that, callBase, {isDelayed: true});
                                 if (beginPageIndex === dataSource.pageIndex() + 1) {
                                     if (removeInvisiblePages)
                                         that._cache.pop();
@@ -55468,9 +55578,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             getHeight: function() {
-                var that = this,
-                    $element = that.element();
-                return $element ? $element.height() : 0
+                var $element = this.element();
+                return $element ? $element.outerHeight(true) : 0
             },
             getContextMenuItems: function($targetElement) {
                 var that = this,
@@ -56187,10 +56296,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 quarter: {
                     format: 'quarter',
                     dateType: 'full'
-                },
-                dayOfWeek: {
-                    format: 'dayOfWeek',
-                    dateType: 'full'
                 }
             };
         var allowHeaderFiltering = function(column) {
@@ -56501,6 +56606,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         showCloseButton: false,
                         closeOnTargetScroll: true,
                         closeOnOutsideClick: true,
+                        dragEnabled: false,
                         buttons: [{
                                 toolbar: "bottom",
                                 location: "after",
@@ -57411,7 +57517,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             var $newRowElement = that._getRowElements(newTableElement).eq(index),
                                 changeType = change.changeTypes[index],
                                 item = change.items && change.items[index];
-                            if (!item)
+                            if (!item && changeType !== "remove")
                                 return;
                             executors.push(function() {
                                 var $rowsElement = that._getRowElements(),
@@ -57570,14 +57676,15 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     showWhenGrouped: false,
                     alignment: groupColumnAlignment
                 });
+                if (groupCellOptions.colspan > 1)
+                    groupColumn.colspan = groupCellOptions.colspan;
                 $groupCell = this._renderCell($row, {
                     value: row.values[row.groupIndex],
                     row: row,
                     rowIndex: rowIndex,
                     column: groupColumn,
                     columnIndex: groupCellOptions.columnIndex
-                });
-                $groupCell.attr("colspan", groupCellOptions.colspan)
+                })
             },
             _renderRows: function($table, options) {
                 var that = this,
@@ -57608,10 +57715,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     that.callBase($table, options)
             },
             _renderTable: function(options) {
-                var $table = this.callBase(options);
-                if (!isDefined(this._getTableElement())) {
-                    this._setTableElement($table);
-                    this._renderScrollable($table)
+                var that = this,
+                    $table = that.callBase(options),
+                    triggerShownEvent = function() {
+                        if (that.element().closest(document).length) {
+                            that.resizeCompleted.remove(triggerShownEvent);
+                            that.element().triggerHandler("dxshown")
+                        }
+                    };
+                if (!isDefined(that._getTableElement())) {
+                    that._setTableElement($table);
+                    that._renderScrollable($table);
+                    that.resizeCompleted.add(triggerShownEvent)
                 }
                 return $table
             },
@@ -57807,8 +57922,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var that = this,
                     dxScrollable = this.element().data("dxScrollable");
                 if (dxScrollable) {
-                    that._updateHorizontalScrollPosition();
-                    dxScrollable._visibilityChanged(true)
+                    dxScrollable.update();
+                    that._updateHorizontalScrollPosition()
                 }
             },
             _updateLoadPanel: function() {
@@ -57845,10 +57960,10 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 if (isDefined(height)) {
                     that._hasHeight = height !== "auto";
                     if ($element)
-                        $element.height(height)
+                        $element.css("height", height)
                 }
                 else
-                    return $element ? $element.height() : 0
+                    return $element ? $element.outerHeight(true) : 0
             },
             setLoading: function(isLoading, messageText) {
                 var that = this,
@@ -57990,7 +58105,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             enabled: true,
                             text: Globalize.localize("Loading"),
                             width: 200,
-                            height: 70,
+                            height: 90,
                             showIndicator: true,
                             indicatorSrc: "",
                             showPane: true
@@ -58096,8 +58211,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 return pagerVisible
             },
             getHeight: function() {
-                var pager = this._getPager();
-                return pager && this.isVisible() ? pager.getHeight() : 0
+                var $element = this.element();
+                return $element ? $element.outerHeight(true) : 0
             },
             optionChanged: function(args) {
                 var that = this,
@@ -59223,12 +59338,16 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             _clickHandler: function(e) {
                 var event = e.jQueryEvent,
                     $cell = $(event.currentTarget),
-                    $grid = $(event.target).closest(DATAGRID_CLASS_SELECTOR).parent();
-                if ($grid.is(this.component.element()) && this._isCellValid($cell, true)) {
-                    this._focusView(event.data.view, event.data.viewIndex);
+                    $grid = $(event.target).closest(DATAGRID_CLASS_SELECTOR).parent(),
+                    data = event.data;
+                if ($grid.is(this.component.element()) && this._isCellValid($cell)) {
+                    this._focusView(data.view, data.viewIndex);
                     this._updateFocusedCellPosition($cell);
-                    if (!this._editingController.isEditing())
+                    if (!this._editingController.isEditing()) {
+                        data.view.element().attr("tabIndex", 0);
+                        data.view.element().find(".dx-row > td[tabIndex]").attr("tabIndex", null);
                         $cell.focus()
+                    }
                 }
                 else
                     this._resetFocusedCell()
@@ -59273,15 +59392,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return this._focusedView.getCell(this._focusedCellPosition)
             },
             _updateFocusedCellPosition: function($cell) {
-                var that = this,
-                    rowsView = that.getView("rowsView");
-                if ($cell.length > 0)
+                var that = this;
+                if ($cell.length > 0 && that._focusedView)
                     this._focusedCellPosition = {
-                        columnIndex: rowsView.getCellIndex($cell),
-                        rowIndex: $cell.parent().length > 0 && that._focusedView ? that._focusedView.getRowIndex($cell.parent()) : null
+                        columnIndex: that._focusedView.getCellIndex($cell),
+                        rowIndex: $cell.parent().length > 0 && that._focusedView.getRowIndex($cell.parent())
                     }
             },
-            _isCellValid: function($cell, allCommandColumns) {
+            _isCellValid: function($cell) {
                 if (commonUtils.isDefined($cell)) {
                     var rowsView = this.getView("rowsView"),
                         visibleColumns = this._columnsController.getVisibleColumns(),
@@ -59289,35 +59407,39 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         columnIndex = rowsView.getCellIndex($cell),
                         column = visibleColumns[columnIndex],
                         visibleColumnCount = this._getVisibleColumnCount(rowIndex),
-                        editMode = this._editingController.getEditMode(),
-                        isEditingCurrentRow = editMode === DATAGRID_EDIT_MODE_ROW ? this._editingController.isEditRow(rowIndex) : this._editingController.isEditing(),
+                        editingController = this._editingController,
+                        editMode = editingController && editingController.getEditMode(),
+                        isEditingCurrentRow = editingController && (editMode === DATAGRID_EDIT_MODE_ROW ? editingController.isEditRow(rowIndex) : editingController.isEditing()),
                         isMasterDetailRow = isDetailRow($cell.parent()),
                         isValidGroupSpaceColumn = function() {
                             return !isMasterDetailRow && column && !commonUtils.isDefined(column.groupIndex) || parseInt($cell.attr("colspan")) > 1
                         };
                     if (visibleColumnCount > columnIndex && isValidGroupSpaceColumn()) {
-                        var isExpandColumn = !allCommandColumns ? column.command === "expand" : false;
+                        var isExpandColumn = column.command === "expand";
                         return column && !commonUtils.isDefined(column.command) && (!isEditingCurrentRow || column.allowEditing) || isExpandColumn
                     }
                 }
             },
-            _isCellByPositionValid: function(cellPosition, allCommandColumns) {
+            _isCellByPositionValid: function(cellPosition) {
                 var $cell = this._focusedView && this._focusedView.getCell(cellPosition);
-                return this._isCellValid($cell, allCommandColumns)
+                return this._isCellValid($cell)
             },
             _focus: function($cell) {
                 var $row = $cell.parent(),
                     $focusedCell = this._getFocusedCell(),
+                    focusedView = this._focusedView,
                     $focusElement;
-                $focusedCell && $focusedCell.attr("tabindex", null);
+                $focusedCell && $focusedCell.attr("tabIndex", null);
                 if (isGroupRow($row)) {
                     $focusElement = $row;
-                    this._focusedCellPosition.rowIndex = this._focusedView.getRowIndex($row)
+                    if (focusedView)
+                        this._focusedCellPosition.rowIndex = focusedView.getRowIndex($row)
                 }
                 else {
                     $focusElement = $cell;
                     this._updateFocusedCellPosition($cell)
                 }
+                focusedView && focusedView.element().attr("tabIndex", null);
                 $focusElement.attr("tabindex", 0);
                 $focusElement.focus();
                 this.getController("editorFactory").focus($focusElement)
@@ -59516,6 +59638,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return;
                 this._isNeedFocus = true;
                 this._isNeedScroll = true;
+                this._updateFocusedCellPosition(this._getCellElementFromTarget(args.jQueryEvent.target));
                 if (!args.handled) {
                     switch (e.key) {
                         case"leftArrow":
@@ -59695,7 +59818,8 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             _resetFocusedCell: function() {
                 var that = this,
                     $cell = that._getFocusedCell();
-                $cell && $cell.attr("tabindex", null);
+                $cell && $cell.attr("tabIndex", null);
+                that._focusedView && that._focusedView.renderFocusState && that._focusedView.renderFocusState();
                 that._isNeedFocus = false;
                 that._isNeedScroll = false;
                 that._focusedCellPosition = {}
@@ -59813,10 +59937,41 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             },
             controllers: {keyboardNavigation: dataGrid.KeyboardNavigationController},
             extenders: {
-                views: {rowsView: {_renderCore: function(change) {
+                views: {rowsView: {
+                        renderFocusState: function() {
+                            var that = this,
+                                cellElements = that.getCellElements(0),
+                                keyboardNavigation = that.getController("keyboardNavigation"),
+                                oldFocusedView = keyboardNavigation._focusedView,
+                                $row,
+                                $cell;
+                            that.element().attr("tabIndex", null);
+                            if (that.option("useKeyboard") && cellElements) {
+                                $row = cellElements.eq(0).parent();
+                                if (isGroupRow($row))
+                                    $row.attr("tabIndex", 0);
+                                else {
+                                    keyboardNavigation._focusedView = that;
+                                    for (var i = 0; i < cellElements.length; i++) {
+                                        $cell = cellElements.eq(i);
+                                        if (keyboardNavigation._isCellValid($cell)) {
+                                            $cell.attr("tabIndex", 0);
+                                            break
+                                        }
+                                    }
+                                    keyboardNavigation._focusedView = oldFocusedView
+                                }
+                            }
+                        },
+                        renderDelayedTemplates: function() {
+                            this.callBase.apply(this, arguments);
+                            this.renderFocusState()
+                        },
+                        _renderCore: function(change) {
                             this.callBase(change);
-                            this.element().attr("tabindex", this.option("useKeyboard") ? 0 : null)
-                        }}},
+                            this.renderFocusState()
+                        }
+                    }},
                 controllers: {editing: {
                         editCell: function(rowIndex, columnIndex) {
                             var isCellEditing = this.callBase(rowIndex, columnIndex),
@@ -60004,7 +60159,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     },
                     getHeight: function() {
                         var $element = this.element();
-                        return $element ? $element.outerHeight() : 0
+                        return $element ? $element.outerHeight(true) : 0
                     },
                     isVisible: function() {
                         return !!this._dataController.footerItems().length
@@ -60470,10 +60625,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                                             var columnIndex = options.columns.length - alignByColumnCellCount + i;
                                             this._renderCell($groupCell.parent(), $.extend({
                                                 column: options.columns[columnIndex],
-                                                columnIndex: columnIndex
+                                                columnIndex: this._getSummaryCellIndex(columnIndex, options.columns)
                                             }, options))
                                         }
                                     }
+                                },
+                                _getSummaryCellIndex: function(columnIndex, columns) {
+                                    return columnIndex
                                 },
                                 _getColumnTemplate: function(options) {
                                     if (!options.column.command && !commonUtils.isDefined(options.column.groupIndex) && options.summaryItems && options.summaryItems.length)
@@ -60531,8 +60689,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 _createCell: function(column) {
                     var $cell = this.callBase(column);
-                    if (column.colspan)
-                        $cell.attr("colspan", column.colspan);
                     if (column.command === "transparent")
                         $cell.addClass(DATAGRID_POINTER_EVENTS_NONE_CLASS);
                     return $cell
@@ -60565,10 +60721,29 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 _renderCellContent: function($cell, options) {
                     var that = this,
+                        columns,
+                        isEmptyCell,
                         trasparentColumnIndex,
+                        alignByFixedColumnCellCount,
                         column = options.column;
-                    if (!that._isFixedTableRendering && that._isFixedColumns && (options.rowType !== "group" || !commonUtils.isDefined(column.groupIndex))) {
-                        if (column.fixed || column.command) {
+                    if (!that._isFixedTableRendering && that._isFixedColumns) {
+                        isEmptyCell = column.fixed || column.command;
+                        if (options.rowType === "group" && commonUtils.isDefined(column.groupIndex)) {
+                            isEmptyCell = false;
+                            if (options.row.summaryCells && options.row.summaryCells.length) {
+                                columns = that._columnsController.getVisibleColumns();
+                                alignByFixedColumnCellCount = that._getAlignByColumnCellCount ? that._getAlignByColumnCellCount(column.colspan, {
+                                    columns: columns,
+                                    row: options.row,
+                                    isFixed: true
+                                }) : 0;
+                                if (alignByFixedColumnCellCount > 0) {
+                                    trasparentColumnIndex = getTransparentColumnIndex(that._columnsController.getFixedColumns());
+                                    isEmptyCell = columns.length - alignByFixedColumnCellCount < trasparentColumnIndex
+                                }
+                            }
+                        }
+                        if (isEmptyCell) {
                             $cell.html("&nbsp;").addClass(column.cssClass);
                             return
                         }
@@ -60873,21 +61048,45 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         this.callBase($row, options)
                 },
                 _hasAlignByColumnSummaryItems: function(columnIndex, options) {
-                    var result = this.callBase.apply(this, arguments);
-                    return result && Boolean(options.columns[columnIndex].fixed) === Boolean(options.isFixed)
+                    var result = this.callBase.apply(this, arguments),
+                        column = options.columns[columnIndex];
+                    if (options.isFixed)
+                        return column.fixed && (result || column.fixedPosition === "right") || column.command === "edit";
+                    return result && !column.fixed
                 },
                 _renderGroupSummaryCellsCore: function($groupCell, options, groupCellColSpan, alignByColumnCellCount) {
+                    var startColumnIndex,
+                        transparentColumnIndex,
+                        alignByFixedColumnCellCount;
                     if (this._isFixedTableRendering) {
-                        if (alignByColumnCellCount > 0)
+                        options.isFixed = true;
+                        alignByFixedColumnCellCount = this._getAlignByColumnCellCount(groupCellColSpan, options);
+                        options.isFixed = false;
+                        startColumnIndex = options.columns.length - alignByFixedColumnCellCount;
+                        options = $.extend({}, options, {columns: this.getFixedColumns()});
+                        transparentColumnIndex = getTransparentColumnIndex(options.columns);
+                        if (startColumnIndex < transparentColumnIndex) {
+                            alignByFixedColumnCellCount -= options.columns[transparentColumnIndex].colspan - 1 || 0;
+                            groupCellColSpan -= options.columns[transparentColumnIndex].colspan - 1 || 0
+                        }
+                        else if (alignByColumnCellCount > 0)
                             if (browser.mozilla)
                                 $groupCell.css("display", "none");
                             else
                                 $groupCell.css("visibility", "hidden");
-                        options.isFixed = true;
-                        alignByColumnCellCount = this._getAlignByColumnCellCount(groupCellColSpan, options);
-                        options.isFixed = false
+                        alignByColumnCellCount = alignByFixedColumnCellCount
                     }
                     this.callBase($groupCell, options, groupCellColSpan, alignByColumnCellCount)
+                },
+                _getSummaryCellIndex: function(columnIndex, columns) {
+                    var transparentColumnIndex;
+                    if (this._isFixedTableRendering) {
+                        transparentColumnIndex = getTransparentColumnIndex(columns);
+                        if (columnIndex > transparentColumnIndex)
+                            columnIndex += columns[transparentColumnIndex].colspan - 1;
+                        return columnIndex
+                    }
+                    return this.callBase.apply(this, arguments)
                 },
                 _renderCore: function(change) {
                     this._detachHoverEvents();
@@ -61566,15 +61765,16 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 if (!that._refreshSizesHandler) {
                     that._refreshSizesHandler = function(e) {
                         that._dataController.changed.remove(that._refreshSizesHandler);
-                        var changeType = e && e.changeType;
+                        var changeType = e && e.changeType,
+                            isDelayed = e && e.isDelayed;
                         if (!e || changeType === "refresh" || changeType === "prepend" || changeType === "append")
                             that.resize();
                         else if (changeType === "update")
-                            if (that._dataController.items().length > 1)
+                            if (that._dataController.items().length > 1 || e.changeTypes[0] !== "insert")
                                 that._rowsView.resize();
                             else
                                 that.resize();
-                        if (changeType && changeType !== "updateSelection")
+                        if (changeType && changeType !== "updateSelection" && !isDelayed)
                             that.component._fireContentReadyAction()
                     };
                     that._dataController.changed.add(function() {
@@ -61800,7 +62000,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     })
                 }
                 else if (!that._hasHeight && dataController.items().length === 0)
-                    rowsViewHeight = loadPanelOptions && loadPanelOptions.visible ? loadPanelOptions.height + LOADPANEL_MARGIN : EMPTY_GRID_ROWS_HEIGHT;
+                    rowsViewHeight = loadPanelOptions && loadPanelOptions.enabled ? loadPanelOptions.height + LOADPANEL_MARGIN : EMPTY_GRID_ROWS_HEIGHT;
                 else
                     rowsViewHeight = "auto";
                 rowsView.height(rowsViewHeight);
@@ -62175,6 +62375,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     case"stateStoring":
                         that._initDataController();
                         that._fieldChooserPopup.hide();
+                        that._renderFieldChooser();
                         that._invalidate();
                         break;
                     case"texts":
@@ -62330,9 +62531,14 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 that._contextMenu = that._createComponent($("<div>").appendTo($container), "dxContextMenu", {
                     onPositioning: function(actionArgs) {
                         var event = actionArgs.jQueryEvent,
-                            cellElement = event.target.cellIndex >= 0 ? event.target : $(event.target).closest('td').get(0),
+                            cellElement,
                             cellArgs,
                             items;
+                        if (!event) {
+                            actionArgs.cancel = true;
+                            return
+                        }
+                        cellElement = event.target.cellIndex >= 0 ? event.target : $(event.target).closest('td').get(0);
                         if (cellElement) {
                             cellArgs = that._createCellArgs(cellElement, event);
                             items = that._getContextMenuItems(cellArgs);
@@ -63023,14 +63229,44 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             function getFieldsState(fields) {
                 var result = [];
                 each(fields, function(_, field) {
-                    result.push(setStateProperties({}, field, true))
+                    result.push(setStateProperties({
+                        dataField: field.dataField,
+                        name: field.name
+                    }, field, true))
                 });
                 return result
             }
-            function setFieldsState(stateFields, fields) {
+            function getFieldStateId(field) {
+                if (field.name)
+                    return field.name;
+                return field.dataField + ""
+            }
+            function getFieldsById(fields, id) {
+                var result = [];
+                each(fields || [], function(_, field) {
+                    if (getFieldStateId(field) === id)
+                        result.push(field)
+                });
+                return result
+            }
+            function setFieldsStateCore(stateFields, fields) {
                 stateFields = stateFields || [];
                 each(fields, function(index, field) {
                     setStateProperties(field, stateFields[index])
+                });
+                return fields
+            }
+            function setFieldsState(stateFields, fields) {
+                stateFields = stateFields || [];
+                var fieldsById = {},
+                    id;
+                each(fields, function(_, field) {
+                    id = getFieldStateId(field);
+                    if (!fieldsById[id])
+                        fieldsById[id] = getFieldsById(fields, getFieldStateId(field))
+                });
+                each(fieldsById, function(id, fields) {
+                    setFieldsStateCore(getFieldsById(stateFields, id), fields)
                 });
                 return fields
             }
@@ -65655,6 +65891,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     rowElements = tableElement.find("tr"),
                     areaName = that._getAreaName(),
                     onCellPrepared = that.option("onCellPrepared"),
+                    defaultActionArgs = this.component._defaultActionArgs(),
                     rowElement,
                     cellElement,
                     row,
@@ -65668,13 +65905,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         for (columnIndex = 0; columnIndex < row.length; columnIndex++) {
                             cell = row[columnIndex];
                             cellElement = rowElement.children().eq(columnIndex);
-                            onCellPrepared({
+                            onCellPrepared($.extend({
                                 area: areaName,
                                 rowIndex: rowIndex,
                                 columnIndex: columnIndex,
                                 cellElement: cellElement,
                                 cell: cell
-                            })
+                            }, defaultActionArgs))
                         }
                     }
             },
@@ -66728,13 +66965,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     cellIndex,
                     rowIndex,
                     resultItems = [];
-                for (rowIndex in items) {
+                for (rowIndex = 0; rowIndex < items.length; rowIndex++) {
                     row = [];
                     resultItems.push(row);
                     do {
                         this._makeRowOffset(resultItems);
                         cellIndex = row.length;
-                        row.push(items[rowIndex].shift());
+                        row.push(items.length && items[rowIndex].shift());
                         if (row[row.length - 1]) {
                             row[row.length - 1].colspan = this._defaultSetter(row[row.length - 1].colspan);
                             row[row.length - 1].rowspan = this._defaultSetter(row[row.length - 1].rowspan)
@@ -66781,13 +67018,18 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     items.resolve(that._getAllItems(columnsInfo, rowsInfoItems, cellsInfo));
                     dataController.endLoading()
                 });
-                return new ui.dxPivotGrid.DataProvider({items: items})
+                return new ui.dxPivotGrid.DataProvider({
+                        items: items,
+                        dataFields: this.getDataSource().getAreaFields("data")
+                    })
             }
         });
-        function getCellDataType(cell) {
+        function getCellDataType(cell, field) {
+            if (field && field.customizeText)
+                return "string";
             if (cell.dataType)
                 return cell.dataType;
-            else if (cell.format) {
+            if (cell.format) {
                 if (formatHelper.format(1, cell.format))
                     return "number";
                 if (formatHelper.format(new Date, cell.format))
@@ -66796,16 +67038,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
             return DEFAULT_DATA_TYPE
         }
         pivotGrid.DataProvider = Class.inherit({
-            _getCellParam: function(rowIndex, cellIndex, param) {
-                var items = this._options.items,
-                    item = items[rowIndex] && items[rowIndex][cellIndex];
-                return item && item[param]
-            },
             ctor: function(options) {
                 this._options = options
             },
             ready: function() {
-                var options = this._options;
+                var options = this._options,
+                    dataFields = options.dataFields;
                 return $.when(options.items).done(function(items) {
                         var cellItem,
                             headerSize = items[0][0].rowspan,
@@ -66815,7 +67053,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             column.alignment = column.alignment || "center";
                             cellItem = items[headerSize] && items[headerSize][columnIndex];
                             if (cellItem) {
-                                column.dataType = getCellDataType(cellItem);
+                                column.dataType = getCellDataType(cellItem, dataFields[cellItem.dataIndex]);
                                 column.format = cellItem.format;
                                 column.precision = cellItem.precision
                             }
@@ -66861,15 +67099,22 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     }
             },
             getCellType: function(rowIndex, cellIndex) {
-                var column = this._options.columns[cellIndex],
+                var items = this._options.items,
+                    rowHeaderCellCount = items[0][0].rowspan,
+                    columnHeaderCellCount = items[0][0].colspan,
+                    column = this._options.columns[cellIndex],
                     dataType = column && column.dataType;
+                if (rowIndex < rowHeaderCellCount || cellIndex < columnHeaderCellCount)
+                    return DEFAULT_DATA_TYPE;
                 return dataType || DEFAULT_DATA_TYPE
             },
             getCellValue: function(rowIndex, cellIndex) {
-                return this._getCellParam(rowIndex, cellIndex, "value", "")
-            },
-            getCellText: function(rowIndex, cellIndex) {
-                return this._getCellParam(rowIndex, cellIndex, "text")
+                var items = this._options.items,
+                    item = items[rowIndex] && items[rowIndex][cellIndex] || {};
+                if (this.getCellType(rowIndex, cellIndex) === "string")
+                    return item.text;
+                else
+                    return item.value
             }
         })
     })(jQuery, DevExpress);
@@ -66908,7 +67153,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 var absoluteExp = createAbsoluteVariationExp(allowGrossGroup);
                 return function(e) {
                         var absVar = absoluteExp(e);
-                        return absVar !== NULL ? absVar / e.value() : NULL
+                        return absVar !== NULL ? absVar / e.prev(COLUMN, allowGrossGroup).value() : NULL
                     }
             },
             summaryDictionary = {
@@ -67136,7 +67381,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     field = !fistArgIsBoolean ? args[0] : NULL,
                     needCalculatedValue = fistArgIsBoolean && args[0] || args[1],
                     level;
-                if (field) {
+                if (isDefined(field)) {
                     var fieldPos = getFieldPos(this._descriptions, field);
                     fieldIndex = fieldPos.index;
                     if (fieldPos.area !== "data") {
@@ -67183,30 +67428,30 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                         children: data.rows
                     }],
                 valueFields = descriptions.values;
+            data.values = data.values || [];
             foreachTree(rowElements, function(rowPath) {
                 var rowItem = rowPath[0];
                 rowItem.isEmpty = true;
+                data.values[rowItem.index] = data.values[rowItem.index] || [];
                 foreachTree(columnElements, function(columnPath) {
                     var columnItem = columnPath[0],
                         expression,
                         expressionArg,
                         cell,
                         field,
-                        isEmptyCell = false,
+                        isEmptyCell,
                         value;
                     columnItem.isEmpty = columnItem.isEmpty || [];
+                    data.values[rowItem.index][columnItem.index] = data.values[rowItem.index][columnItem.index] || [];
                     for (var i = 0; i < valueFields.length; i++) {
                         field = valueFields[i];
                         expression = expressions[i] = expressions[i] || getExpression(field);
+                        isEmptyCell = false;
                         if (expression) {
                             expressionArg = new SummaryCell(columnPath, rowPath, data, descriptions, i);
                             cell = expressionArg.cell();
-                            if (cell) {
-                                value = cell[i] = expression(expressionArg);
-                                isEmptyCell = value === null || value === undefined
-                            }
-                            else
-                                isEmptyCell = true
+                            value = cell[i] = expression(expressionArg);
+                            isEmptyCell = value === null || value === undefined
                         }
                         if (columnItem.isEmpty[i] === undefined)
                             columnItem.isEmpty[i] = true;
@@ -67255,8 +67500,6 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     this.hide();
                     this._$tooltip = $("<div>").appendTo(instance.element());
                     this._tooltip = instance._createComponent(this._$tooltip, "dxTooltip", {
-                        _templates: instance.option("_templates"),
-                        templateProvider: instance.option("templateProvider"),
                         visible: true,
                         target: $appointment,
                         rtlEnabled: instance.option("rtlEnabled"),
@@ -71414,8 +71657,13 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 _renderItem: function(index, itemData) {
                     var allDay = this._renderingStrategy.isAllDay(itemData),
-                        $container = this._getAppointmentContainer(allDay);
-                    this.callBase(index, itemData, $container)
+                        $container = this._getAppointmentContainer(allDay),
+                        appointmentSettings = this._positionMap[index],
+                        coordinateCount = appointmentSettings.length;
+                    for (var i = 0; i < coordinateCount; i++) {
+                        this._currentAppointmentSettings = appointmentSettings[i];
+                        this.callBase(index, itemData, $container)
+                    }
                 },
                 _getAppointmentContainer: function(allDay) {
                     var $allDayContainer = this.option("allDayContainer"),
@@ -71425,38 +71673,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     return $container
                 },
                 _postprocessRenderItem: function(args) {
-                    var $appointment = args.itemElement,
-                        itemData = args.itemData,
-                        itemSettings = this._positionMap[args.itemIndex];
-                    this._applyResourceDataAttr($appointment);
-                    this._renderAppointmentClones($appointment, itemData, itemSettings);
-                    this._renderAppointment($appointment, itemSettings[0])
-                },
-                _applyResourceDataAttr: function($appointment) {
-                    this.notifyObserver("getResourcesFromItem", {
-                        itemData: this._getItemData($appointment),
-                        callback: function(resources) {
-                            if (resources)
-                                $.each(resources, function(name, values) {
-                                    var attr = "data-" + name.toLowerCase() + "-";
-                                    for (var i = 0; i < values.length; i++)
-                                        $appointment.attr(attr + commonUtils.normalizeKey(values[i]), true)
-                                })
-                        }
-                    })
-                },
-                _renderAppointmentClones: function($appointment, itemData, coordinates) {
-                    var coordinateCount = coordinates.length;
-                    if (coordinateCount > 1)
-                        for (var i = coordinateCount - 1; i > 0; i--) {
-                            var $clone = $appointment.clone(true);
-                            $appointment.after($clone);
-                            translator.clearCache($clone);
-                            this._renderAppointment($clone, coordinates[i]);
-                            this._executeItemRenderAction(0, itemData, $clone)
-                        }
+                    this._renderAppointment(args.itemElement, this._currentAppointmentSettings);
+                    delete this._currentAppointmentSettings
                 },
                 _renderAppointment: function($appointment, settings) {
+                    this._applyResourceDataAttr($appointment);
                     var appointmentData = this._getItemData($appointment),
                         geometry = this._renderingStrategy.getAppointmentGeometry(settings),
                         allowResize = !settings.isCompact && this.option("allowResize") && (!commonUtils.isDefined(settings.skipResizing) || commonUtils.isString(settings.skipResizing)),
@@ -71484,6 +71705,19 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             this._processVirtualAppointment(settings, $appointment, appointmentData, color)
                         }, this));
                     this._renderDraggable($appointment)
+                },
+                _applyResourceDataAttr: function($appointment) {
+                    this.notifyObserver("getResourcesFromItem", {
+                        itemData: this._getItemData($appointment),
+                        callback: function(resources) {
+                            if (resources)
+                                $.each(resources, function(name, values) {
+                                    var attr = "data-" + name.toLowerCase() + "-";
+                                    for (var i = 0; i < values.length; i++)
+                                        $appointment.attr(attr + commonUtils.normalizeKey(values[i]), true)
+                                })
+                        }
+                    })
                 },
                 _resizableConfig: function(appointmentData, itemSetting) {
                     var skippedResizableDirection = itemSetting.skipResizing ? itemSetting.skipResizing : null,
@@ -72354,7 +72588,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                             }, this));
                             break;
                         case"resources":
-                            this._resourcesManager.setResources(value);
+                            this._resourcesManager.setResources(this.option("resources"));
                             this._loadResources().done($.proxy(function(resources) {
                                 this._workSpace.option("groups", resources);
                                 this._filterAppointmentsByDate();
@@ -73089,7 +73323,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                     if (commonUtils.isDefined($appointment)) {
                         var coordinates = translator.locate($appointment),
                             cellData = this._workSpace.getCellDataByCoordinates(coordinates, allowAllDay);
-                        updatedStartDate = cellData.startDate;
+                        updatedStartDate = new Date(cellData.startDate);
                         updatedStartDate.setHours(startDate.getHours());
                         updatedStartDate.setMinutes(startDate.getMinutes())
                     }
@@ -73174,6 +73408,9 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 },
                 getAppointmentsInstance: function() {
                     return this._appointments
+                },
+                getResourceManager: function() {
+                    return this._resourcesManager
                 },
                 getAppointmentResourceData: function(field, value) {
                     return this._resourcesManager.getResourceDataByValue(field, value)
@@ -73332,6 +73569,12 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 exponential: "0{0}E+00",
                 currency: " "
             },
+            VALID_TYPES = {
+                boolean: "b",
+                date: "d",
+                number: "n",
+                string: "s"
+            },
             EXCEL_START_TIME = Date.UTC(1899, 11, 30),
             DAYS_COUNT_BEFORE_29_FEB_1900 = 60,
             BOLD_STYLES_COUNT = 4,
@@ -73434,13 +73677,7 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 return sheetIndex + rowIndex
             },
             _getDataType: function(dataType) {
-                var validTypes = {
-                        boolean: "b",
-                        date: "d",
-                        number: "n",
-                        string: "s"
-                    };
-                return commonUtils.isDefined(validTypes[dataType]) ? validTypes[dataType] : "s"
+                return VALID_TYPES[dataType] || "s"
             },
             _appendFormat: function(format, precision, dataType) {
                 format = exporter.excelFormatConverter.convertFormat(format, precision, dataType);
@@ -73475,16 +73712,11 @@ if (!window.DevExpress || !DevExpress.MOD_WIDGETS_WEB) {
                 }
             },
             _prepareValue: function(rowIndex, cellIndex) {
-                var value = this._dataProvider.getCellValue(rowIndex, cellIndex),
-                    text = this._dataProvider.getCellText && this._dataProvider.getCellText(rowIndex, cellIndex),
-                    type = this._getDataType(this._dataProvider.getCellType(rowIndex, cellIndex)) || "string",
+                var dataProvider = this._dataProvider,
+                    value = dataProvider.getCellValue(rowIndex, cellIndex),
+                    type = this._getDataType(dataProvider.getCellType(rowIndex, cellIndex)),
                     formatID = this._styleArray[cellIndex + BOLD_STYLES_COUNT].formatID,
                     format = commonUtils.isNumber(formatID) ? this._styleFormat[formatID - 1] : null;
-                if (!commonUtils.isDefined(value) && commonUtils.isDefined(text)) {
-                    value = text;
-                    type = "s";
-                    format = null
-                }
                 if (type === "d" && !commonUtils.isDate(value))
                     type = "s";
                 switch (type) {

@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.11
-* Build date: Jun 22, 2016
+* Version: 15.2.12
+* Build date: Aug 29, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -1033,7 +1033,9 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 }
                 if (realDevice.android)
                     windowUtils.resizeCallbacks.add(function() {
-                        document.activeElement.scrollIntoViewIfNeeded()
+                        setTimeout(function() {
+                            document.activeElement.scrollIntoViewIfNeeded()
+                        })
                     })
             };
         var triggerVisibilityChangeEvent = function(eventName) {
@@ -4382,7 +4384,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.11"
+        return "15.2.12"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -4427,6 +4429,12 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
         return {
                 ctor: function() {
                     this._events = {}
+                },
+                hasEvent: function(eventName) {
+                    var callbacks = this._events[eventName];
+                    if (callbacks)
+                        return callbacks.has();
+                    return false
                 },
                 fireEvent: function(eventName, eventArgs) {
                     var callbacks = this._events[eventName];
@@ -8316,6 +8324,10 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     function handleSuccess(data, extra) {
                         function processResult() {
                             var loadResult;
+                            if (data && !$.isArray(data) && data.data) {
+                                extra = data;
+                                data = data.data
+                            }
                             loadResult = $.extend({
                                 data: data,
                                 extra: extra
@@ -13489,11 +13501,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             SKIP_APPLY_ACTION_CATEGORIES = ["rendering"];
         var safeApply = function(func, scope) {
                 if (scope.$root.$$phase)
-                    func(scope);
+                    return func(scope);
                 else
-                    scope.$apply(function() {
-                        func(scope)
-                    })
+                    return scope.$apply(function() {
+                            return func(scope)
+                        })
             };
         var ComponentBuilder = Class.inherit({
                 ctor: function(options) {
@@ -13619,7 +13631,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 that._ngLocker.obtain(optionPath);
                                 that._component.option(optionPath, newValue);
                                 updateWatcher();
-                                if (newValue === oldValue && that._ngLocker.locked(optionPath))
+                                if (that._component._optionValuesEqual(optionPath, oldValue, newValue) && that._ngLocker.locked(optionPath))
                                     that._ngLocker.release(optionPath)
                             };
                         var updateWatcher = function() {
@@ -13642,20 +13654,24 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             that._ngLocker.release(fullName);
                             return
                         }
-                        if (that._scope.$root.$$phase === "$digest" || !optionDependencies || !optionDependencies[optionName])
+                        if (!optionDependencies || !optionDependencies[optionName])
                             return;
-                        try {
-                            that._ngLocker.obtain(fullName);
-                            safeApply(function(scope) {
-                                $.each(optionDependencies[optionName], function(optionPath, valuePath) {
-                                    var value = component.option(optionPath);
-                                    that._parse(valuePath).assign(that._scope, value)
-                                })
-                            }, that._scope)
-                        }
-                        finally {
-                            that._ngLocker.release(fullName)
-                        }
+                        that._ngLocker.obtain(fullName);
+                        safeApply(function(scope) {
+                            $.each(optionDependencies[optionName], function(optionPath, valuePath) {
+                                var value = component.option(optionPath);
+                                that._parse(valuePath).assign(that._scope, value);
+                                var scopeValue = that._parse(valuePath)(that._scope);
+                                if (scopeValue !== value)
+                                    that._component.option(optionPath, scopeValue)
+                            })
+                        }, that._scope);
+                        var releaseOption = function() {
+                                if (that._ngLocker.locked(fullName))
+                                    that._ngLocker.release(fullName);
+                                that._digestCallbacks.end.remove(releaseOption)
+                            };
+                        that._digestCallbacks.end.add(releaseOption)
                     })
                 },
                 _compilerByTemplate: function(template) {
@@ -13681,9 +13697,22 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                 templateScope = that._scope;
                             if (scopeItemsPath)
                                 that._synchronizeScopes(templateScope, scopeItemsPath, index);
-                            safeApply(that._compile($resultMarkup, that._transcludeFn), templateScope);
+                            that._applyAsync(that._compile($resultMarkup, that._transcludeFn), templateScope);
                             return $resultMarkup
                         }
+                },
+                _applyAsync: function(func, scope) {
+                    var that = this;
+                    func(scope);
+                    if (!scope.$root.$$phase) {
+                        clearTimeout(that._renderingTimer);
+                        that._renderingTimer = setTimeout(function() {
+                            scope.$apply()
+                        });
+                        that._componentDisposing.add(function() {
+                            clearTimeout(that._renderingTimer)
+                        })
+                    }
                 },
                 _getScopeItemsPath: function() {
                     if (this._componentClass.subclassOf(DevExpress.ui.CollectionWidget) && this._ngOptions.bindingOptions && this._ngOptions.bindingOptions.items)
@@ -13765,14 +13794,15 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                                     args = arguments;
                                 if (!scope || !scope.$root || scope.$root.$$phase)
                                     return action.apply(that, args);
-                                return scope.$apply(function() {
+                                return safeApply(function() {
                                         return action.apply(that, args)
-                                    })
+                                    }, scope)
                             };
                         return wrappedAction
                     };
                     result.nestedComponentOptions = function(component) {
                         return {
+                                templatesRenderAsynchronously: true,
                                 templateCompiler: component.option("templateCompiler"),
                                 modelByElement: component.option("modelByElement"),
                                 onActionCreated: component.option("onActionCreated"),
@@ -15712,9 +15742,8 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                             this._invalidate();
                             break;
                         case"dataSource":
+                            this.option("items", []);
                             this._refreshDataSource();
-                            if (!this._dataSource)
-                                this.option("items", []);
                             this._renderEmptyMessage();
                             break;
                         case"noDataText":
@@ -16875,7 +16904,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     for (var i = length - 1; i >= 0; i--) {
                         var node = this._dataStructure[i],
                             parent = this.options.dataConverter._getByKey(node.internalFields.parentKey);
-                        if (node.internalFields.parentKey !== this.options.rootValue) {
+                        if (parent && node.internalFields.parentKey !== this.options.rootValue) {
                             var newParentState = this._calculateSelectedState(parent);
                             this._setFieldState(parent, newParentState, SELECTED)
                         }
@@ -16909,9 +16938,11 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     if (node.internalFields.parentKey === this.options.rootValue)
                         return;
                     var parent = this.options.dataConverter._getByKey(node.internalFields.parentKey);
-                    $.isFunction(callback) && callback(parent);
-                    if (parent.internalFields.parentKey !== this.options.rootValue)
-                        this._iterateParents(parent, callback)
+                    if (parent) {
+                        $.isFunction(callback) && callback(parent);
+                        if (parent.internalFields.parentKey !== this.options.rootValue)
+                            this._iterateParents(parent, callback)
+                    }
                 },
                 _calculateSelectedState: function(node) {
                     var itemsCount = node.internalFields.childrenKeys.length,
@@ -17172,7 +17203,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         if (node.internalFields.parentKey === that._rootValue)
                             return;
                         var parent = that._getByKey(node.internalFields.parentKey);
-                        parent.internalFields.childrenKeys.push(node.internalFields.key)
+                        parent && parent.internalFields.childrenKeys.push(node.internalFields.key)
                     })
                 },
                 _makeObjectFromPrimitive: function(item) {
@@ -18489,15 +18520,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         DX.viz.WrapperLayoutElement = WrapperLayoutElement
     })(jQuery, DevExpress);
     /*! Module viz-core, file themes.js */
-    (function(DX, $, undefined) {
+    (function(DX, undefined) {
         var viz = DX.viz,
             vizUtils = viz.utils,
             wrapDeprecate = vizUtils.wrapDeprecate,
             themes = {},
             themesMapping = {},
             themesSchemeMapping = {},
-            _extend = $.extend,
-            _each = $.each,
             _normalizeEnum = vizUtils.normalizeEnum,
             currentThemeName = null,
             nextCacheUid = 0,
@@ -18541,7 +18570,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             var themeName = _normalizeEnum(theme && theme.name);
             if (themeName) {
                 registerThemeName(themeName, themeName);
-                themes[themeName] = _extend(true, {}, findTheme(baseThemeName), patchTheme(theme))
+                themes[themeName] = extend(extend({}, findTheme(baseThemeName)), patchTheme(theme))
             }
         }
         function registerThemeAlias(alias, theme) {
@@ -18558,10 +18587,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         function mergeObject(target, field, source, sourceValue) {
             var _value = source ? source[field] : sourceValue;
             if (_value !== undefined)
-                target[field] = _extend(true, {}, _value, target[field])
+                target[field] = extend(extend({}, _value), target[field])
         }
         function patchTheme(theme) {
-            theme = _extend(true, {
+            theme = extend({
                 loadingIndicator: {font: {}},
                 legend: {
                     font: {},
@@ -18607,20 +18636,20 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             mergeScalar(theme.legend.font, "color", null, theme.secondaryTitleColor);
             mergeScalar(theme.legend.border, "color", null, theme.axisColor);
             patchAxes(theme);
-            _each(["chart", "pie", "polar", "gauge", "barGauge", "map", "rangeSelector", "sparkline", "bullet"], function(_, section) {
+            forEach(["chart", "pie", "polar", "gauge", "barGauge", "map", "rangeSelector", "sparkline", "bullet"], function(section) {
                 mergeScalar(theme[section], "redrawOnResize", theme);
                 mergeScalar(theme[section], "containerBackgroundColor", null, theme.backgroundColor);
                 mergeObject(theme[section], "tooltip", theme)
             });
-            _each(["chart", "pie", "polar", "gauge", "barGauge", "map", "rangeSelector"], function(_, section) {
+            forEach(["chart", "pie", "polar", "gauge", "barGauge", "map", "rangeSelector"], function(section) {
                 mergeObject(theme[section], "loadingIndicator", theme);
                 mergeObject(theme[section], "legend", theme);
                 mergeObject(theme[section], "title", theme)
             });
-            _each(["chart", "pie", "polar"], function(_, section) {
+            forEach(["chart", "pie", "polar"], function(section) {
                 mergeObject(theme, section, null, theme["chart:common"])
             });
-            _each(["chart", "polar"], function(_, section) {
+            forEach(["chart", "polar"], function(section) {
                 theme[section] = theme[section] || {};
                 mergeObject(theme[section], "commonAxisSettings", null, theme["chart:common:axis"])
             });
@@ -18633,7 +18662,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         function patchAxes(theme) {
             var commonAxisSettings = theme["chart:common:axis"],
                 colorFieldName = "color";
-            _each([commonAxisSettings, commonAxisSettings.grid, commonAxisSettings.minorGrid, commonAxisSettings.tick, commonAxisSettings.minorTick], function(_, obj) {
+            forEach([commonAxisSettings, commonAxisSettings.grid, commonAxisSettings.minorGrid, commonAxisSettings.tick, commonAxisSettings.minorTick], function(obj) {
                 mergeScalar(obj, colorFieldName, null, theme.axisColor)
             });
             mergeScalar(commonAxisSettings.title.font, colorFieldName, null, theme.secondaryTitleColor);
@@ -18647,10 +18676,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         }
         function patchMapLayers(theme) {
             var map = theme.map;
-            _each(["area", "line", "marker"], function(_, section) {
+            forEach(["area", "line", "marker"], function(section) {
                 mergeObject(map, "layer:" + section, null, map.layer)
             });
-            _each(["dot", "bubble", "pie", "image"], function(_, section) {
+            forEach(["dot", "bubble", "pie", "image"], function(section) {
                 mergeObject(map, "layer:marker:" + section, null, map["layer:marker"])
             })
         }
@@ -18663,33 +18692,54 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             delete widgetsCache[target._cache]
         }
         function refreshAll() {
-            _each(widgetsCache, function() {
-                this.refresh()
-            });
+            for (var key in widgetsCache)
+                if (widgetsCache.hasOwnProperty(key))
+                    widgetsCache[key].refresh();
             return this
         }
+        function extend(dst, src) {
+            for (var property in src)
+                if (typeof src[property] === "object" && src[property] !== null)
+                    if (src[property] instanceof Array)
+                        dst[property] = src[property].slice();
+                    else if (!dst[property] || typeof dst[property] !== "object" || dst[property] instanceof Array)
+                        dst[property] = extend({}, src[property]);
+                    else
+                        dst[property] = extend(dst[property], src[property]);
+                else
+                    dst[property] = src[property];
+            return dst
+        }
+        var forEach = function() {
+                if (!Array.prototype.forEach)
+                    return function(array, callback) {
+                            var i = 0;
+                            for (; i < array.length; i++)
+                                callback(array[i], i, array)
+                        };
+                else
+                    return function(array, callback) {
+                            array.forEach(callback)
+                        }
+            }();
         wrapDeprecate("currentTheme", currentTheme);
         wrapDeprecate("registerTheme", registerTheme);
-        _extend(viz, {
-            currentTheme: currentTheme,
-            registerTheme: registerTheme,
-            findTheme: findTheme,
-            registerThemeAlias: registerThemeAlias,
-            registerThemeSchemeAlias: registerThemeSchemeAlias,
-            refreshAll: refreshAll,
-            addCacheItem: addCacheItem,
-            removeCacheItem: removeCacheItem
-        });
-        _extend(viz, {
-            themes: themes,
-            themesMapping: themesMapping,
-            themesSchemeMapping: themesSchemeMapping,
-            widgetsCache: widgetsCache,
-            resetCurrentTheme: function() {
-                currentThemeName = null
-            }
-        })
-    })(DevExpress, jQuery);
+        viz.currentTheme = currentTheme;
+        viz.registerTheme = registerTheme;
+        viz.findTheme = findTheme;
+        viz.registerThemeAlias = registerThemeAlias;
+        viz.registerThemeSchemeAlias = registerThemeSchemeAlias;
+        viz.refreshAll = refreshAll;
+        viz.addCacheItem = addCacheItem;
+        viz.removeCacheItem = removeCacheItem;
+        viz.themes = themes;
+        viz.themesMapping = themesMapping;
+        viz.themesSchemeMapping = themesSchemeMapping;
+        viz.widgetsCache = widgetsCache;
+        viz.resetCurrentTheme = function() {
+            currentThemeName = null
+        }
+    })(DevExpress);
     /*! Module viz-core, file palette.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
@@ -20070,11 +20120,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         itemsAlignment: options.itemsAlignment,
                         orientation: options.orientation
                     },
-                    width = that._size.width - 2 * options.paddingLeftRight,
-                    height = that._size.height - 2 * options.paddingTopBottom;
+                    width = that._size.width - (that._background ? 2 * options.paddingLeftRight : 0),
+                    height = that._size.height - (that._background ? 2 * options.paddingTopBottom : 0);
                 if (orientation === HORIZONTAL) {
                     layoutOptions.length = width;
-                    layoutOptions.ortLength = height;
                     layoutOptions.spacing = options.columnItemSpacing;
                     layoutOptions.direction = "x";
                     layoutOptions.measure = WIDTH;
@@ -20092,7 +20141,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 }
                 else {
                     layoutOptions.length = height;
-                    layoutOptions.ortLength = width;
                     layoutOptions.spacing = options.rowItemSpacing;
                     layoutOptions.direction = "y";
                     layoutOptions.measure = HEIGHT;
@@ -20245,11 +20293,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             commonUtils = DX.require("/utils/utils.common"),
             _isDefined = commonUtils.isDefined,
             _isDate = commonUtils.isDate,
+            unique = viz.utils.unique,
             minSelector = "min",
             maxSelector = "max",
             minVisibleSelector = "minVisible",
             maxVisibleSelector = "maxVisible",
-            categoriesSelector = "categories",
             baseSelector = "base",
             axisTypeSelector = "axisType",
             _Range;
@@ -20268,41 +20316,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             else if (otherValueDefined)
                 setValue(otherValue)
         }
-        function returnValue(value) {
-            return value
-        }
-        function returnValueOf(value) {
-            return value.valueOf()
-        }
-        function getUniqueCategories(categories, otherCategories, dataType) {
-            var length = categories.length,
-                found,
-                i,
-                j,
-                valueOf = dataType === "datetime" ? returnValueOf : returnValue;
-            if (otherCategories && otherCategories.length)
-                for (i = 0; i < otherCategories.length; i++) {
-                    for (j = 0, found = false; j < length; j++)
-                        if (valueOf(categories[j]) === valueOf(otherCategories[i])) {
-                            found = true;
-                            break
-                        }
-                    !found && categories.push(otherCategories[i])
-                }
-            return categories
-        }
         _Range = viz.Range = function(range) {
             range && $.extend(this, range)
         };
         _Range.prototype = {
             constructor: _Range,
-            dispose: function() {
-                this[categoriesSelector] = null
-            },
             addRange: function(otherRange) {
                 var that = this,
-                    categories = that[categoriesSelector],
-                    otherCategories = otherRange[categoriesSelector];
+                    categories = that.categories,
+                    otherCategories = otherRange.categories;
                 var compareAndReplaceByField = function(field, compare) {
                         compareAndReplace(that[field], otherRange[field], function(value) {
                             that[field] = value
@@ -20345,13 +20367,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 controlValuesByVisibleBounds(maxSelector, maxVisibleSelector, otherGreaterThan);
                 controlValuesByVisibleBounds(maxSelector, minVisibleSelector, otherGreaterThan);
                 if (categories === undefined)
-                    that[categoriesSelector] = otherCategories;
+                    that.categories = otherCategories;
                 else
-                    that[categoriesSelector] = getUniqueCategories(categories, otherCategories, that.dataType);
-                return this
+                    that.categories = otherCategories ? unique(categories.concat(otherCategories)) : categories;
+                return that
             },
             isDefined: function() {
-                return _isDefined(this[minSelector]) && _isDefined(this[maxSelector]) || this[categoriesSelector] && this[categoriesSelector].length
+                return _isDefined(this[minSelector]) && _isDefined(this[maxSelector]) || this.categories && this.categories.length
             },
             setStubData: function(dataType) {
                 var that = this,
@@ -20628,11 +20650,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 var that = this;
                 that._items = null;
                 if (that._ds) {
-                    if (that._isShared)
-                        that._ds.off({
-                            changed: that._callback,
-                            loadError: that._callback
-                        });
+                    if (that._isShared) {
+                        that._ds.off("changed", that._callback);
+                        that._ds.off("loadError", that._callback)
+                    }
                     else
                         that._ds.dispose();
                     that._ds = null;
@@ -21147,7 +21168,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     hasVerticalOverlapping,
                     result;
                 if (rotationAngle !== 0)
-                    result = that._getDistanceByAngle(bBox1.height, rotationAngle) <= _abs(bBox2.x - bBox1.x);
+                    result = that._getDistanceByAngle(bBox1, rotationAngle) <= _abs(bBox2.x - bBox1.x);
                 else {
                     hasHorizontalOverlapping = !horizontalInverted ? bBox1.x + bBox1.width > bBox2.x : bBox2.x + bBox2.width > bBox1.x;
                     hasVerticalOverlapping = !verticalInverted ? bBox1.y + bBox1.height > bBox2.y : bBox2.y + bBox2.height > bBox1.y;
@@ -21289,15 +21310,19 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 overlappingBehavior.mode = mode;
                 overlappingBehavior.rotationAngle = rotationAngle
             },
-            _getDistanceByAngle: function(elementHeight, rotationAngle) {
-                return elementHeight / _abs(_math.sin(rotationAngle * (_math.PI / 180)))
+            _getDistanceByAngle: function(bBox, rotationAngle) {
+                var a = rotationAngle * (_math.PI / 180);
+                if (a >= _atan(bBox.height / bBox.width))
+                    return bBox.height / _abs(_math.sin(a));
+                else
+                    return bBox.width
             },
             _getTicksSize: function() {
                 var bBox = this.getMaxLabelParams(this._ticks),
                     options = this._options,
                     rotationAngle = options.overlappingBehavior ? options.overlappingBehavior.rotationAngle : 0,
                     isRotate = _isNumber(rotationAngle) && rotationAngle !== 0;
-                return _ceil(isRotate ? this._getDistanceByAngle(bBox.height, rotationAngle) : options.isHorizontal ? bBox.width : bBox.height)
+                return _ceil(isRotate ? this._getDistanceByAngle(bBox, rotationAngle) : options.isHorizontal ? bBox.width : bBox.height)
             }
         })
     })(jQuery, DevExpress);
@@ -22009,12 +22034,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         return;
                     that._title = that._renderer.text(titleOptions.text, 0, 0).css(viz.utils.patchFontOptions(titleOptions.font)).attr(attr).append(that._axisTitleGroup)
                 },
-                _drawDateMarker: function(dateMarker, options) {
+                _drawDateMarker: function(date, options) {
                     var that = this,
                         markerOptions = that._options.marker,
                         labelPosX,
                         labelPosY,
                         textElement,
+                        text,
                         textSize,
                         textIndent,
                         pathElement;
@@ -22027,7 +22053,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                             "stroke-opacity": markerOptions.opacity,
                             sharp: "h"
                         }).append(that._axisElementsGroup);
-                    textElement = that._renderer.text(String(constants.formatLabel(dateMarker, options.labelFormat)), 0, 0).attr({align: "left"}).css(viz.utils.patchFontOptions(markerOptions.label.font)).append(that._axisElementsGroup);
+                    text = String(constants.formatLabel(date, options.labelFormat));
+                    textElement = that._renderer.text(text, 0, 0).attr({align: "left"}).css(viz.utils.patchFontOptions(markerOptions.label.font)).append(that._axisElementsGroup);
                     textSize = textElement.getBBox();
                     textIndent = markerOptions.width + markerOptions.textLeftIndent;
                     labelPosX = this._translator.getBusinessRange().invert ? options.x - textIndent - textSize.width : options.x + textIndent;
@@ -22036,17 +22063,20 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     return {
                             labelStartPosX: labelPosX,
                             labelEndPosX: labelPosX + textSize.width,
-                            path: pathElement,
-                            text: textElement,
-                            date: dateMarker,
-                            dateMarkerStartPosX: options.x
+                            date: date,
+                            dateMarkerStartPosX: options.x,
+                            setTitle: function() {
+                                this.title = text
+                            },
+                            dispose: function(onlyLabel) {
+                                if (!onlyLabel && pathElement) {
+                                    pathElement.dispose();
+                                    pathElement = null
+                                }
+                                textElement.dispose();
+                                textElement = null
+                            }
                         }
-                },
-                _disposeDateMarker: function(marker) {
-                    marker.path && marker.path.dispose();
-                    marker.path = null;
-                    marker.text.dispose();
-                    marker.text = null
                 },
                 _getDiff: function(currentValue, previousValue) {
                     var datesDifferences = dateUtils.getDatesDifferences(previousValue, currentValue);
@@ -22063,6 +22093,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         dateMarkers = [],
                         prevDateMarker,
                         markersAreaTop,
+                        tr = that._translator,
+                        invert = tr.getBusinessRange().invert,
+                        xBound = tr.translateSpecialCase("canvas_position_end"),
                         dateMarker,
                         markerDate,
                         diff,
@@ -22079,28 +22112,36 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         if (diff.count > 0) {
                             markerDate = getMarkerDate(ticks[i].value, that._dateUnitInterval);
                             dateMarker = that._drawDateMarker(markerDate, {
-                                x: that._translator.translate(markerDate),
+                                x: tr.translate(markerDate),
                                 y: markersAreaTop,
                                 labelFormat: that._getLabelFormatOptions(formatHelper.getDateFormatByDifferences(diff))
                             });
                             if (dateMarker)
-                                if (that._checkMarkersPosition(dateMarker, prevDateMarker)) {
+                                if (invert ? dateMarker.labelStartPosX < xBound : dateMarker.labelEndPosX > xBound) {
+                                    dateMarkers.push(dateMarker);
+                                    dateMarker.dispose(true);
+                                    dateMarker.setTitle()
+                                }
+                                else if (that._checkMarkersPosition(dateMarker, prevDateMarker)) {
                                     dateMarkers.push(dateMarker);
                                     prevDateMarker = dateMarker
                                 }
                                 else
-                                    that._disposeDateMarker(dateMarker)
+                                    dateMarker.dispose()
                         }
                     }
                     if (dateMarkers.length) {
                         dateMarker = that._drawDateMarker(ticks[0].value, {
-                            x: that._translator.translate(ticks[0].value),
+                            x: tr.translate(ticks[0].value),
                             y: markersAreaTop,
                             labelFormat: that._getLabelFormatOptions(formatHelper.getDateFormatByDifferences(that._getDiff(ticks[0].value, dateMarkers[0].date))),
                             withoutStick: true
                         });
                         if (dateMarker) {
-                            !that._checkMarkersPosition(dateMarker, dateMarkers[0]) && that._disposeDateMarker(dateMarker);
+                            if (!that._checkMarkersPosition(dateMarker, dateMarkers[0])) {
+                                dateMarker.dispose();
+                                dateMarker.setTitle()
+                            }
                             dateMarkers.unshift(dateMarker)
                         }
                     }
@@ -22136,6 +22177,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                             startValue: currentMarker.date,
                             endValue: nextMarker.date
                         });
+                        if (currentMarker.title)
+                            markerTracker.setTitle(currentMarker.title);
                         that._markerTrackers.push(markerTracker)
                     }
                 },
@@ -24097,6 +24140,15 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         return "DevExpress_" + numDefsSvgElements++
                     }
             }();
+        var removeExtraAttrs = rendererNS.removeExtraAttrs = function(html) {
+                var findTagAttrs = /(?:<[a-z0-9])+(?:[\s\S]*?>)/gi,
+                    findStyleAttrWithValue = /(\S*\s*)=\s*(["'])(?:(?!\2).)*\2\s?/gi;
+                return html.replace(findTagAttrs, function(allTagAttrs) {
+                        return allTagAttrs.replace(findStyleAttrWithValue, function(currentAttr, attrName) {
+                                return attrName.toLowerCase() === "style" ? currentAttr : ""
+                            })
+                    })
+            };
         function isObjectArgument(value) {
             return value && typeof value !== "string"
         }
@@ -24147,6 +24199,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             result.isEmpty = !result.x && !result.y && !result.width && !result.height;
             return result
         }
+        function roundValue(value, exp) {
+            value = value.toString().split('e');
+            value = mathRound(+(value[0] + 'e' + (value[1] ? +value[1] + exp : exp)));
+            value = value.toString().split('e');
+            return +(value[0] + 'e' + (value[1] ? +value[1] - exp : -exp))
+        }
         var preserveAspectRatioMap = {
                 full: NONE,
                 lefttop: "xMinYMin",
@@ -24161,9 +24219,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             };
         rendererNS._normalizeArcParams = function(x, y, innerR, outerR, startAngle, endAngle) {
             var isCircle,
-                noArc = true;
-            if (mathRound(startAngle) !== mathRound(endAngle)) {
-                if (mathAbs(endAngle - startAngle) % 360 === 0) {
+                noArc = true,
+                angleDiff = roundValue(endAngle, 3) - roundValue(startAngle, 3);
+            if (angleDiff) {
+                if (mathAbs(angleDiff) % 360 === 0) {
                     startAngle = 0;
                     endAngle = 360;
                     isCircle = true;
@@ -24738,14 +24797,18 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             text.stroke && text.stroke.parentNode.removeChild(text.stroke)
         }
         function createTextNodes(wrapper, text, isStroked) {
-            var items;
+            var items,
+                parsedHtml;
             wrapper._texts = null;
             wrapper.clear();
             if (text === null)
                 return;
             text = "" + text;
-            if (!wrapper.renderer.encodeHtml && (text.indexOf("<") !== -1 || text.indexOf("&") !== -1))
-                items = parseHTML(text);
+            if (!wrapper.renderer.encodeHtml && (text.indexOf("<") !== -1 || text.indexOf("&") !== -1)) {
+                parsedHtml = removeExtraAttrs(text);
+                items = parseHTML(parsedHtml);
+                wrapper.DEBUG_parsedHtml = parsedHtml
+            }
             else if (text.indexOf("\n") !== -1)
                 items = parseMultiline(text);
             else if (isStroked)
@@ -25925,6 +25988,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                             value = isDefined(value) ? value.toString().replace(/\r/g, "") : "";
                             if (this.renderer.encodeHtml)
                                 value = value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            value = rendererNS.removeExtraAttrs(value);
+                            this.DEBUG_parsedHtml = value;
                             element.innerHTML = value.replace(/\n/g, "<br/>");
                             this.css({filter: ""});
                             this._bbox = null
@@ -26877,7 +26942,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 };
             _each(series, function(_, singleSeries) {
                 var minBarSize = singleSeries.getOptions().minBarSize,
-                    minShownBusinessValue = minBarSize && translators.val.getMinBarSize(minBarSize),
+                    tr = singleSeries.axis ? translators.axesTrans[singleSeries.axis] : translators,
+                    minShownBusinessValue = minBarSize && tr.val.getMinBarSize(minBarSize),
                     stackName = singleSeries.getStackName();
                 _each(singleSeries.getPoints(), function(index, point) {
                     if (!point.hasValue())
@@ -26918,7 +26984,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
         function updateBarSeriesValues(translators) {
             _each(this.series, function(_, singleSeries) {
                 var minBarSize = singleSeries.getOptions().minBarSize,
-                    minShownBusinessValue = minBarSize && translators.val.getMinBarSize(minBarSize);
+                    tr = singleSeries.axis ? translators.axesTrans[singleSeries.axis] : translators,
+                    minShownBusinessValue = minBarSize && tr.val.getMinBarSize(minBarSize);
                 if (minShownBusinessValue)
                     _each(singleSeries.getPoints(), function(index, point) {
                         if (point.hasValue())
@@ -27068,7 +27135,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
     (function($, DX, undefined) {
         var viz = DX.viz,
             seriesNS = viz.series,
-            dateUtils = DevExpress.require("/utils/utils.date"),
             commonUtils = DX.require("/utils/utils.common"),
             _isDefined = commonUtils.isDefined,
             _map = viz.utils.map,
@@ -27184,18 +27250,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     connector: connectorAttr,
                     rotationAngle: opt.rotationAngle
                 }
-        }
-        function isInInterval(argument, ticks, nowIndexTicks, ticksInterval) {
-            var minTick = ticks[nowIndexTicks],
-                maxTick = ticks[nowIndexTicks + 1],
-                sumMinTickTicksInterval;
-            ticksInterval = $.isNumeric(ticksInterval) ? ticksInterval : dateUtils.dateToMilliseconds(ticksInterval);
-            sumMinTickTicksInterval = commonUtils.isDate(minTick) ? new Date(minTick.getTime() + ticksInterval) : minTick + ticksInterval;
-            if (argument >= minTick && argument < sumMinTickTicksInterval)
-                return true;
-            if (argument < minTick || maxTick === undefined)
-                return false;
-            return "nextInterval"
         }
         function applyPointStyle(point, styleName) {
             !point.isSelected() && !point.hasSelectedView && point.applyStyle(styleName)
@@ -27335,27 +27389,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 this._disposePoints(this._oldPoints);
                 this._oldPoints = points.splice(length, points.length)
             },
-            _getTicksForAggregation: function(min, max, screenDelta, pointSize) {
-                var types = {
-                        axisType: "continuous",
-                        dataType: commonUtils.isDate(min) ? "datetime" : "numeric"
-                    },
-                    data = {
-                        min: min,
-                        max: max,
-                        screenDelta: screenDelta
-                    },
-                    options = {
-                        gridSpacingFactor: pointSize,
-                        labelOptions: {},
-                        stick: true
-                    },
-                    tickManager = new viz.tickManager.TickManager(types, data, options);
-                return {
-                        ticks: tickManager.getTicks(true),
-                        tickInterval: tickManager.getTickInterval()
-                    }
-            },
             getErrorBarRangeCorrector: _noop,
             updateDataType: function(settings) {
                 var that = this;
@@ -27414,36 +27447,55 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             resamplePoints: function(argTranslator, min, max) {
                 var that = this,
                     originalPoints = that.getAllPoints(),
-                    minI,
-                    maxI,
-                    sizePoint,
-                    tickObject,
-                    ticks,
+                    canvasLength = argTranslator.canvasLength,
+                    categories,
+                    sizePoint = that._getPointSize(),
+                    pointsLength = originalPoints.length,
+                    count,
+                    isDefinedMinMax = _isDefined(min) && _isDefined(max),
+                    discreteMin,
+                    discreteMax,
                     tickInterval;
-                if (originalPoints.length) {
-                    _each(originalPoints, function(i, point) {
-                        minI = point.argument - min <= 0 ? i : minI;
-                        if (!maxI)
-                            maxI = point.argument - max > 0 ? i : null
-                    });
-                    minI = minI ? minI : 1;
-                    maxI = _isDefined(maxI) ? maxI : originalPoints.length - 1;
-                    min = originalPoints[minI - 1].argument;
-                    max = originalPoints[maxI].argument;
-                    sizePoint = that._getPointSize();
-                    if (that.argumentAxisType !== DISCRETE && that.valueAxisType !== DISCRETE) {
-                        tickObject = that._getTicksForAggregation(min, max, argTranslator.canvasLength, sizePoint);
-                        ticks = tickObject.ticks;
-                        tickInterval = tickObject.tickInterval;
-                        if (ticks.length === 1) {
-                            that._points = originalPoints;
-                            return
+                if (pointsLength && pointsLength > 1) {
+                    count = canvasLength / sizePoint;
+                    count = count <= 1 ? 1 : count;
+                    if (that.argumentAxisType !== DISCRETE && that.valueAxisType !== DISCRETE)
+                        tickInterval = Math.abs(!isDefinedMinMax ? that._getDifMinMax(originalPoints) : min - max) / count;
+                    else {
+                        if (isDefinedMinMax) {
+                            if (that.argumentAxisType !== DISCRETE)
+                                originalPoints = _map(originalPoints, function(p) {
+                                    if (p.argument >= min && p.argument <= max)
+                                        return p;
+                                    return null
+                                });
+                            else {
+                                categories = argTranslator.getBusinessRange().categories;
+                                discreteMin = _inArray(min, categories);
+                                discreteMax = _inArray(max, categories);
+                                categories = categories.slice(discreteMin, discreteMax + 1);
+                                if (discreteMin !== -1 && discreteMax !== -1)
+                                    originalPoints = _map(originalPoints, function(p) {
+                                        if (_inArray(p.argument, categories) !== -1)
+                                            return p;
+                                        return null
+                                    })
+                            }
+                            pointsLength = originalPoints.length
                         }
+                        tickInterval = Math.ceil(pointsLength / count)
                     }
-                    else
-                        ticks = argTranslator.canvasLength / sizePoint;
-                    that._points = that._resample(ticks, tickInterval, argTranslator.getBusinessRange().categories, min, max)
+                    that._points = that._resample(tickInterval, min - tickInterval, max + tickInterval, isDefinedMinMax)
                 }
+            },
+            _getDifMinMax: function(originalPoints) {
+                var minArgumentPoint = originalPoints[0].argument,
+                    maxArgumentPoint = originalPoints[originalPoints.length - 1].argument;
+                _each(originalPoints, function(i, point) {
+                    minArgumentPoint = point.argument < minArgumentPoint ? point.argument : minArgumentPoint;
+                    maxArgumentPoint = point.argument > maxArgumentPoint ? point.argument : maxArgumentPoint
+                });
+                return maxArgumentPoint - minArgumentPoint
             },
             _removeOldSegments: function(startIndex) {
                 var that = this;
@@ -27753,64 +27805,51 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         selectionStyle: {}
                     })
             },
-            _resample: function(ticks, ticksInterval, categories, min, max) {
+            _resample: function(ticksInterval, min, max, isDefinedMinMax) {
                 var that = this,
                     fusPoints = [],
-                    arrayFusPoints,
                     nowIndexTicks = 0,
                     lastPointIndex = 0,
-                    originalPoints = that.getAllPoints(),
-                    discreteMin = min !== undefined ? min : -Infinity,
-                    discreteMax = max !== undefined ? max : Infinity,
-                    isArgumentDiscrete = that.argumentAxisType === DISCRETE;
-                if (isArgumentDiscrete || that.valueAxisType === DISCRETE) {
-                    if (isArgumentDiscrete) {
-                        discreteMin = _inArray(min, categories);
-                        discreteMax = _inArray(max, categories);
-                        if (discreteMin === -1)
-                            discreteMin = 0;
-                        if (discreteMax === -1)
-                            discreteMax = categories.length - 1
-                    }
-                    originalPoints = _map(originalPoints, function(p) {
-                        var result = null,
-                            argument = isArgumentDiscrete ? _inArray(p.argument, categories) : p.argument;
-                        if (argument >= discreteMin && argument <= discreteMax)
-                            result = p;
+                    pointData,
+                    minTick,
+                    state = 0,
+                    originalPoints = that.getAllPoints();
+                function addFirstFusPoint(point) {
+                    fusPoints.push(point);
+                    minTick = point.argument;
+                    if (isDefinedMinMax)
+                        if (point.argument < min)
+                            state = 1;
+                        else if (point.argument > max)
+                            state = 2;
                         else
-                            p.setInvisibility();
-                        return result
-                    });
-                    ticksInterval = originalPoints.length / ticks;
-                    arrayFusPoints = _map(originalPoints, function(point, index) {
-                        if (Math.floor(nowIndexTicks) <= index) {
-                            nowIndexTicks += ticksInterval;
-                            return point
-                        }
-                        point.setInvisibility();
-                        return null
-                    });
-                    return arrayFusPoints
+                            state = 0
                 }
+                if (that.argumentAxisType === DISCRETE || that.valueAxisType === DISCRETE)
+                    return _map(originalPoints, function(point, index) {
+                            if (index % ticksInterval === 0)
+                                return point;
+                            point.setInvisibility();
+                            return null
+                        });
                 that._aggregatedPoints = that._aggregatedPoints || [];
                 _each(originalPoints, function(_, point) {
                     point.setInvisibility();
-                    switch (isInInterval(point.argument, ticks, nowIndexTicks, ticksInterval)) {
-                        case true:
-                            fusPoints.push(point);
-                            break;
-                        case"nextInterval":
-                            var pointData = that._fusionPoints(fusPoints, ticks[nowIndexTicks], nowIndexTicks);
-                            while (isInInterval(point.argument, ticks, nowIndexTicks, ticksInterval) === "nextInterval")
-                                nowIndexTicks++;
-                            fusPoints = [];
-                            isInInterval(point.argument, ticks, nowIndexTicks, ticksInterval) === true && fusPoints.push(point);
-                            if (that._createPoint(pointData, that._aggregatedPoints, lastPointIndex))
-                                lastPointIndex++
+                    if (!fusPoints.length)
+                        addFirstFusPoint(point);
+                    else if (!state && Math.abs(minTick - point.argument) < ticksInterval)
+                        fusPoints.push(point);
+                    else if (!(state === 1 && point.argument < min) && !(state === 2 && point.argument > max)) {
+                        pointData = that._fusionPoints(fusPoints, minTick, nowIndexTicks);
+                        nowIndexTicks++;
+                        if (that._createPoint(pointData, that._aggregatedPoints, lastPointIndex))
+                            lastPointIndex++;
+                        fusPoints = [];
+                        addFirstFusPoint(point)
                     }
                 });
                 if (fusPoints.length) {
-                    var pointData = that._fusionPoints(fusPoints, ticks[nowIndexTicks], nowIndexTicks);
+                    pointData = that._fusionPoints(fusPoints, minTick, nowIndexTicks);
                     if (that._createPoint(pointData, that._aggregatedPoints, lastPointIndex))
                         lastPointIndex++
                 }
@@ -27983,11 +28022,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 data = series._rangeData[type],
                 minInterval = data.interval,
                 interval;
-            if (isDiscrete) {
+            if (isDiscrete && type === "val") {
                 data.categories = data.categories || [];
                 data.categories.push(value)
             }
-            else {
+            else if (!isDiscrete) {
                 _truncateValue(data, value);
                 if (type === "arg") {
                     interval = (_isDefined(prevValue) ? _abs(calcInterval ? calcInterval(value, prevValue) : value - prevValue) : interval) || minInterval;
@@ -28124,8 +28163,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             data.arg.axisType = series.argumentAxisType;
             data.arg.dataType = series.argumentType;
             data.val.axisType = series.valueAxisType;
-            data.val.dataType = series.valueType;
-            data.val.isValueRange = true
+            data.val.dataType = series.valueType
         }
         function processTwoValues(series, point, prevPoint, highValueName, lowValueName) {
             var val = point[highValueName],
@@ -33196,49 +33234,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     }
                 })
         }
-        function mergeSort(data, field) {
-            function merge_sort(array, low, high, field) {
-                if (low < high) {
-                    var mid = Math.floor((low + high) / 2);
-                    merge_sort(array, low, mid, field);
-                    merge_sort(array, mid + 1, high, field);
-                    merge(array, low, mid, high, field)
-                }
-            }
-            var n = data.length;
-            merge_sort(data, 0, n - 1, field);
-            return data
-        }
-        function merge(array, low, mid, high, field) {
-            var newArray = new Array(high - low + 1),
-                countL = low,
-                countR = mid + 1,
-                k,
-                i = 0;
-            while (countL <= mid && countR <= high) {
-                if (array[countL][field] <= array[countR][field] || !_isDefined(array[countR][field])) {
-                    newArray[i] = array[countL];
-                    countL++
-                }
-                else {
-                    newArray[i] = array[countR];
-                    countR++
-                }
-                i++
-            }
-            if (countL > mid)
-                for (k = countR; k <= high; k++, i++)
-                    newArray[i] = array[k];
-            else
-                for (k = countL; k <= mid; k++, i++)
-                    newArray[i] = array[k];
-            for (k = 0; k <= high - low; k++)
-                array[k + low] = newArray[k];
-            return array
-        }
         function processGroup(_, group) {
             group.valueType = group.valueAxisType = null;
-            _each(group, processSeries);
+            _each(group.series, processSeries);
             group.valueAxis && group.valueAxis.resetTypes(VALUE_TYPE)
         }
         function parseCategories(categories, parser) {
@@ -33249,16 +33247,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             });
             return newArray
         }
-        function parseAxisCategories(groups, parsers) {
-            var argumentCategories = groups.argumentOptions && groups.argumentOptions.categories,
+        function parseAxisCategories(groupsData, parsers) {
+            var argumentCategories = groupsData.argumentOptions && groupsData.argumentOptions.categories,
                 valueParser = parsers[1];
-            _each(groups, function(_, valueGroup) {
+            _each(groupsData.groups, function(_, valueGroup) {
                 var categories = valueGroup.valueOptions && valueGroup.valueOptions.categories;
                 if (categories)
                     valueGroup.valueOptions.categories = parseCategories(categories, valueParser)
             });
             if (argumentCategories)
-                groups.argumentOptions.categories = parseCategories(argumentCategories, parsers[0])
+                groupsData.argumentOptions.categories = parseCategories(argumentCategories, parsers[0])
         }
         function processSeries(_, series) {
             series.updateDataType({})
@@ -33308,16 +33306,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     return parseUnit
                 }
         }
-        function prepareParsers(groups, skipFields, incidentOccurred) {
-            var argumentParser = createParserUnit(groups.argumentType, groups.argumentAxisType, false, skipFields, incidentOccurred),
+        function prepareParsers(groupsData, skipFields, incidentOccurred) {
+            var argumentParser = createParserUnit(groupsData.argumentType, groupsData.argumentAxisType, false, skipFields, incidentOccurred),
                 sizeParser,
                 valueParser,
                 iep,
                 categoryParsers = [argumentParser],
                 cache = {},
                 list = [];
-            _each(groups, function(_, group) {
-                _each(group, function(_, series) {
+            _each(groupsData.groups, function(_, group) {
+                _each(group.series, function(_, series) {
                     iep = series.getOptions().ignoreEmptyPoints;
                     valueParser = createParserUnit(group.valueType, group.valueAxisType, iep, skipFields, incidentOccurred);
                     sizeParser = createParserUnit(NUMERIC, CONTINUOUS, iep, skipFields, incidentOccurred);
@@ -33335,7 +33333,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             _each(cache, function(field, parser) {
                 list.push([field, parser])
             });
-            list.length && parseAxisCategories(groups, categoryParsers);
+            list.length && parseAxisCategories(groupsData, categoryParsers);
             return list
         }
         function getParsedCell(cell, parsers) {
@@ -33390,58 +33388,116 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             groupingValues(data, others, valueField, mode === "smallValueThreshold" ? findIndexByThreshold(data, valueField, smallValuesGrouping.threshold) : smallValuesGrouping.topCount);
             others[valueField] && originalData.push(others)
         }
-        function groupData(data, groups) {
-            var isPie = groups[0] && groups[0][0] && (groups[0][0].type === "pie" || groups[0][0].type === "doughnut" || groups[0][0].type === "donut");
+        function groupPieData(data, groupsData) {
+            var firstSeries = groupsData.groups[0] && groupsData.groups[0].series[0],
+                isPie = firstSeries && (firstSeries.type === "pie" || firstSeries.type === "doughnut" || firstSeries.type === "donut");
             if (!isPie)
                 return;
-            _each(groups, function(_, group) {
-                _each(group, function(_, series) {
+            _each(groupsData.groups, function(_, group) {
+                _each(group.series, function(_, series) {
                     groupMinSlices(data, series.getArgumentField(), series.getValueFields()[0], series.getOptions().smallValuesGrouping)
                 })
             })
         }
-        function sort(data, groups, sortingMethod, userArgumentCategories) {
-            var hash = {},
-                argumentField = groups.length && groups[0].length && groups[0][0].getArgumentField();
-            if (_isFunction(sortingMethod))
-                data.sort(sortingMethod);
-            else if (userArgumentCategories.length) {
-                _each(userArgumentCategories, function(index, value) {
-                    hash[value] = index
-                });
-                data.sort(function sortCat(a, b) {
-                    a = a[argumentField];
-                    b = b[argumentField];
-                    return hash[a] - hash[b]
-                })
+        function addUniqueItemToCollection(item, collection, itemsHash) {
+            if (!itemsHash[item]) {
+                collection.push(item);
+                itemsHash[item] = true
             }
-            else if (sortingMethod === true && groups.argumentType !== STRING)
-                mergeSort(data, argumentField)
+        }
+        function getUniqueArgumentFields(groupsData) {
+            var uniqueArgumentFields = [],
+                hash = {};
+            _each(groupsData.groups, function(_, group) {
+                _each(group.series, function(__, series) {
+                    addUniqueItemToCollection(series.getArgumentField(), uniqueArgumentFields, hash)
+                })
+            });
+            return uniqueArgumentFields
+        }
+        function discreteDataProcessing(data, groupsData, userArgumentCategories, uniqueArgumentFields) {
+            var categories = groupsData.categories = $.extend([], userArgumentCategories),
+                hash = {};
+            categories.length && _each(categories, function(_, currentCategory) {
+                hash[currentCategory] = true
+            });
+            _each(uniqueArgumentFields, function(_, field) {
+                _each(data, function(_, item) {
+                    _isDefined(item[field]) && addUniqueItemToCollection(item[field], categories, hash)
+                })
+            })
+        }
+        function compareWithoutHash(argumentField) {
+            return function(a, b) {
+                    var cmpResult = a[argumentField] - b[argumentField];
+                    if (isNaN(cmpResult)) {
+                        if (!a[argumentField])
+                            return 1;
+                        if (!b[argumentField])
+                            return -1;
+                        return 0
+                    }
+                    return cmpResult
+                }
+        }
+        function sort(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
+            var itemsHash = {},
+                dataByArguments = {},
+                getSortMethodByType = function(sortingByHash, hash) {
+                    return sortingByHash ? function(argumentField) {
+                            return function(a, b) {
+                                    return hash[a[argumentField]] - hash[b[argumentField]]
+                                }
+                        } : compareWithoutHash
+                },
+                getSortingMethod;
+            if (_isFunction(sortingMethodOption))
+                data.sort(sortingMethodOption);
+            else if (groupsData.categories) {
+                _each(groupsData.categories, function(index, value) {
+                    itemsHash[value] = index
+                });
+                getSortingMethod = getSortMethodByType(true, itemsHash)
+            }
+            else if (sortingMethodOption === true && groupsData.argumentType !== STRING)
+                getSortingMethod = getSortMethodByType(false, itemsHash);
+            _each(uniqueArgumentFields, function(_, argumentField) {
+                var sortMethod,
+                    currentDataItem;
+                if (getSortingMethod) {
+                    sortMethod = getSortingMethod(argumentField);
+                    currentDataItem = data.slice().sort(sortMethod)
+                }
+                else
+                    currentDataItem = data;
+                dataByArguments[argumentField] = currentDataItem
+            });
+            return dataByArguments
         }
         function checkValueTypeOfGroup(group, cell) {
-            _each(group, function(_, series) {
+            _each(group.series, function(_, series) {
                 _each(series.getValueFields(), function(_, field) {
                     group.valueType = getType(cell[field], group.valueType)
                 })
             });
             return group.valueType
         }
-        function checkArgumentTypeOfGroup(group, cell, groups) {
-            _each(group, function(_, series) {
-                groups.argumentType = getType(cell[series.getArgumentField()], groups.argumentType)
+        function checkArgumentTypeOfGroup(series, cell, groupsData) {
+            _each(series, function(_, currentCeries) {
+                groupsData.argumentType = getType(cell[currentCeries.getArgumentField()], groupsData.argumentType)
             });
-            return groups.argumentType
+            return groupsData.argumentType
         }
-        function checkType(data, groups, checkTypeForAllData) {
+        function checkType(data, groupsData, checkTypeForAllData) {
             var groupsWithUndefinedValueType = [],
                 groupsWithUndefinedArgumentType = [],
-                argumentTypeGroup = groups.argumentOptions && axisTypeParser(groups.argumentOptions.argumentType);
-            _each(groups, function(_, group) {
-                if (!group.length)
+                argumentTypeGroup = groupsData.argumentOptions && axisTypeParser(groupsData.argumentOptions.argumentType);
+            _each(groupsData.groups, function(_, group) {
+                if (!group.series.length)
                     return null;
                 var valueTypeGroup = group.valueOptions && axisTypeParser(group.valueOptions.valueType);
                 group.valueType = valueTypeGroup;
-                groups.argumentType = argumentTypeGroup;
+                groupsData.argumentType = argumentTypeGroup;
                 !valueTypeGroup && groupsWithUndefinedValueType.push(group);
                 !argumentTypeGroup && groupsWithUndefinedArgumentType.push(group)
             });
@@ -33453,26 +33509,26 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         defineVal = checkValueTypeOfGroup(group, cell)
                     });
                     _each(groupsWithUndefinedArgumentType, function(_, group) {
-                        defineArg = checkArgumentTypeOfGroup(group, cell, groups)
+                        defineArg = checkArgumentTypeOfGroup(group.series, cell, groupsData)
                     });
                     if (!checkTypeForAllData && defineVal && defineArg)
                         return false
                 })
         }
-        function checkAxisType(groups, userArgumentCategories, incidentOccurred) {
-            var argumentOptions = groups.argumentOptions || {},
-                argumentAxisType = correctAxisType(groups.argumentType, argumentOptions.type, !!userArgumentCategories.length, incidentOccurred);
-            _each(groups, function(_, group) {
+        function checkAxisType(groupsData, userArgumentCategories, incidentOccurred) {
+            var argumentOptions = groupsData.argumentOptions || {},
+                argumentAxisType = correctAxisType(groupsData.argumentType, argumentOptions.type, !!userArgumentCategories.length, incidentOccurred);
+            _each(groupsData.groups, function(_, group) {
                 var valueOptions = group.valueOptions || {},
                     valueCategories = valueOptions.categories || [],
                     valueAxisType = correctAxisType(group.valueType, valueOptions.type, !!valueCategories.length, incidentOccurred);
-                _each(group, function(_, series) {
+                _each(group.series, function(_, series) {
                     var optionsSeries = {};
                     optionsSeries.argumentAxisType = argumentAxisType;
                     optionsSeries.valueAxisType = valueAxisType;
-                    groups.argumentAxisType = groups.argumentAxisType || optionsSeries.argumentAxisType;
+                    groupsData.argumentAxisType = groupsData.argumentAxisType || optionsSeries.argumentAxisType;
                     group.valueAxisType = group.valueAxisType || optionsSeries.valueAxisType;
-                    optionsSeries.argumentType = groups.argumentType;
+                    optionsSeries.argumentType = groupsData.argumentType;
                     optionsSeries.valueType = group.valueType;
                     optionsSeries.showZero = valueOptions.showZero;
                     series.updateDataType(optionsSeries)
@@ -33483,10 +33539,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     group.valueAxis.validate(false)
                 }
             });
-            groups.argumentAxisType = groups.argumentAxisType || argumentAxisType;
-            if (groups.argumentAxes)
-                _each(groups.argumentAxes, function(_, axis) {
-                    axis.setTypes(groups.argumentAxisType, groups.argumentType, ARGUMENT_TYPE);
+            groupsData.argumentAxisType = groupsData.argumentAxisType || argumentAxisType;
+            if (groupsData.argumentAxes)
+                _each(groupsData.argumentAxes, function(_, axis) {
+                    axis.setTypes(groupsData.argumentAxisType, groupsData.argumentType, ARGUMENT_TYPE);
                     axis.validate(true)
                 })
         }
@@ -33509,30 +33565,36 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 incidentOccurred("E2001");
             return data
         }
-        function validateData(data, groups, incidentOccurred, options) {
+        function validateData(data, groupsData, incidentOccurred, options) {
             var parsers,
                 skipFields = {},
-                userArgumentCategories = groups.argumentOptions && groups.argumentOptions.categories || [],
-                dataLength;
+                argumentOptions = groupsData.argumentOptions,
+                userArgumentCategories = argumentOptions && argumentOptions.categories || [],
+                dataLength,
+                categoriesInAxisType,
+                uniqueArgumentFields = getUniqueArgumentFields(groupsData),
+                dataByArgumentFields;
             data = verifyData(data, incidentOccurred);
-            groups.argumentType = groups.argumentAxisType = null;
-            _each(groups, processGroup);
-            if (groups.argumentAxes)
-                _each(groups.argumentAxes, resetAxisTypes);
-            checkType(data, groups, options.checkTypeForAllData);
-            checkAxisType(groups, userArgumentCategories, incidentOccurred);
+            groupsData.argumentType = groupsData.argumentAxisType = null;
+            _each(groupsData.groups, processGroup);
+            if (groupsData.argumentAxes)
+                _each(groupsData.argumentAxes, resetAxisTypes);
+            checkType(data, groupsData, options.checkTypeForAllData);
+            checkAxisType(groupsData, userArgumentCategories, incidentOccurred);
             if (options.convertToAxisDataType) {
-                parsers = prepareParsers(groups, skipFields, incidentOccurred);
+                parsers = prepareParsers(groupsData, skipFields, incidentOccurred);
                 data = parse(data, parsers)
             }
-            groupData(data, groups);
-            sort(data, groups, options.sortingMethod, userArgumentCategories);
+            groupPieData(data, groupsData);
+            categoriesInAxisType = argumentOptions && argumentOptions.categories || [];
+            groupsData.argumentAxisType === DISCRETE && discreteDataProcessing(data, groupsData, categoriesInAxisType, uniqueArgumentFields);
+            dataByArgumentFields = sort(data, groupsData, options.sortingMethod, uniqueArgumentFields);
             dataLength = data.length;
             _each(skipFields, function(field, fieldValue) {
                 if (fieldValue === dataLength)
                     incidentOccurred("W2002", [field])
             });
-            return data
+            return dataByArgumentFields
         }
         viz.validateData = validateData;
         viz.DEBUG_validateData_sort = sort
@@ -36243,8 +36305,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     disposeObjectsInArray = this._disposeObjectsInArray;
                 clearTimeout(that._delayedRedraw);
                 that._renderer.stopAllAnimations();
-                disposeObjectsInArray.call(that, "businessRanges", ["arg", "val"]);
-                that.translators = null;
+                that.businessRanges = that.translators = null;
                 disposeObjectsInArray.call(that, "series");
                 disposeObject("_tracker");
                 disposeObject("_crosshair");
@@ -36706,10 +36767,10 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     data = that.templateData || data
                 }
                 that._groupSeries();
-                parsedData = viz.validateData(data, that._groupedSeries, that._incidentOccured, dataValidatorOptions);
+                parsedData = viz.validateData(data, that._groupsData, that._incidentOccured, dataValidatorOptions);
                 themeManager.resetPalette();
                 _each(that.series, function(_, singleSeries) {
-                    singleSeries.updateData(parsedData);
+                    singleSeries.updateData(parsedData[singleSeries.getArgumentField()]);
                     that._processSingleSeries(singleSeries)
                 });
                 that._organizeStackPoints()
@@ -36862,13 +36923,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
         function prepareAxis(axisOptions) {
             return _isArray(axisOptions) ? axisOptions.length === 0 ? [{}] : axisOptions : [axisOptions]
         }
-        function prepareVisibleArea(visibleArea, axisRange, useAggregation, aggregationRange) {
+        function prepareVisibleArea(visibleArea, aggregationRange, axisRange, argRange) {
             visibleArea.minVal = axisRange.min;
             visibleArea.maxVal = axisRange.max;
-            if (useAggregation) {
-                visibleArea.minArg = visibleArea.minArg === undefined ? aggregationRange.arg.min : visibleArea.minArg;
-                visibleArea.maxArg = visibleArea.maxArg === undefined ? aggregationRange.arg.max : visibleArea.maxArg
-            }
+            visibleArea.minArg = !_isDefined(visibleArea.minArg) ? _isDefined(argRange.minVisible) ? argRange.minVisible : aggregationRange.arg.min : visibleArea.minArg;
+            visibleArea.maxArg = !_isDefined(visibleArea.maxArg) ? _isDefined(argRange.maxVisible) ? argRange.maxVisible : aggregationRange.arg.max : visibleArea.maxArg
         }
         charts.AdvancedChart = charts.BaseChart.inherit({
             _dispose: function() {
@@ -37101,35 +37160,33 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             _populateBusinessRange: function(visibleArea) {
                 var that = this,
                     businessRanges = [],
-                    themeManager = that._themeManager,
                     rotated = that._isRotated(),
-                    useAggregation = themeManager.getOptions("useAggregation"),
                     argAxes = that._argumentAxes,
                     lastArgAxis = argAxes[argAxes.length - 1],
                     calcInterval = lastArgAxis.calcInterval,
                     argRange = new viz.Range({rotated: !!rotated}),
-                    argBusinessRange;
-                that._disposeObjectsInArray("businessRanges", ["arg", "val"]);
+                    argBusinessRange,
+                    groupsData = that._groupsData;
+                that.businessRanges = null;
                 _each(argAxes, function(_, axis) {
                     argRange.addRange(axis.getRangeData())
                 });
-                _each(that._groupedSeries, function(_, group) {
+                _each(groupsData.groups, function(_, group) {
                     var groupRange = new viz.Range({
                             rotated: !!rotated,
-                            isValueRange: true,
                             pane: group.valueAxis.pane,
                             axis: group.valueAxis.name
                         }),
                         groupAxisRange = group.valueAxis.getRangeData();
                     groupRange.addRange(groupAxisRange);
-                    _each(group, function(_, series) {
-                        visibleArea && prepareVisibleArea(visibleArea, groupAxisRange, useAggregation, series.getRangeData());
+                    _each(group.series, function(_, series) {
+                        visibleArea && prepareVisibleArea(visibleArea, series.getRangeData(), groupAxisRange, argRange);
                         var seriesRange = series.getRangeData(visibleArea, calcInterval);
                         groupRange.addRange(seriesRange.val);
                         argRange.addRange(seriesRange.arg)
                     });
                     if (!groupRange.isDefined())
-                        groupRange.setStubData(group.valueAxis.getOptions().valueType === "datetime" ? "datetime" : undefined);
+                        groupRange.setStubData(group.valueAxis.getOptions().valueType);
                     if (group.valueAxis.getOptions().showZero)
                         groupRange.correctValueZeroLevel();
                     groupRange.checkZeroStick();
@@ -37138,6 +37195,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                         arg: argRange
                     })
                 });
+                argRange.addRange({categories: groupsData.categories});
                 if (!argRange.isDefined())
                     argRange.setStubData(argAxes[0].getOptions().argumentType);
                 if (visibleArea && visibleArea.notApplyMargins && argRange.axisType !== "discrete") {
@@ -37459,7 +37517,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     series = that.series,
                     paneAxis = that.paneAxis,
                     synchronizeMultiAxes = that._themeManager.getOptions("synchronizeMultiAxes"),
-                    groupedSeries = that._groupedSeries = [];
+                    groupedSeries = that._groupsData = {groups: []};
                 _each(series, function(i, particularSeries) {
                     particularSeries.axis = particularSeries.axis || getFirstAxisNameForPane(valAxes, particularSeries.pane);
                     if (particularSeries.axis) {
@@ -37477,12 +37535,12 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 _each(paneAxis, function(paneName, pane) {
                     hideGridsOnNonFirstValueAxisForPane(valAxes, paneName, synchronizeMultiAxes);
                     _each(pane, function(axisName) {
-                        var group = [];
+                        var group = {series: []};
                         _each(series, function(_, particularSeries) {
                             if (particularSeries.pane === paneName && particularSeries.axis === axisName)
-                                group.push(particularSeries)
+                                group.series.push(particularSeries)
                         });
-                        groupedSeries.push(group);
+                        groupedSeries.groups.push(group);
                         group.valueAxis = findAxis(paneName, axisName, valAxes);
                         group.valueOptions = group.valueAxis.getOptions()
                     })
@@ -38025,11 +38083,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                 if (!paneTrans)
                     return foundTranslator;
                 foundTranslator = paneTrans[axisName];
-                if (!foundTranslator)
+                if (!foundTranslator) {
                     _each(paneTrans, function(axis, trans) {
                         foundTranslator = trans;
                         return false
                     });
+                    foundTranslator = _extend({axesTrans: paneTrans}, foundTranslator)
+                }
                 return foundTranslator
             },
             _getCanvasForPane: function(paneName) {
@@ -38322,15 +38382,20 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     this._refreshSeries(DATA_INIT_REFRESH_ACTION)
             },
             _groupSeries: function() {
-                this.series.valueOptions = {valueType: "numeric"};
-                this._groupedSeries = [this.series];
-                this._groupedSeries.argumentOptions = this.series[0] && this.series[0].getOptions()
+                var series = this.series;
+                this._groupsData = {
+                    groups: [{
+                            series: series,
+                            valueOptions: {valueType: "numeric"}
+                        }],
+                    argumentOptions: series[0] && series[0].getOptions()
+                }
             },
             _populateBusinessRange: function() {
                 var businessRanges = [],
                     series = this.series,
                     singleSeriesRange;
-                this._disposeObjectsInArray("businessRanges");
+                this.businessRanges = null;
                 _each(series, function(_, singleSeries) {
                     var range = new viz.Range;
                     singleSeriesRange = singleSeries.getRangeData();
@@ -38565,11 +38630,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     return {spiderWidget: this.option("useSpiderWeb")}
                 },
                 _groupSeries: function() {
-                    this._groupedSeries = [this.series];
-                    this._groupedSeries[0].valueAxis = this._valueAxes[0];
-                    this._groupedSeries[0].valueOptions = this._valueAxes[0].getOptions();
-                    this._groupedSeries.argumentAxes = this._argumentAxes;
-                    this._groupedSeries.argumentOptions = this._argumentAxes[0].getOptions()
+                    var that = this;
+                    that._groupsData = {
+                        groups: [{
+                                series: that.series,
+                                valueAxis: that._valueAxes[0],
+                                valueOptions: that._valueAxes[0].getOptions()
+                            }],
+                        argumentAxes: that._argumentAxes,
+                        argumentOptions: that._argumentAxes[0].getOptions()
+                    }
                 },
                 _prepareToRender: function() {
                     this._appendAxesGroups();
@@ -44406,6 +44476,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             commonUtils = DX.require("/utils/utils.common"),
             mathUtils = DX.require("/utils/utils.math"),
             dateUtils = DX.require("/utils/utils.date"),
+            dateToMilliseconds = dateUtils.dateToMilliseconds,
             viz = DX.viz,
             vizUtils = viz.utils,
             patchFontOptions = vizUtils.patchFontOptions,
@@ -44433,6 +44504,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             OPTION_BACKGROUND = "background",
             LOGARITHMIC = "logarithmic",
             INVISIBLE_POS = -1000,
+            GRID_SPACING_FACTOR = 50,
             logarithmBase = 10;
         rangeSelector.utils = {
             trackerSettings: {
@@ -44555,7 +44627,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
         function updateTranslatorRangeInterval(translatorRange, scaleOptions) {
             var intervalX = scaleOptions.minorTickInterval || scaleOptions.tickInterval;
             if (scaleOptions.valueType === "datetime")
-                intervalX = dateUtils.dateToMilliseconds(intervalX);
+                intervalX = dateToMilliseconds(intervalX);
             translatorRange.addRange({interval: intervalX})
         }
         function checkLogarithmicOptions(options, defaultLogarithmBase, incidentOccured) {
@@ -44632,13 +44704,13 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                 rangeForCategories;
             if (scaleOptions.type === DISCRETE) {
                 rangeForCategories = new viz.Range({
-                    categories: scaleOptions.categories || (!seriesDataSource && startValue && endValue ? [startValue, endValue] : undefined),
                     minVisible: startValue,
                     maxVisible: endValue
                 });
                 rangeForCategories.addRange(translatorRange);
                 translatorRange = rangeForCategories;
-                categories = rangeForCategories.categories || [];
+                categories = seriesDataSource ? seriesDataSource.argCategories : scaleOptions.categories || !seriesDataSource && startValue && endValue && [startValue, endValue];
+                categories = categories || [];
                 scaleOptions._categoriesInfo = categoriesInfo = vizUtils.getCategoriesInfo(categories, startValue || categories[0], endValue || categories[categories.length - 1])
             }
             if (_isDefined(startValue) && _isDefined(endValue)) {
@@ -44665,6 +44737,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     dataType: scaleOptions.valueType
                 });
             translatorRange.addRange({
+                categories: categories,
                 base: scaleOptions.logarithmBase,
                 axisType: scaleOptions.type
             });
@@ -44684,21 +44757,32 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             textElement.remove();
             return textBBox
         }
-        function updateScaleOptions(scaleOptions, seriesDataSource, translatorRange, tickIntervalsInfo) {
+        function getDateMarkerVisibilityChecker(screenDelta) {
+            return function(isDateScale, isMarkerVisible, min, max, tickInterval) {
+                    if (isMarkerVisible && isDateScale)
+                        if (tickInterval.years || tickInterval.months >= 6 || screenDelta / GRID_SPACING_FACTOR < _ceil((max - min) / dateToMilliseconds("year")) + 1)
+                            isMarkerVisible = false;
+                    return isMarkerVisible
+                }
+        }
+        function updateScaleOptions(scaleOptions, seriesDataSource, translatorRange, tickIntervalsInfo, checkDateMarkerVisibility) {
             var bounds,
                 isEmptyInterval,
-                categoriesInfo = scaleOptions._categoriesInfo;
+                categoriesInfo = scaleOptions._categoriesInfo,
+                isDateTime = scaleOptions.valueType === DATETIME,
+                isDiscrete = scaleOptions.type === DISCRETE;
             if (seriesDataSource && !seriesDataSource.isEmpty() && !translatorRange.stubData) {
                 bounds = tickIntervalsInfo.bounds;
                 translatorRange.addRange(bounds);
                 scaleOptions.startValue = translatorRange.invert ? bounds.maxVisible : bounds.minVisible;
                 scaleOptions.endValue = translatorRange.invert ? bounds.minVisible : bounds.maxVisible
             }
+            scaleOptions.marker.visible = checkDateMarkerVisibility(isDateTime && !isDiscrete, scaleOptions.marker.visible, scaleOptions.startValue, scaleOptions.endValue, tickIntervalsInfo.tickInterval);
             if (categoriesInfo) {
                 scaleOptions.startValue = categoriesInfo.start;
                 scaleOptions.endValue = categoriesInfo.end
             }
-            if (scaleOptions.type !== DISCRETE)
+            if (!isDiscrete)
                 isEmptyInterval = _isDate(scaleOptions.startValue) && _isDate(scaleOptions.endValue) && scaleOptions.startValue.getTime() === scaleOptions.endValue.getTime() || scaleOptions.startValue === scaleOptions.endValue;
             scaleOptions.isEmpty = startEndNotDefined(scaleOptions.startValue, scaleOptions.endValue) || isEmptyInterval;
             if (scaleOptions.isEmpty)
@@ -44706,8 +44790,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
             else {
                 scaleOptions.minorTickInterval = tickIntervalsInfo.minorTickInterval;
                 scaleOptions.tickInterval = tickIntervalsInfo.tickInterval;
-                if (scaleOptions.valueType === DATETIME && !_isDefined(scaleOptions.label.format))
-                    if (scaleOptions.type === DISCRETE)
+                if (isDateTime && !_isDefined(scaleOptions.label.format))
+                    if (isDiscrete)
                         scaleOptions.label.format = formatHelper.getDateFormatByTicks(tickIntervalsInfo.ticks);
                     else if (!scaleOptions.marker.visible)
                         scaleOptions.label.format = formatHelper.getDateFormatByTickInterval(scaleOptions.startValue, scaleOptions.endValue, scaleOptions.tickInterval);
@@ -44949,7 +45033,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     chartThemeManager = seriesDataSource && seriesDataSource.isShowChart() && seriesDataSource.getThemeManager();
                 if (chartThemeManager)
                     checkLogarithmicOptions(chartOptions && chartOptions.valueAxis, chartThemeManager.getOptions("valueAxis").logarithmBase, that._incidentOccured);
-                updateScaleOptions(scaleOptions, seriesDataSource, argTranslatorRange, tickIntervalsInfo);
+                updateScaleOptions(scaleOptions, seriesDataSource, argTranslatorRange, tickIntervalsInfo, getDateMarkerVisibilityChecker(canvas.width));
                 updateTranslatorRangeInterval(argTranslatorRange, scaleOptions);
                 sliderMarkerOptions = that._prepareSliderMarkersOptions(scaleOptions, canvas.width, tickIntervalsInfo);
                 indents = calculateIndents(that._renderer, scaleOptions, sliderMarkerOptions, that.option("indent"));
@@ -44972,9 +45056,9 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     selectedRange = that.option(SELECTED_RANGE),
                     shutterOptions = that._getOption("shutter");
                 if (selectedRange) {
-                    if (!that._translator.isValid(selectedRange[START_VALUE]))
+                    if (_isDefined(selectedRange[START_VALUE]) && !that._translator.isValid(selectedRange[START_VALUE]))
                         that._incidentOccured("E2203", [START_VALUE]);
-                    if (!that._translator.isValid(selectedRange[END_VALUE]))
+                    if (_isDefined(selectedRange[END_VALUE]) && !that._translator.isValid(selectedRange[END_VALUE]))
                         that._incidentOccured("E2203", [END_VALUE])
                 }
                 shutterOptions.color = shutterOptions.color || that._getOption(CONTAINER_BACKGROUND_COLOR, true);
@@ -46176,7 +46260,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     particularSeriesOptions,
                     seriesTheme,
                     data,
-                    groupSeries,
                     parsedData,
                     chartThemeManager = that._themeManager,
                     hasSeriesTemplate = !!chartThemeManager.getOptions('seriesTemplate'),
@@ -46184,7 +46267,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     seriesValueType = options.chart.valueAxis && options.chart.valueAxis.valueType,
                     dataSourceField,
                     i,
-                    newSeries;
+                    newSeries,
+                    groupsData;
                 that.templateData = [];
                 if (options.dataSource && !allSeriesOptions) {
                     if (isArrayOfSimpleTypes(options.dataSource))
@@ -46211,17 +46295,22 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                         setTemplateFields(data, that.templateData, newSeries)
                 }
                 data = hasSeriesTemplate ? that.templateData : data;
-                groupSeries = [series];
-                groupSeries.argumentOptions = {
-                    categories: options.categories,
-                    argumentType: options.valueType,
-                    type: options.axisType
-                };
-                groupSeries[0].valueOptions = {valueType: dataSourceField ? options.valueType : seriesValueType};
                 if (series.length) {
-                    parsedData = viz.validateData(data, groupSeries, options.incidentOccured, chartThemeManager.getOptions("dataPrepareSettings"));
+                    groupsData = {
+                        groups: [{
+                                series: series,
+                                valueOptions: {valueType: dataSourceField ? options.valueType : seriesValueType}
+                            }],
+                        argumentOptions: {
+                            categories: options.categories,
+                            argumentType: options.valueType,
+                            type: options.axisType
+                        }
+                    };
+                    parsedData = viz.validateData(data, groupsData, options.incidentOccured, chartThemeManager.getOptions("dataPrepareSettings"));
+                    that.argCategories = groupsData.categories;
                     for (i = 0; i < series.length; i++)
-                        series[i].updateData(parsedData)
+                        series[i].updateData(parsedData[series[i].getArgumentField()])
                 }
                 return series
             },
@@ -46243,7 +46332,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_RANGESELECTOR) {
                     valueAxisMin = that._valueAxis.min,
                     valueAxisMax = that._valueAxis.max,
                     valRange = new viz.Range({
-                        isValueRange: true,
                         min: valueAxisMin,
                         minVisible: valueAxisMin,
                         max: valueAxisMax,
@@ -48344,7 +48432,8 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
         })
     })(DevExpress, jQuery);
     /*! Module viz-vectormap, file dataExchanger.js */
-    (function(DX, undefined) {
+    (function(DX, $, undefined) {
+        var _Callbacks = $.Callbacks;
         function DataExchanger() {
             this._store = {}
         }
@@ -48356,28 +48445,28 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
             },
             _get: function(category, name) {
                 var store = this._store[category] || (this._store[category] = {});
-                return store[name] || (store[name] = {})
+                return store[name] || (store[name] = {callbacks: _Callbacks()})
             },
             set: function(category, name, data) {
                 var item = this._get(category, name);
                 item.data = data;
-                item.callback && item.callback(data);
+                item.callbacks.fire(data);
                 return this
             },
             bind: function(category, name, callback) {
                 var item = this._get(category, name);
-                item.callback = callback;
+                item.callbacks.add(callback);
                 item.data && callback(item.data);
                 return this
             },
-            unbind: function(category, name) {
+            unbind: function(category, name, callback) {
                 var item = this._get(category, name);
-                item.data = item.callback = null;
+                item.callbacks.remove(callback);
                 return this
             }
         };
         DX.viz.map.DataExchanger = DataExchanger
-    })(DevExpress);
+    })(DevExpress, jQuery);
     /*! Module viz-vectormap, file legend.js */
     (function(DX, $, undefined) {
         var viz = DX.viz,
@@ -48476,7 +48565,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_VECTORMAP) {
             },
             _unbindData: function() {
                 if (this._dataCategory)
-                    this._params.dataExchanger.unbind(this._dataCategory, this._dataName)
+                    this._params.dataExchanger.unbind(this._dataCategory, this._dataName, this._onDataChanged)
             },
             _bindData: function(arg) {
                 this._params.dataExchanger.bind(this._dataCategory = arg.category, this._dataName = arg.name, this._onDataChanged)
@@ -50699,19 +50788,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_SPARKLINES) {
             },
             _updateSeries: function() {
                 var that = this,
-                    groupSeries,
-                    seriesOptions;
+                    groupsData,
+                    seriesOptions,
+                    singleSeries = that._series;
                 that._prepareDataSource();
                 seriesOptions = that._prepareSeriesOptions();
-                that._series.updateOptions(seriesOptions);
-                groupSeries = [[that._series]];
-                groupSeries.argumentOptions = {type: seriesOptions.type === "bar" ? "discrete" : undefined};
-                that._simpleDataSource = viz.validateData(that._simpleDataSource, groupSeries, that._incidentOccured, {
+                singleSeries.updateOptions(seriesOptions);
+                groupsData = {groups: [{series: [singleSeries]}]};
+                groupsData.argumentOptions = {type: seriesOptions.type === "bar" ? "discrete" : undefined};
+                that._simpleDataSource = viz.validateData(that._simpleDataSource, groupsData, that._incidentOccured, {
                     checkTypeForAllData: false,
                     convertToAxisDataType: true,
                     sortingMethod: true
-                });
-                that._series.updateData(that._simpleDataSource)
+                })[singleSeries.getArgumentField()];
+                singleSeries.updateData(that._simpleDataSource);
+                that._groupsDataCategories = groupsData.categories
             },
             _handleChangedOptions: function(options) {
                 var that = this;
@@ -50950,6 +51041,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_SPARKLINES) {
                     }
                     else
                         rangeData.arg.stick = true;
+                rangeData.arg.categories = that._groupsDataCategories;
                 that._ranges = rangeData
             },
             _getBarWidth: function(pointsCount) {
