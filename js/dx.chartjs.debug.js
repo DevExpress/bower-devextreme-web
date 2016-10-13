@@ -1,7 +1,7 @@
 /*! 
 * DevExtreme Web
-* Version: 15.2.12
-* Build date: Aug 29, 2016
+* Version: 15.2.13
+* Build date: Oct 7, 2016
 *
 * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
 * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -3727,7 +3727,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
             "dxScheduler-recurrenceRepeatYearly": "year(s)",
             "dxScheduler-switcherDay": "Day",
             "dxScheduler-switcherWeek": "Week",
-            "dxScheduler-switcherWorkWeek": "Work week",
+            "dxScheduler-switcherWorkWeek": "Work Week",
             "dxScheduler-switcherMonth": "Month",
             "dxScheduler-switcherTimelineDay": "Timeline Day",
             "dxScheduler-switcherTimelineWeek": "Timeline Week",
@@ -4384,7 +4384,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     });
     /*! Module core, file version.js */
     DevExpress.define("/version", [], function() {
-        return "15.2.12"
+        return "15.2.13"
     });
     /*! Module core, file errors.js */
     DevExpress.define("/errors", ["/utils/utils.error"], function(errorUtils) {
@@ -9480,6 +9480,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                 E1036: "Validation rules are not defined for any form item",
                 E1037: "Invalid structure of grouped data",
                 E1038: "Your browser does not support local storage for local web pages",
+                E1039: "The key value should be unique within the data array",
                 W1001: "Key option can not be modified after initialization",
                 W1002: "Item '{0}' you are trying to select does not exist",
                 W1003: "Group with key '{0}' in which you are trying to select items does not exist",
@@ -17154,6 +17155,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
     /*! Module core, file ui.dataConverter.js */
     (function($, DX, undefined) {
         var Class = DX.require("/class"),
+            errors = DX.require("/ui/ui.errors"),
             commonUtils = DX.require("/utils/utils.common");
         var DataConverter = Class.inherit({
                 ctor: function() {
@@ -17168,10 +17170,15 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                         var parentId = commonUtils.isDefined(parentKey) ? parentKey : that._getParentId(item),
                             node = that._convertItemToNode(item, parentId);
                         that._dataStructure.push(node);
+                        that._checkForDuplicateId(node.internalFields.key);
                         that._indexByKey[node.internalFields.key] = that._dataStructure.length - 1;
                         if (that._itemHasChildren(item))
                             that._convertItemsToNodes(that._dataAccessors.getters.items(item), node.internalFields.key)
                     })
+                },
+                _checkForDuplicateId: function(key) {
+                    if (commonUtils.isDefined(this._indexByKey[key]))
+                        throw errors.Error("E1039");
                 },
                 _getParentId: function(item) {
                     return this._dataType === "plain" ? this._dataAccessors.getters.parentKey(item) : undefined
@@ -17282,6 +17289,7 @@ if (!window.DevExpress || !DevExpress.MOD_CORE) {
                     var that = this;
                     this._indexByKey = {};
                     $.each(this._dataStructure, function(index, node) {
+                        that._checkForDuplicateId(node.internalFields.key);
                         that._indexByKey[node.internalFields.key] = index
                     })
                 },
@@ -33415,8 +33423,11 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             });
             return uniqueArgumentFields
         }
-        function discreteDataProcessing(data, groupsData, userArgumentCategories, uniqueArgumentFields) {
-            var categories = groupsData.categories = $.extend([], userArgumentCategories),
+        function discreteDataProcessing(data, groupsData, uniqueArgumentFields) {
+            if (groupsData.argumentAxisType !== DISCRETE)
+                return;
+            var userArgumentCategories = groupsData.argumentOptions ? groupsData.argumentOptions.categories : [],
+                categories = groupsData.categories = $.extend([], userArgumentCategories),
                 hash = {};
             categories.length && _each(categories, function(_, currentCategory) {
                 hash[currentCategory] = true
@@ -33440,7 +33451,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                     return cmpResult
                 }
         }
-        function sort(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
+        function sortAndCollectCategories(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
             var itemsHash = {},
                 dataByArguments = {},
                 getSortMethodByType = function(sortingByHash, hash) {
@@ -33451,16 +33462,21 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                         } : compareWithoutHash
                 },
                 getSortingMethod;
-            if (_isFunction(sortingMethodOption))
+            if (_isFunction(sortingMethodOption)) {
                 data.sort(sortingMethodOption);
-            else if (groupsData.categories) {
-                _each(groupsData.categories, function(index, value) {
-                    itemsHash[value] = index
-                });
-                getSortingMethod = getSortMethodByType(true, itemsHash)
+                discreteDataProcessing(data, groupsData, uniqueArgumentFields)
             }
-            else if (sortingMethodOption === true && groupsData.argumentType !== STRING)
-                getSortingMethod = getSortMethodByType(false, itemsHash);
+            else {
+                discreteDataProcessing(data, groupsData, uniqueArgumentFields);
+                if (groupsData.categories) {
+                    _each(groupsData.categories, function(index, value) {
+                        itemsHash[value] = index
+                    });
+                    getSortingMethod = getSortMethodByType(true, itemsHash)
+                }
+                else if (sortingMethodOption === true && groupsData.argumentType !== STRING)
+                    getSortingMethod = getSortMethodByType(false, itemsHash)
+            }
             _each(uniqueArgumentFields, function(_, argumentField) {
                 var sortMethod,
                     currentDataItem;
@@ -33571,7 +33587,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 argumentOptions = groupsData.argumentOptions,
                 userArgumentCategories = argumentOptions && argumentOptions.categories || [],
                 dataLength,
-                categoriesInAxisType,
                 uniqueArgumentFields = getUniqueArgumentFields(groupsData),
                 dataByArgumentFields;
             data = verifyData(data, incidentOccurred);
@@ -33586,9 +33601,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
                 data = parse(data, parsers)
             }
             groupPieData(data, groupsData);
-            categoriesInAxisType = argumentOptions && argumentOptions.categories || [];
-            groupsData.argumentAxisType === DISCRETE && discreteDataProcessing(data, groupsData, categoriesInAxisType, uniqueArgumentFields);
-            dataByArgumentFields = sort(data, groupsData, options.sortingMethod, uniqueArgumentFields);
+            dataByArgumentFields = sortAndCollectCategories(data, groupsData, options.sortingMethod, uniqueArgumentFields);
             dataLength = data.length;
             _each(skipFields, function(field, fieldValue) {
                 if (fieldValue === dataLength)
@@ -33597,7 +33610,7 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CORE) {
             return dataByArgumentFields
         }
         viz.validateData = validateData;
-        viz.DEBUG_validateData_sort = sort
+        viz.DEBUG_validateData_sortAndCollectCategories = sortAndCollectCategories
     })(DevExpress, jQuery);
     /*! Module viz-core, file default.js */
     (function(DX, undefined) {
@@ -39619,16 +39632,6 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
                     series[func]({point: currentPoint})
             })
         }
-        function getArgumentPointsByIndex(storedSeries, argument, targetPointIndex) {
-            var points = [];
-            _each(storedSeries, function(_, series) {
-                _each(series.getPointsByArg(argument), function(_, currentPoint) {
-                    if (targetPointIndex === currentPoint.index)
-                        points.push(currentPoint)
-                })
-            });
-            return points
-        }
         var baseTrackerPrototype = {
                 ctor: function(options) {
                     var that = this,
@@ -40399,18 +40402,16 @@ if (!window.DevExpress || !DevExpress.MOD_VIZ_CHARTS) {
             },
             _legendClick: function(item, e) {
                 var that = this,
-                    argument = item.argument,
-                    points;
-                if (that._storedSeries.length === 1) {
-                    points = getArgumentPointsByIndex(that._storedSeries, argument, item.id);
+                    series = that._storedSeries,
+                    points = series[item.id]._points;
+                if (series.length === 1 && points.length === 1)
                     that._trigerLegendClick({
                         target: points[0],
                         jQueryEvent: e
-                    }, POINT_CLICK)
-                }
+                    }, POINT_CLICK);
                 else
                     that._eventTrigger(LEGEND_CLICK, {
-                        target: argument,
+                        target: item.argument,
                         jQueryEvent: e
                     })
             },
