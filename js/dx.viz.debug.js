@@ -1,7 +1,7 @@
 /*! 
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.1.7
- * Build date: Tue Oct 11 2016
+ * Version: 16.1.8
+ * Build date: Mon Nov 14 2016
  *
  * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -199,7 +199,6 @@
             getData: __webpack_require__( /*! ./client_exporter/image_creator */ 25).getData
         };
         exports.pdf = {
-            creator: __webpack_require__( /*! ./client_exporter/pdf_creator */ 27).pdfCreator,
             getData: __webpack_require__( /*! ./client_exporter/pdf_creator */ 27).getData
         };
         exports.svg = {
@@ -830,7 +829,7 @@
       !*** ./Scripts/core/version.js ***!
       \*********************************/
     function(module, exports) {
-        module.exports = "16.1.7"
+        module.exports = "16.1.8"
     },
     /*!********************************!*\
       !*** ./Scripts/core/errors.js ***!
@@ -873,6 +872,7 @@
             W0004: "Timeout for theme loading is over: {0}",
             W0005: "'{0}' event is deprecated in {1}. {2}",
             W0006: "Invalid recurrence rule: '{0}'",
+            W0007: "'{0}' Globolize culture is not defined",
             W0008: "Invalid view name: '{0}'",
             W0009: "Invalid time zone name: '{0}'",
             W0010: "{0} is deprecated in {1}. {2}",
@@ -2931,213 +2931,108 @@
       !*** ./Scripts/client_exporter/pdf_creator.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var pdfString, $ = __webpack_require__( /*! jquery */ 9),
+        var $ = __webpack_require__( /*! jquery */ 9),
+            VERSION = __webpack_require__( /*! ../core/version */ 16),
             imageCreator = __webpack_require__( /*! ./image_creator */ 25).imageCreator,
-            browser = __webpack_require__( /*! ../core/utils/browser */ 18),
-            commonUtils = __webpack_require__( /*! ../core/utils/common */ 14),
-            _each = $.each,
-            DEFAULT_MARGIN_SIZE = {
-                x: 30,
-                y: 20
-            },
-            objectsCount = 0,
-            globalOffset = 0,
-            PAGES_POINTER = 1,
-            RESOURCES_POINTER = 2,
-            MAIN_PAGE_POINTER = 3,
-            CONTENT_POINTER = 4,
-            IMAGE_POINTER = 5,
-            INFO_POINTER = 6,
-            ROOT_POINTER = 7;
-
-        function addObject(pdfDoc, pointer, content, stream) {
-            pdfDoc.content.push({
-                type: stream ? "stream" : "object",
-                name: pointer + " 0 obj",
-                content: content,
-                stream: stream
-            });
-            objectsCount++
-        }
-
-        function _pxToPt(px) {
-            return .75 * px
-        }
-
-        function addMainPage(pdfDoc, options) {
-            var width = _pxToPt(options.width + 2 * DEFAULT_MARGIN_SIZE.x).toFixed(2),
-                height = _pxToPt(options.height + 2 * DEFAULT_MARGIN_SIZE.y).toFixed(2);
-            addObject(pdfDoc, MAIN_PAGE_POINTER, {
-                "/Type": "/Page",
-                "/Parent": PAGES_POINTER + " 0 R",
-                "/Resources": RESOURCES_POINTER + " 0 R",
-                "/MediaBox": "[0 0 " + width + " " + height + "]",
-                "/Contents": CONTENT_POINTER + " 0 R"
-            })
-        }
-
-        function addContents(pdfDoc, options) {
-            var width = _pxToPt(options.width + 2 * DEFAULT_MARGIN_SIZE.x),
-                height = _pxToPt(options.height + 2 * DEFAULT_MARGIN_SIZE.y);
-            addObject(pdfDoc, CONTENT_POINTER, {
-                "/Length": 54
-            }, "0.20 w\n0 G\nq " + width.toFixed(2) + " 0 0 " + height.toFixed(2) + " 0.00 0.00 cm /I0 Do Q")
-        }
-
-        function addPages(pdfDoc) {
-            addObject(pdfDoc, PAGES_POINTER, {
-                "/Type": "/Pages",
-                "/Kids": "[" + MAIN_PAGE_POINTER + " 0 R]",
-                "/Count": "1"
-            })
-        }
-
-        function addInfo(pdfDoc) {
-            addObject(pdfDoc, INFO_POINTER, {
-                "/Producer": "DevExtreme",
-                "/CreationDate": exports.pdfCreator.generateCurrentDate()
-            })
-        }
-
-        function addRoot(pdfDoc) {
-            addObject(pdfDoc, ROOT_POINTER, {
-                "/Type": "/Catalog",
-                "/Pages": "1 0 R",
-                "/OpenAction": "[3 0 R /FitH null]",
-                "/PageLayout": "/OneColumn"
-            })
-        }
-
-        function addResources(pdfDoc) {
-            addObject(pdfDoc, RESOURCES_POINTER, {
-                "/ProcSet": "[/PDF /ImageB /ImageC /ImageI]",
-                "/XObject": "<<\n/I0 5 0 R\n>>"
-            })
-        }
-
-        function addImage(pdfDoc, imageString, options) {
-            addObject(pdfDoc, IMAGE_POINTER, {
-                "/Type": "/XObject",
-                "/Subtype": "/Image",
-                "/Width": options.width + 2 * DEFAULT_MARGIN_SIZE.x,
-                "/Height": options.height + 2 * DEFAULT_MARGIN_SIZE.y,
-                "/ColorSpace": "/DeviceRGB",
-                "/BitsPerComponent": 8,
-                "/Filter": "/DCTDecode",
-                "/Length": imageString.length
-            }, imageString)
-        }
-
-        function generateXREF(pdfDoc) {
-            var cr = exports.pdfCreator;
-            cr.addLine("xref");
-            cr.addLine("0 " + objectsCount);
-            cr.addLine("0000000000 65535 f");
-            _each(pdfDoc.content, function(_, section) {
-                var i, zeroString = "",
-                    offset = section.offset;
-                for (i = String(offset).length; i < 10; i++) {
-                    zeroString += "0"
-                }
-                cr.addLine(zeroString + offset + " 00000 n")
-            })
-        }
-
-        function generateContent(pdfDoc) {
-            var cr = exports.pdfCreator;
-            _each(pdfDoc.content, function(_, section) {
-                cr.addLine(section.name);
-                cr.addLine("<<");
-                _each(section.content, function(key, value) {
-                    cr.addLine(key + " " + value)
-                });
-                cr.addLine(">>");
-                if ("stream" === section.type) {
-                    cr.addLine("stream");
-                    cr.addLine(section.stream);
-                    cr.addLine("endstream")
-                }
-                cr.addLine("endobj");
-                section.offset = globalOffset;
-                globalOffset = pdfString.length
-            })
-        }
-
-        function generateTrailer(pdfDoc) {
-            var cr = exports.pdfCreator;
-            cr.addLine("trailer");
-            cr.addLine("<<");
-            cr.addLine("/Size 8");
-            cr.addLine("/Root 7 0 R");
-            cr.addLine("/Info 6 0 R");
-            cr.addLine(">>");
-            cr.addLine("startxref");
-            cr.addLine(pdfString.length)
-        }
-        exports.pdfCreator = {
-            createPdfDoc: function(imageString, options) {
-                var pdfDoc = {
-                    content: []
-                };
-                addMainPage(pdfDoc, options);
-                addContents(pdfDoc, options);
-                addPages(pdfDoc);
-                addImage(pdfDoc, imageString, options);
-                addResources(pdfDoc);
-                addInfo(pdfDoc);
-                addRoot(pdfDoc);
-                return pdfDoc
-            },
-            addLine: function(line) {
-                pdfString += line + "\n"
-            },
-            closeLine: function() {
-                pdfString += "%%EOF"
-            },
-            generateCurrentDate: function() {
-                return new Date
-            },
-            generatePdfString: function(pdfDoc) {
-                exports.pdfCreator.addLine("%PDF-1.3");
-                globalOffset += pdfString.length;
-                generateContent(pdfDoc);
-                generateXREF(pdfDoc);
-                generateTrailer(pdfDoc);
-                exports.pdfCreator.closeLine();
-                return pdfString
-            },
-            getData: function(data, options, isFullMode) {
-                pdfString = "";
-                globalOffset = 0;
-                objectsCount = 1;
-                var that = this,
-                    imageData = imageCreator.getImageData(data, $.extend({}, options, {
-                        format: "jpeg"
-                    }), isFullMode),
-                    blob = $.Deferred();
-                $.when(imageData).done(function(imageString) {
-                    var binaryData, pdfData, pdfDoc = exports.pdfCreator.createPdfDoc(imageString, options);
-                    binaryData = exports.pdfCreator.generatePdfString(pdfDoc);
-                    pdfData = commonUtils.isFunction(window.Blob) ? that._getBlob(binaryData) : that._getBase64(binaryData);
-                    blob.resolve(pdfData)
-                });
-                return blob
-            },
-            _getBlob: function(binaryData) {
-                var i, dataArray = new Uint8Array(binaryData.length);
-                for (i = 0; i < binaryData.length; i++) {
-                    dataArray[i] = binaryData.charCodeAt(i)
-                }
-                return new Blob([dataArray.buffer], {
-                    type: "application/pdf"
-                })
-            },
-            _getBase64: function(binaryData) {
-                return window.btoa(binaryData)
+            isFunction = __webpack_require__( /*! ../core/utils/common */ 14).isFunction,
+            mainPageTpl = "%PDF-1.3\r\n2 0 obj\r\n<</ProcSet[/PDF/ImageB/ImageC/ImageI]/XObject<</I0 5 0 R>>>>\r\nendobj\r\n4 0 obj\r\n<</Type/Pages/Kids[1 0 R]/Count 1>>\r\nendobj\r\n7 0 obj\r\n<</OpenAction[1 0 R /FitH null]/Type/Catalog/Pages 4 0 R/PageLayout/OneColumn>>\r\nendobj\r\n1 0 obj\r\n<</Type/Page/Resources 2 0 R/MediaBox[0 0 _width_ _height_]/Contents 3 0 R/Parent 4 0 R>>\r\nendobj\r\n",
+            contentTpl = "3 0 obj\r\n<</Length 52>>stream\r\n0.20 w\n0 G\nq _width_ 0 0 _height_ 0.00 0.00 cm /I0 Do Q\r\nendstream\r\nendobj\r\n",
+            infoTpl = "6 0 obj\r\n<</CreationDate _date_/Producer(DevExtreme _version_)>>\r\nendobj\r\n",
+            imageStartTpl = "5 0 obj\r\n<</Type/XObject/Subtype/Image/Width _width_/Height _height_/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length _length_>>stream\r\n",
+            imageEndTpl = "\r\nendstream\r\nendobj\r\n",
+            trailerTpl = "trailer\r\n<<\r\n/Size 8\r\n/Root 7 0 R\r\n/Info 6 0 R\r\n>>\r\nstartxref\r\n_length_\r\n%%EOF",
+            xrefTpl = "xref\r\n0 8\r\n0000000000 65535 f\r\n0000000241 00000 n\r\n0000000010 00000 n\r\n_main_ 00000 n\r\n0000000089 00000 n\r\n_image_ 00000 n\r\n_info_ 00000 n\r\n0000000143 00000 n\r\n",
+            DEFAULT_MARGIN_X = 60,
+            DEFAULT_MARGIN_Y = 40;
+        var pad = function(str, len) {
+            return str.length < len ? pad("0" + str, len) : str
+        };
+        var composePdfString = function(imageString, options, curDate) {
+            var width = options.width + DEFAULT_MARGIN_X,
+                height = options.height + DEFAULT_MARGIN_Y,
+                widthPt = (.75 * width).toFixed(2),
+                heightPt = (.75 * height).toFixed(2);
+            var mainPage = mainPageTpl.replace("_width_", widthPt).replace("_height_", heightPt),
+                content = contentTpl.replace("_width_", widthPt).replace("_height_", heightPt),
+                info = infoTpl.replace("_date_", curDate).replace("_version_", VERSION),
+                image = imageStartTpl.replace("_width_", width).replace("_height_", height).replace("_length_", imageString.length) + imageString + imageEndTpl,
+                xref = getXref(mainPage.length, content.length, info.length);
+            var mainContent = mainPage + content + info + image,
+                trailer = trailerTpl.replace("_length_", mainContent.length);
+            return mainContent + xref + trailer
+        };
+        var getXref = function(mainPageLength, contentLength, infoLength) {
+            return xrefTpl.replace("_main_", pad(mainPageLength + "", 10)).replace("_info_", pad(mainPageLength + contentLength + "", 10)).replace("_image_", pad(mainPageLength + contentLength + infoLength + "", 10))
+        };
+        var getCurDate = function() {
+            return new Date
+        };
+        var getBlob = function(binaryData) {
+            var i = 0,
+                dataArray = new Uint8Array(binaryData.length);
+            for (; i < binaryData.length; i++) {
+                dataArray[i] = binaryData.charCodeAt(i)
             }
+            return new Blob([dataArray.buffer], {
+                type: "application/pdf"
+            })
+        };
+        var getBase64 = function(binaryData) {
+            return window.btoa(binaryData)
         };
         exports.getData = function(data, options, callback) {
-            exports.pdfCreator.getData(data, options, browser.msie).done(callback)
+            var imageData = imageCreator.getImageData(data, $.extend({}, options, {
+                    format: "jpeg"
+                })),
+                blob = $.Deferred();
+            blob.done(callback);
+            $.when(imageData).done(function(imageString) {
+                var binaryData = composePdfString(imageString, options, getCurDate()),
+                    pdfData = isFunction(window.Blob) ? getBlob(binaryData) : getBase64(binaryData);
+                blob.resolve(pdfData)
+            })
+        };
+        exports.__tests = {
+            set_composePdfString: function(func) {
+                exports.__tests.composePdfString = composePdfString;
+                composePdfString = func
+            },
+            restore_composePdfString: function(func) {
+                if (exports.__tests.composePdfString) {
+                    composePdfString = exports.__tests.composePdfString;
+                    exports.__tests.composePdfString = null
+                }
+            },
+            set_getCurDate: function(func) {
+                exports.__tests.getCurDate = getCurDate;
+                getCurDate = func
+            },
+            restore_getCurDate: function(func) {
+                if (exports.__tests.getCurDate) {
+                    getCurDate = exports.__tests.getCurDate;
+                    exports.__tests.getCurDate = null
+                }
+            },
+            set_getBlob: function(func) {
+                exports.__tests.getBlob = getBlob;
+                getBlob = func
+            },
+            restore_getBlob: function(func) {
+                if (exports.__tests.getBlob) {
+                    getBlob = exports.__tests.getBlob;
+                    exports.__tests.getBlob = null
+                }
+            },
+            set_getBase64: function(func) {
+                exports.__tests.getBase64 = getBase64;
+                getBase64 = func
+            },
+            restore_getBase64: function(func) {
+                if (exports.__tests.getBase64) {
+                    getBase64 = exports.__tests.getBase64;
+                    exports.__tests.getBase64 = null
+                }
+            }
         }
     },
     /*!************************************************!*\
@@ -3779,6 +3674,9 @@
                     this._setOptionsByReference();
                     this._setDeprecatedOptions();
                     this._setDefaultOptions();
+                    if (options && options.onInitializing) {
+                        options.onInitializing.apply(this, [options])
+                    }
                     this._setOptionsByDevice(options.defaultOptionsRules);
                     this._resumeDeprecatedWarnings();
                     this._initOptions(options)
@@ -4071,10 +3969,11 @@
                     if (!cachedSetters[name]) {
                         cachedSetters[name] = coreDataUtils.compileSetter(name)
                     }
+                    var path = name.split(/[.\[]/);
                     cachedSetters[name](that._options, value, {
                         functionsAsIs: true,
                         merge: !that._getOptionsByReference()[name],
-                        unwrapObservables: false
+                        unwrapObservables: path.length > 1 && !!that._getOptionsByReference()[path[0]]
                     })
                 };
                 var setOption = function(that, name, value) {
@@ -7697,6 +7596,15 @@
             }
             animation.strategy.stop($element, config, jumpToEnd)
         };
+        var scopedRemoveEvent = eventUtils.addNamespace(removeEvent, "dxFXStartAnimation");
+        var subscribeToRemoveEvent = function(animation) {
+            animation.element.off(scopedRemoveEvent).on(scopedRemoveEvent, function() {
+                fx.stop(animation.element)
+            });
+            animation.deferred.always(function() {
+                animation.element.off(scopedRemoveEvent)
+            })
+        };
         var createAnimation = function(element, initialConfig) {
             var defaultConfig = "css" === initialConfig.type ? defaultCssConfig : defaultJSConfig,
                 config = $.extend(true, {}, defaultConfig, initialConfig),
@@ -7716,6 +7624,7 @@
             if ($.isFunction(configurator.validateConfig)) {
                 configurator.validateConfig(config)
             }
+            subscribeToRemoveEvent(animation);
             return animation
         };
         var animate = function(element, config) {
@@ -7769,10 +7678,6 @@
             } else {
                 animation.startTimeout = setTimeout(function() {
                     animation.start()
-                });
-                var namespacedRemoveEvent = eventUtils.addNamespace(removeEvent, "dxFXStartAnimation");
-                animation.element.off(namespacedRemoveEvent).on(namespacedRemoveEvent, function() {
-                    clearTimeout(animation.startTimeout)
                 })
             }
             return animation.deferred.promise()
@@ -10199,9 +10104,26 @@
             }
             ko.bindingHandlers[componentName] = {
                 init: function(domNode, valueAccessor) {
-                    var $element = $(domNode),
+                    var component, $element = $(domNode),
                         optionChangedCallbacks = $.Callbacks(),
+                        optionsByReference = {},
                         ctorOptions = {
+                            onInitializing: function() {
+                                optionsByReference = this._getOptionsByReference();
+                                ko.computed(function() {
+                                    var model = ko.unwrap(valueAccessor());
+                                    if (component) {
+                                        component.beginUpdate()
+                                    }
+                                    unwrapModel(model);
+                                    if (component) {
+                                        component.endUpdate()
+                                    }
+                                }, null, {
+                                    disposeWhenNodeIsRemoved: domNode
+                                });
+                                component = this
+                            },
                             templateProvider: KoTemplateProvider,
                             modelByElement: function($element) {
                                 if ($element.length) {
@@ -10214,23 +10136,23 @@
                                     nestedComponentOptions: component.option("nestedComponentOptions")
                                 }
                             },
-                            watchMethod: function(watchValue, callback, element) {
-                                var values;
+                            watchMethod: function(watchValue, callback, options) {
+                                var skipCallback = options.skipImmediate;
                                 ko.computed(function() {
-                                    if (values) {
+                                    watchValue();
+                                    if (!skipCallback) {
                                         callback()
                                     }
-                                    values = watchValue()
+                                    skipCallback = false
                                 }, null, {
-                                    disposeWhenNodeIsRemoved: element
+                                    disposeWhenNodeIsRemoved: options.disposeWithElement
                                 })
                             },
                             _optionChangedCallbacks: optionChangedCallbacks
                         },
                         optionNameToModelMap = {};
                     var applyModelValueToOption = function(optionName, modelValue) {
-                        var component = $element.data(componentName),
-                            locks = $element.data(LOCKS_DATA_KEY),
+                        var locks = $element.data(LOCKS_DATA_KEY),
                             optionValue = ko.unwrap(modelValue);
                         if (ko.isWriteableObservable(modelValue)) {
                             optionNameToModelMap[optionName] = modelValue
@@ -10286,7 +10208,9 @@
                             disposeWhenNodeIsRemoved: domNode
                         });
                         if ($.isPlainObject(unwrappedPropertyValue)) {
-                            unwrapModel(unwrappedPropertyValue, propertyPath)
+                            if (!optionsByReference[propertyPath]) {
+                                unwrapModel(unwrappedPropertyValue, propertyPath)
+                            }
                         }
                     };
                     var unwrapModel = function(model, propertyPath) {
@@ -10296,21 +10220,7 @@
                             }
                         }
                     };
-                    ko.computed(function() {
-                        var component = $element.data(componentName),
-                            model = ko.unwrap(valueAccessor());
-                        if (component) {
-                            component.beginUpdate()
-                        }
-                        unwrapModel(model);
-                        if (component) {
-                            component.endUpdate()
-                        } else {
-                            createComponent()
-                        }
-                    }, null, {
-                        disposeWhenNodeIsRemoved: domNode
-                    });
+                    createComponent();
                     return {
                         controlsDescendantBindings: componentClass.subclassOf(Widget)
                     }
@@ -14967,7 +14877,7 @@
                 return str.replace(/^[\/.]+|\/+$/g, "")
             },
             _escapeRe: function(str) {
-                return str.replace(/\W/g, "\\$1")
+                return str.replace(/[^-\w]/g, "\\$1")
             },
             _checkConstraint: function(param, constraint) {
                 param = String(param);
@@ -20351,14 +20261,15 @@
                     }
                 };
                 result.templatesRenderAsynchronously = true;
-                result.watchMethod = function(watchValue, callback, element) {
-                    var disposeWatcher = scope.$watch(watchValue, function(oldValue, newValue) {
-                        if (oldValue !== newValue) {
-                            disposeWatcher();
-                            callback()
+                result.watchMethod = function(watchValue, callback, options) {
+                    var skipCallback = options.skipImmediate;
+                    var disposeWatcher = scope.$watch(watchValue, function(newValue) {
+                        if (!skipCallback) {
+                            callback(newValue)
                         }
-                    }, true);
-                    $(element).on(removeEvent, function() {
+                        skipCallback = false
+                    }, options.deep);
+                    $(options.disposeWithElement).on(removeEvent, function() {
                         disposeWatcher()
                     })
                 };
@@ -27826,10 +27737,11 @@
             options.fileName = options.fileName || "file";
             clientExporter.export(markup, options, getCreatorFunc(options.format))
         };
-        exports.ExportMenu = function(renderer, svgMethod) {
-            var that = this;
-            that._renderer = renderer;
-            that._svgMethod = svgMethod;
+        exports.ExportMenu = function(params) {
+            var that = this,
+                renderer = that._renderer = params.renderer;
+            that._incidentOccurred = params.incidentOccurred;
+            that._svgMethod = params.svgMethod;
             that._shadow = renderer.shadowFilter("-50%", "-50%", "200%", "200%", SHADOW_OFFSET, 6, SHADOW_BLUR);
             that._shadow.attr({
                 opacity: .8
@@ -27850,10 +27762,16 @@
         };
         _extend(exports.ExportMenu.prototype, {
             getLayoutOptions: function() {
+                if (this._hiddenDueToLayout) {
+                    return {
+                        width: 0,
+                        height: 0
+                    }
+                }
                 var bbox = this._buttonGroup.getBBox();
                 bbox.cutSide = "vertical";
                 bbox.cutLayoutSide = "top";
-                bbox.height += 2 * MARGIN;
+                bbox.height += MARGIN;
                 bbox.position = {
                     vertical: "top",
                     horizontal: "right"
@@ -27862,19 +27780,30 @@
                 bbox.horizontalAlignment = "right";
                 return bbox
             },
-            probeDraw: $.noop,
+            probeDraw: function() {
+                this._hiddenDueToLayout = false;
+                this.show()
+            },
             shift: function(_, y) {
                 this._group.attr({
                     translateY: this._group.attr("translateY") + y
                 })
             },
-            draw: function(_, height, canvas) {
+            draw: function(width, height, canvas) {
+                var layoutOptions;
                 this._options.exportOptions.width = canvas.width;
                 this._options.exportOptions.height = canvas.height;
-                this._group.move(canvas.width - BUTTON_SIZE - SHADOW_OFFSET - SHADOW_BLUR, height - BUTTON_SIZE - MARGIN)
+                this._group.move(width - BUTTON_SIZE - SHADOW_OFFSET - SHADOW_BLUR, Math.floor(height / 2 - BUTTON_SIZE / 2));
+                layoutOptions = this.getLayoutOptions();
+                if (layoutOptions.width > width || layoutOptions.height > height) {
+                    this._incidentOccurred("W2107");
+                    this._hiddenDueToLayout = true;
+                    this.hide()
+                }
+                return this
             },
             show: function() {
-                this._group.linkAppend()
+                !this._hiddenDueToLayout && this._group.linkAppend()
             },
             hide: function() {
                 this._group.linkRemove()
@@ -28209,8 +28138,12 @@
             name: "export",
             init: function() {
                 var that = this;
-                that._exportMenu = new exports.ExportMenu(that._renderer, function() {
-                    return that.svg()
+                that._exportMenu = new exports.ExportMenu({
+                    renderer: that._renderer,
+                    svgMethod: function() {
+                        return that.svg()
+                    },
+                    incidentOccurred: that._incidentOccurred
                 });
                 that._layout.add(that._exportMenu)
             },
@@ -28228,19 +28161,10 @@
                     })
                 },
                 exportTo: function(fileName, format) {
-                    var creatorFunc, exportOptions = getExportOptions(this, fileName, format),
+                    var exportOptions = getExportOptions(this, fileName, format),
                         exportMenu = this._exportMenu;
-                    if ("SVG" === exportOptions.format) {
-                        creatorFunc = clientExporter.svg.getData
-                    } else {
-                        if ("PDF" === exportOptions.format) {
-                            creatorFunc = clientExporter.pdf.getData
-                        } else {
-                            creatorFunc = clientExporter.image.getData
-                        }
-                    }
                     exportMenu && exportMenu.hide();
-                    clientExporter.export(this.svg(), exportOptions, creatorFunc);
+                    clientExporter.export(this.svg(), exportOptions, getCreatorFunc(exportOptions.format));
                     exportMenu && exportMenu.show()
                 },
                 print: function() {
@@ -30434,22 +30358,31 @@
                 }
             },
             _getDrawElements: function(drawOptions, legendHasInsidePosition) {
-                var that = this,
+                var legendOptions, that = this,
                     drawElements = [],
                     exportOptions = that._themeManager.getOptions("export"),
                     titleOptions = that._title.getLayoutOptions() || {},
                     headerElements = [];
-                that._exportMenu && exportOptions.enabled && headerElements.push(that._exportMenu);
+                if (that._exportMenu && exportOptions.enabled) {
+                    headerElements.push(that._exportMenu);
+                    drawElements.push(that._headerBlock)
+                }
                 if (drawOptions.drawTitle) {
                     "bottom" !== titleOptions.verticalAlignment && headerElements.length ? headerElements.push(that._title) : drawElements.push(that._title)
                 }
-                if (headerElements.length) {
-                    that._headerBlock.update(headerElements, that._canvas);
-                    drawElements.push(that._headerBlock)
-                }
                 if (drawOptions.drawLegend && that._legend) {
                     that._legendGroup.linkAppend();
-                    !legendHasInsidePosition && drawElements.push(that._legend)
+                    if (!legendHasInsidePosition) {
+                        legendOptions = that._legend.getLayoutOptions();
+                        if (1 === headerElements.length && "bottom" !== legendOptions.verticalAlignment && "vertical" === legendOptions.cutSide) {
+                            headerElements.push(that._legend)
+                        } else {
+                            drawElements.push(that._legend)
+                        }
+                    }
+                }
+                if (headerElements.length) {
+                    that._headerBlock.update(headerElements, that._canvas)
                 }
                 return drawElements
             },
@@ -31139,6 +31072,7 @@
             W2104: "Legend was hidden due to container size",
             W2105: 'Title of "{0}" axis was hidden due to container size',
             W2106: 'Labels of "{0}" axis were hidden due to container size',
+            W2107: "Export menu was hidden due to container size",
             W2301: "Invalid value range"
         })
     },
@@ -40075,7 +40009,7 @@
             var interval, isDiscrete = ("arg" === type ? series.argumentAxisType : series.valueAxisType) === DISCRETE,
                 data = series._rangeData[type],
                 minInterval = data.interval;
-            if (isDiscrete && "val" === type) {
+            if (isDiscrete) {
                 data.categories = data.categories || [];
                 data.categories.push(value)
             } else {
@@ -40218,7 +40152,6 @@
 
         function _fillRangeData(series) {
             var data = series._rangeData;
-            data.arg.categories && (data.arg.categories = unique(data.arg.categories));
             data.val.categories && (data.val.categories = unique(data.val.categories));
             data.arg.axisType = series.argumentAxisType;
             data.arg.dataType = series.argumentType;
@@ -46134,15 +46067,13 @@
                 }
                 firstElement = elements[0];
                 layout = _extend(true, {}, firstElement.getLayoutOptions());
-                layout.position = {};
+                layout.position = layout.position || {};
                 for (i; i < length; i++) {
                     elementLayout = elements[i].getLayoutOptions();
                     if (elementLayout.height > layout.height) {
                         layout.height = elementLayout.height
                     }
-                    if (elementLayout.width > layout.width) {
-                        layout.width = elementLayout.width
-                    }
+                    layout.width += elementLayout.width;
                     if (elementLayout.position) {
                         layout.position = elementLayout.position;
                         layout.verticalAlignment = elementLayout.position.vertical;
@@ -46152,14 +46083,16 @@
                 return layout
             },
             probeDraw: function(width, height) {
-                _each(this._elements, function(_, elem) {
-                    elem.probeDraw(width, height)
+                this._elements.forEach(function(e) {
+                    e.probeDraw(width, height);
+                    width -= e.getLayoutOptions().width
                 })
             },
             draw: function(width, height) {
-                var that = this;
-                _each(this._elements, function(_, elem) {
-                    elem.draw(width, height, that._canvas)
+                var canvas = this._canvas;
+                this._elements.forEach(function(e) {
+                    e.draw(width, height, canvas);
+                    width -= e.getLayoutOptions().width
                 })
             },
             shift: function(x, y) {
@@ -48059,11 +47992,12 @@
                 var that = this,
                     year = (new Date).getFullYear() - 1,
                     isDate = "datetime" === dataType,
-                    isCategories = "discrete" === that[axisTypeSelector];
-                if (isCategories) {
+                    axisType = that[axisTypeSelector],
+                    min = "logarithmic" === axisType ? 1 : 0;
+                if ("discrete" === axisType) {
                     that.categories = ["0", "1", "2"]
                 } else {
-                    that[minSelector] = isDate ? new Date(year, 0, 1) : 0;
+                    that[minSelector] = isDate ? new Date(year, 0, 1) : min;
                     that[maxSelector] = isDate ? new Date(year, 11, 31) : 10
                 }
                 that.stubData = true;
@@ -48082,6 +48016,12 @@
                 setZeroLevel(minSelector, maxSelector);
                 setZeroLevel(minVisibleSelector, maxVisibleSelector);
                 return that
+            },
+            sortCategories: function(arr) {
+                var cat = this.categories;
+                arr && cat && (this.categories = arr.filter(function(item) {
+                    return cat.indexOf(item) !== -1
+                }))
             },
             checkZeroStick: function() {
                 var that = this;
@@ -48749,9 +48689,7 @@
                         arg: argRange
                     })
                 });
-                argRange.addRange({
-                    categories: groupsData.categories
-                });
+                argRange.sortCategories(groupsData.categories);
                 if (!argRange.isDefined()) {
                     if (translator && "discrete" !== argRange.axisType) {
                         argBusinessRange = translator.getBusinessRange();
@@ -49331,7 +49269,6 @@
                     return
                 }
                 that._strips = [];
-                that._stripLabels = [];
                 for (i = 0; i < stripData.length; i++) {
                     stripOptions = stripData[i];
                     stripLabelOptions = stripOptions.label || {};
@@ -49341,14 +49278,13 @@
                     if ((_isDefined(stripOptions.startValue) || _isDefined(stripOptions.endValue)) && _isDefined(stripOptions.color)) {
                         stripPos = that._getStripPos(stripOptions.startValue, stripOptions.endValue, canvas.start, canvas.end, range);
                         if (stripPos.stripTo - stripPos.stripFrom === 0 || !_isDefined(stripPos.stripTo) || !_isDefined(stripPos.stripFrom)) {
-                            that._strips.push(null);
-                            if (stripLabelOptions.text) {
-                                that._stripLabels.push(null)
-                            }
                             continue
                         }
-                        that._strips.push(that._createStrip(stripPos.stripFrom, stripPos.stripTo, attr).append(that._axisStripGroup));
-                        that._stripLabels.push(stripLabelOptions.text ? that._drawStripLabel(stripLabelOptions, stripPos.stripFrom, stripPos.stripTo) : null)
+                        that._strips.push({
+                            rect: that._createStrip(stripPos.stripFrom, stripPos.stripTo, attr).append(that._axisStripGroup),
+                            options: stripOptions,
+                            label: stripLabelOptions.text ? that._drawStripLabel(stripLabelOptions, stripPos.stripFrom, stripPos.stripTo) : null
+                        })
                     }
                 }
             },
@@ -49361,16 +49297,15 @@
                 }).append(that._axisLabelGroup)
             },
             _adjustStripLabels: function() {
-                var i, coords, that = this,
-                    labels = that._stripLabels,
-                    rects = that._strips;
-                if (void 0 === labels && void 0 === rects) {
+                var label, i, coords, strips = this._strips;
+                if (void 0 === strips) {
                     return
                 }
-                for (i = 0; i < labels.length; i++) {
-                    if (null !== labels[i]) {
-                        coords = that._getAdjustedStripLabelCoords(that._options.strips[i], labels[i], rects[i]);
-                        labels[i].move(coords.x, coords.y)
+                for (i = 0; i < strips.length; i++) {
+                    label = strips[i].label;
+                    if (label) {
+                        coords = this._getAdjustedStripLabelCoords(strips[i]);
+                        label.move(coords.x, coords.y)
                     }
                 }
             },
@@ -49594,7 +49529,7 @@
                     skippedCategory = that._getSkippedCategory(),
                     boundaryTicks = this._boundaryTicks,
                     withLabels = options.label.visible && that._axisElementsGroup && !that._translator.getBusinessRange().stubData,
-                    labelPosition = that.getLabelsParams().pos,
+                    labelPosition = that.getLabelsPosition(),
                     offset = that._tickOffset;
                 that._initTicks(that._majorTicks, majorTickStyle, withLabels, skippedCategory, offset, labelPosition);
                 that._initTicks(that._minorTicks, minorTickStyle, false, void 0, offset);
@@ -49682,7 +49617,7 @@
             dispose: function() {
                 var that = this;
                 that._axisElementsGroup && that._axisElementsGroup.dispose();
-                that._stripLabels = that._strips = null;
+                that._strips = null;
                 that._title = null;
                 that._axisStripGroup = that._axisConstantLineGroup = that._axisLabelGroup = null;
                 that._axisLineGroup = that._axisElementsGroup = that._axisGridGroup = null;
@@ -49779,17 +49714,12 @@
                 this._deleteLabels();
                 this._majorTicks = this._minorTicks = null
             },
-            getLabelsParams: function() {
-                var that = this,
-                    options = that._options,
+            getLabelsPosition: function() {
+                var options = this._options,
                     position = options.position,
                     labelOffset = options.label.indentFromAxis,
-                    axisPosition = that._axisPosition,
-                    axisElementsGroup = that._axisElementsGroup;
-                return {
-                    pos: position === constants.top || position === constants.left ? axisPosition - labelOffset : axisPosition + labelOffset,
-                    width: axisElementsGroup && axisElementsGroup.getBBox().width || 0
-                }
+                    axisPosition = this._axisPosition;
+                return position === constants.top || position === constants.left ? axisPosition - labelOffset : axisPosition + labelOffset
             },
             getFormattedValue: function(value, options, point) {
                 var labelOptions = this._options.label;
@@ -51220,6 +51150,8 @@
                 overlappingBehavior.rotationAngle = rotationAngle
             },
             _getDistanceByAngle: function(bBox, rotationAngle) {
+                rotationAngle = _abs(rotationAngle);
+                rotationAngle = rotationAngle % 180 >= 90 ? 90 - rotationAngle % 90 : rotationAngle % 90;
                 var a = rotationAngle * (_math.PI / 180);
                 if (a >= _atan(bBox.height / bBox.width)) {
                     return bBox.height / _abs(_math.sin(a))
@@ -51388,7 +51320,7 @@
         function getMarkerFormat(curDate, prevDate, tickInterval, markerInterval) {
             var format = markerInterval,
                 datesDifferences = prevDate && dateUtils.getDatesDifferences(prevDate, curDate);
-            if (prevDate) {
+            if (prevDate && "year" !== tickInterval) {
                 prepareDatesDifferences(datesDifferences, tickInterval);
                 format = formatHelper.getDateFormatByDifferences(datesDifferences)
             }
@@ -51762,13 +51694,14 @@
                         align: align
                     }
                 },
-                _getAdjustedStripLabelCoords: function(stripOptions, label, rect) {
+                _getAdjustedStripLabelCoords: function(strip) {
                     var x = 0,
                         y = 0,
+                        stripOptions = strip.options,
                         horizontalAlignment = stripOptions.label.horizontalAlignment,
                         verticalAlignment = stripOptions.label.verticalAlignment,
-                        box = label.getBBox(),
-                        rectBox = rect.getBBox();
+                        box = strip.label.getBBox(),
+                        rectBox = strip.rect.getBBox();
                     if (horizontalAlignment === LEFT) {
                         x += stripOptions.paddingLeftRight
                     } else {
@@ -52194,12 +52127,11 @@
                     angle: angle + startAngle - HALF_PI_ANGLE
                 }
             },
-            _getAdjustedStripLabelCoords: function(_, label) {
-                var y, box = label.getBBox();
-                y = label.attr("y") - box.y - box.height / 2;
+            _getAdjustedStripLabelCoords: function(strip) {
+                var box = strip.label.getBBox();
                 return {
                     x: 0,
-                    y: y
+                    y: strip.label.attr("y") - box.y - box.height / 2
                 }
             },
             coordsIn: function(x, y) {
@@ -53063,6 +52995,43 @@
             TOP = "top",
             BOTTOM = "bottom";
 
+        function getRectangleBBox(bbox) {
+            return {
+                x: bbox.x - LABEL_BACKGROUND_PADDING_X,
+                y: bbox.y - LABEL_BACKGROUND_PADDING_Y,
+                width: bbox.width + 2 * LABEL_BACKGROUND_PADDING_X,
+                height: bbox.height + 2 * LABEL_BACKGROUND_PADDING_Y
+            }
+        }
+
+        function getLabelCheckerPosition(x, y, isHorizontal, canvas) {
+            var params = isHorizontal ? ["x", "width", "y", "height", y, 0] : ["y", "height", "x", "width", x, 1];
+            return function(bbox, position, coord) {
+                var labelCoord = {
+                        x: coord.x,
+                        y: coord.y
+                    },
+                    rectangleBBox = getRectangleBBox(bbox),
+                    delta = isHorizontal ? coord.y - bbox.y - bbox.height / 2 : coord.y - bbox.y;
+                labelCoord.y = isHorizontal || !isHorizontal && position === BOTTOM ? coord.y + delta : coord.y;
+                if (rectangleBBox[params[0]] < 0) {
+                    labelCoord[params[0]] -= rectangleBBox[params[0]]
+                } else {
+                    if (rectangleBBox[params[0]] + rectangleBBox[params[1]] + delta * params[5] > canvas[params[1]]) {
+                        labelCoord[params[0]] -= rectangleBBox[params[0]] + rectangleBBox[params[1]] + delta * params[5] - canvas[params[1]]
+                    }
+                }
+                if (params[4] - rectangleBBox[params[3]] / 2 < 0) {
+                    labelCoord[params[2]] -= params[4] - rectangleBBox[params[3]] / 2
+                } else {
+                    if (params[4] + rectangleBBox[params[3]] / 2 > canvas[params[3]]) {
+                        labelCoord[params[2]] -= params[4] + rectangleBBox[params[3]] / 2 - canvas[params[3]]
+                    }
+                }
+                return labelCoord
+            }
+        }
+
         function Crosshair(renderer, options, params, group) {
             var that = this;
             that._renderer = renderer;
@@ -53145,96 +53114,70 @@
                 that.hide()
             },
             _createLabels: function(axes, options, isHorizontal, group) {
-                var x, y, text, background, currentLabelPos, bbox, that = this,
+                var x, y, text, background, currentLabelPos, that = this,
                     canvas = that._canvas,
                     renderer = that._renderer,
                     labels = [],
                     labelOptions = options.label;
-                if (!labelOptions || !labelOptions.visible) {
-                    return
-                }
-                $.each(axes, function(_, axis) {
-                    var align, position = axis.getOptions().position;
-                    if (axis.getTranslator().getBusinessRange().stubData) {
-                        return
-                    }
-                    currentLabelPos = axis.getLabelsParams().pos;
-                    if (isHorizontal) {
-                        y = canvas.top;
-                        x = currentLabelPos
-                    } else {
-                        x = canvas.left;
-                        y = currentLabelPos
-                    }
-                    align = position === TOP || position === BOTTOM ? CENTER : position === RIGHT ? LEFT : RIGHT;
-                    background = renderer.rect(0, 0, 0, 0).attr({
-                        fill: labelOptions.backgroundColor || options.line.stroke
-                    }).append(group);
-                    text = renderer.text("0", x, y).css(vizUtils.patchFontOptions(options.label.font)).attr({
-                        align: align
-                    }).append(group);
-                    bbox = text.getBBox();
-                    text.attr({
-                        y: isHorizontal ? 2 * y - bbox.y - bbox.height / 2 : position === BOTTOM ? 2 * y - bbox.y : 2 * y - (bbox.y + bbox.height)
-                    });
-                    labels.push({
-                        text: text,
-                        background: background,
-                        axis: axis,
-                        options: labelOptions,
-                        pos: {
-                            coord: currentLabelPos,
-                            side: position,
-                            align: align
+                if (labelOptions.visible) {
+                    axes.forEach(function(axis) {
+                        var align, position = axis.getOptions().position;
+                        if (axis.getTranslator().getBusinessRange().stubData) {
+                            return
                         }
+                        currentLabelPos = axis.getLabelsPosition();
+                        if (isHorizontal) {
+                            y = canvas.top;
+                            x = currentLabelPos
+                        } else {
+                            x = canvas.left;
+                            y = currentLabelPos
+                        }
+                        align = position === TOP || position === BOTTOM ? CENTER : position === RIGHT ? LEFT : RIGHT;
+                        background = renderer.rect(0, 0, 0, 0).attr({
+                            fill: labelOptions.backgroundColor || options.line.stroke
+                        }).append(group);
+                        text = renderer.text("0", 0, 0).css(vizUtils.patchFontOptions(options.label.font)).attr({
+                            align: align
+                        }).append(group);
+                        labels.push({
+                            text: text,
+                            background: background,
+                            axis: axis,
+                            options: labelOptions,
+                            pos: {
+                                coord: currentLabelPos,
+                                side: position
+                            },
+                            startXY: {
+                                x: x,
+                                y: y
+                            }
+                        })
                     })
-                });
+                }
                 return labels
             },
-            _updateText: function(value, labels, axisName, point, isHorizontalLine) {
-                var bbox, text, textElement, backgroundElement, axisLabelsParams, labelSide, that = this;
-                if (!labels) {
-                    return
-                }
-                $.each(labels, function(i, label) {
-                    var axis = label.axis;
-                    text = "";
-                    textElement = label.text;
-                    backgroundElement = label.background;
-                    if (!textElement) {
-                        return
-                    }
+            _updateText: function(value, axisName, labels, point, func) {
+                var that = this;
+                labels.forEach(function(label) {
+                    var axis = label.axis,
+                        coord = label.startXY,
+                        textElement = label.text,
+                        backgroundElement = label.background,
+                        text = "";
                     if (!axis.name || axis.name === axisName) {
                         text = axis.getFormattedValue(value, label.options, point)
                     }
                     if (text) {
                         textElement.attr({
-                            text: text
+                            text: text,
+                            x: coord.x,
+                            y: coord.y
                         });
-                        bbox = textElement.getBBox();
-                        axisLabelsParams = axis.getLabelsParams();
-                        labelSide = label.pos.side;
-                        if (isHorizontalLine) {
-                            if (axisLabelsParams.width < bbox.width) {
-                                textElement.attr({
-                                    align: labelSide,
-                                    x: axisLabelsParams.pos + (labelSide === LEFT ? -1 : 1) * axisLabelsParams.width
-                                })
-                            } else {
-                                textElement.attr({
-                                    align: label.pos.align,
-                                    x: axisLabelsParams.pos
-                                })
-                            }
-                            bbox = textElement.getBBox()
-                        }
-                        that._updateLinesCanvas(labelSide, label.pos.coord);
-                        backgroundElement.attr({
-                            x: bbox.x - LABEL_BACKGROUND_PADDING_X,
-                            y: bbox.y - LABEL_BACKGROUND_PADDING_Y,
-                            width: bbox.width + 2 * LABEL_BACKGROUND_PADDING_X,
-                            height: bbox.height + 2 * LABEL_BACKGROUND_PADDING_Y
-                        })
+                        textElement.attr(func(textElement.getBBox(), label.pos.side, coord));
+                        that._updateLinesCanvas(label);
+                        backgroundElement.attr(getRectangleBBox(textElement.getBBox()))
                     } else {
                         textElement.attr({
                             text: ""
@@ -53253,10 +53196,12 @@
                     visibility: "hidden"
                 })
             },
-            _updateLinesCanvas: function(position, labelPosition) {
-                var coords = this._linesCanvas,
+            _updateLinesCanvas: function(label) {
+                var position = label.pos.side,
+                    labelCoord = label.pos.coord,
+                    coords = this._linesCanvas,
                     canvas = this._canvas;
-                coords[position] = coords[position] !== canvas[position] && mathAbs(coords[position] - canvas[position]) < mathAbs(labelPosition - canvas[position]) ? coords[position] : labelPosition
+                coords[position] = coords[position] !== canvas[position] && mathAbs(coords[position] - canvas[position]) < mathAbs(labelCoord - canvas[position]) ? coords[position] : labelCoord
             },
             _updateLines: function(lines, x, y, r, isHorizontal) {
                 var coords = this._linesCanvas,
@@ -53296,7 +53241,7 @@
                 }
             },
             show: function(data) {
-                var clipRect, that = this,
+                var that = this,
                     point = data.point,
                     pointData = point.getCrosshairData(data.x, data.y),
                     r = point.getPointRadius(),
@@ -53311,22 +53256,21 @@
                         visibility: "visible"
                     });
                     that._resetLinesCanvas();
-                    clipRect = that._getClipRectForPane(x, y);
                     that._circle.attr({
                         cx: x,
                         cy: y,
                         r: rad,
-                        clipId: clipRect.id
+                        clipId: that._getClipRectForPane(x, y).id
                     });
                     if (horizontal.lines) {
-                        that._updateText(pointData.yValue, horizontal.labels, pointData.axis, point, true);
+                        that._updateText(pointData.yValue, pointData.axis, horizontal.labels, point, getLabelCheckerPosition(x, y, true, canvas));
                         that._updateLines(horizontal.lines, x, y, rad, true);
                         that._horizontalGroup.attr({
                             translateY: y - canvas.top
                         })
                     }
                     if (vertical.lines) {
-                        that._updateText(pointData.xValue, vertical.labels, pointData.axis, point, false);
+                        that._updateText(pointData.xValue, pointData.axis, vertical.labels, point, getLabelCheckerPosition(x, y, false, canvas));
                         that._updateLines(vertical.lines, x, y, rad, false);
                         that._verticalGroup.attr({
                             translateX: x - canvas.left
@@ -58361,10 +58305,11 @@
                 })
             }
             translatorRange.addRange({
-                categories: categories,
+                categories: !seriesDataSource ? categories : void 0,
                 base: scaleOptions.logarithmBase,
                 axisType: scaleOptions.type
             });
+            seriesDataSource && translatorRange.sortCategories(categories);
             if (!translatorRange.isDefined()) {
                 if (isEqualDates) {
                     scaleOptions.valueType = "numeric"
@@ -59203,7 +59148,7 @@
                 this._dockSelectedArea()
             },
             _moveSelectedArea: function(screenPosition, isAnimated) {
-                var startValue, endValue, that = this,
+                var startValue, that = this,
                     translator = that._params.translator,
                     sliders = that._sliders,
                     interval = sliders[1].getPosition() - sliders[0].getPosition(),
@@ -59217,10 +59162,9 @@
                     endPosition = translator.getScreenRange()[1];
                     startPosition = endPosition - interval
                 }
-                startValue = translator.from(startPosition, -1);
-                endValue = translator.from(endPosition, 1);
-                sliders[0].setDisplayValue(selectClosestValue(startValue, that._values));
-                sliders[1].setDisplayValue(selectClosestValue(endValue, that._values));
+                startValue = selectClosestValue(translator.from(startPosition, -1), that._values);
+                sliders[0].setDisplayValue(startValue);
+                sliders[1].setDisplayValue(selectClosestValue(translator.from(translator.to(startValue, -1) + interval, 1), that._values));
                 sliders[0]._position = startPosition;
                 sliders[1]._position = endPosition;
                 that._applyTotalPosition(isAnimated);
@@ -63084,6 +63028,10 @@
             MultiPolygon: TYPE_AREA
         };
 
+        function pick(a, b) {
+            return void 0 !== a ? a : b
+        }
+
         function guessTypeByData(sample) {
             var type = TYPE_TO_TYPE_MAP[sample.type],
                 coordinates = sample.coordinates;
@@ -63147,8 +63095,8 @@
             getStyles: function(settings) {
                 var color = settings.color || null,
                     borderColor = settings.borderColor || null,
-                    borderWidth = settings.borderWidth || null,
-                    opacity = settings.opacity || null;
+                    borderWidth = pick(settings.borderWidth, null),
+                    opacity = pick(settings.opacity, null);
                 return {
                     root: [{
                         "class": "dxm-area",
@@ -63159,15 +63107,15 @@
                     }, {
                         "class": "dxm-area dxm-area-hovered",
                         stroke: settings.hoveredBorderColor || borderColor,
-                        "stroke-width": settings.hoveredBorderWidth || borderWidth,
+                        "stroke-width": pick(settings.hoveredBorderWidth, borderWidth),
                         fill: settings.hoveredColor || color,
-                        opacity: settings.hoveredOpacity || opacity
+                        opacity: pick(settings.hoveredOpacity, opacity)
                     }, {
                         "class": "dxm-area dxm-area-selected",
                         stroke: settings.selectedBorderColor || borderColor,
-                        "stroke-width": settings.selectedBorderWidth || borderWidth,
+                        "stroke-width": pick(settings.selectedBorderWidth, borderWidth),
                         fill: settings.selectedColor || color,
-                        opacity: settings.selectedOpacity || opacity
+                        opacity: pick(settings.selectedOpacity, opacity)
                     }]
                 }
             },
@@ -63193,8 +63141,8 @@
             },
             getStyles: function(settings) {
                 var color = settings.color || settings.borderColor || null,
-                    width = settings.borderWidth || null,
-                    opacity = settings.opacity || null;
+                    width = pick(settings.borderWidth, null),
+                    opacity = pick(settings.opacity, null);
                 return {
                     root: [{
                         "class": "dxm-line",
@@ -63204,13 +63152,13 @@
                     }, {
                         "class": "dxm-line dxm-line-hovered",
                         stroke: settings.hoveredColor || settings.hoveredBorderColor || color,
-                        "stroke-width": settings.hoveredBorderWidth || width,
-                        opacity: settings.hoveredOpacity || opacity
+                        "stroke-width": pick(settings.hoveredBorderWidth, width),
+                        opacity: pick(settings.hoveredOpacity, opacity)
                     }, {
                         "class": "dxm-line dxm-line-selected",
                         stroke: settings.selectedColor || settings.selectedBorderColor || color,
-                        "stroke-width": settings.selectedBorderWidth || width,
-                        opacity: settings.selectedOpacity || opacity
+                        "stroke-width": pick(settings.selectedBorderWidth, width),
+                        opacity: pick(settings.selectedOpacity, opacity)
                     }]
                 }
             },
@@ -63297,10 +63245,10 @@
                         selectedBackSize = selectedSize + (style.backStep > 0 ? _Number(style.backStep) : 0),
                         color = style.color || null,
                         borderColor = style.borderColor || null,
-                        borderWidth = style.borderWidth || null,
-                        opacity = style.opacity || null,
+                        borderWidth = pick(style.borderWidth, null),
+                        opacity = pick(style.opacity, null),
                         backColor = style.backColor || null,
-                        backOpacity = style.backOpacity || null;
+                        backOpacity = pick(style.backOpacity, null);
                     styles.dot = [{
                         r: size / 2,
                         stroke: borderColor,
@@ -63310,15 +63258,15 @@
                     }, {
                         r: hoveredSize / 2,
                         stroke: style.hoveredBorderColor || borderColor,
-                        "stroke-width": style.hoveredBorderWidth || borderWidth,
+                        "stroke-width": pick(style.hoveredBorderWidth, borderWidth),
                         fill: style.hoveredColor || color,
-                        opacity: style.hoveredOpacity || opacity
+                        opacity: pick(style.hoveredOpacity, opacity)
                     }, {
                         r: selectedSize / 2,
                         stroke: style.selectedBorderColor || borderColor,
-                        "stroke-width": style.selectedBorderWidth || borderWidth,
+                        "stroke-width": pick(style.selectedBorderWidth, borderWidth),
                         fill: style.selectedColor || color,
-                        opacity: style.selectedOpacity || opacity
+                        opacity: pick(style.selectedOpacity, opacity)
                     }];
                     styles.back = [{
                         r: size / 2,
@@ -63357,8 +63305,8 @@
                 _getStyles: function(styles, style) {
                     var color = style.color || null,
                         borderColor = style.borderColor || null,
-                        borderWidth = style.borderWidth || null,
-                        opacity = style.opacity || null;
+                        borderWidth = pick(style.borderWidth, null),
+                        opacity = pick(style.opacity, null);
                     styles.bubble = [{
                         stroke: borderColor,
                         "stroke-width": borderWidth,
@@ -63366,14 +63314,14 @@
                         opacity: opacity
                     }, {
                         stroke: style.hoveredBorderColor || borderColor,
-                        "stroke-width": style.hoveredBorderWidth || borderWidth,
+                        "stroke-width": pick(style.hoveredBorderWidth, borderWidth),
                         fill: style.hoveredColor || style.color,
-                        opacity: style.hoveredOpacity || opacity
+                        opacity: pick(style.hoveredOpacity, opacity)
                     }, {
                         stroke: style.selectedBorderColor || borderColor,
-                        "stroke-width": style.selectedBorderWidth || borderWidth,
+                        "stroke-width": pick(style.selectedBorderWidth, borderWidth),
                         fill: style.selectedColor || style.color,
-                        opacity: style.selectedOpacity || opacity
+                        opacity: pick(style.selectedOpacity, opacity)
                     }]
                 },
                 _setState: function(figure, styles, state) {
@@ -63440,25 +63388,25 @@
                     })
                 },
                 _getStyles: function(styles, style) {
-                    var opacity = style.opacity || null,
+                    var opacity = pick(style.opacity, null),
                         borderColor = style.borderColor || null,
-                        borderWidth = style.borderWidth || null;
+                        borderWidth = pick(style.borderWidth, null);
                     styles.pie = [{
                         opacity: opacity
                     }, {
-                        opacity: style.hoveredOpacity || opacity
+                        opacity: pick(style.hoveredOpacity, opacity)
                     }, {
-                        opacity: style.selectedOpacity || opacity
+                        opacity: pick(style.selectedOpacity, opacity)
                     }];
                     styles.border = [{
                         stroke: borderColor,
                         "stroke-width": borderWidth
                     }, {
                         stroke: style.hoveredBorderColor || borderColor,
-                        "stroke-width": style.hoveredBorderWidth || borderWidth
+                        "stroke-width": pick(style.hoveredBorderWidth, borderWidth)
                     }, {
                         stroke: style.selectedBorderColor || borderColor,
-                        "stroke-width": style.selectedBorderWidth || borderWidth
+                        "stroke-width": pick(style.selectedBorderWidth, borderWidth)
                     }]
                 },
                 _setState: function(figure, styles, state) {
@@ -63512,7 +63460,7 @@
                     var size = style.size > 0 ? _Number(style.size) : 0,
                         hoveredSize = size + (style.hoveredStep > 0 ? _Number(style.hoveredStep) : 0),
                         selectedSize = size + (style.selectedStep > 0 ? _Number(style.selectedStep) : 0),
-                        opacity = style.opacity || null;
+                        opacity = pick(style.opacity, null);
                     styles.image = [{
                         x: -size / 2,
                         y: -size / 2,
@@ -63524,13 +63472,13 @@
                         y: -hoveredSize / 2,
                         width: hoveredSize,
                         height: hoveredSize,
-                        opacity: style.hoveredOpacity || opacity
+                        opacity: pick(style.hoveredOpacity, opacity)
                     }, {
                         x: -selectedSize / 2,
                         y: -selectedSize / 2,
                         width: selectedSize,
                         height: selectedSize,
-                        opacity: style.selectedOpacity || opacity
+                        opacity: pick(style.selectedOpacity, opacity)
                     }]
                 },
                 _setState: function(figure, styles, state) {
@@ -65699,6 +65647,7 @@
             _init: function() {
                 var that = this;
                 that._rectOffsets = {};
+                that._handlers = Object.create(that._handlers);
                 that._context = {
                     suspend: function() {
                         if (!that._applyingChanges) {
@@ -67208,7 +67157,7 @@
                     return [data.x - offset.left, data.y - offset.top]
                 }
             });
-            proto._handlers.setTrackerData = function(node, element) {
+            that._handlers.setTrackerData = function(node, element) {
                 element.data(dataKey, node._id)
             };
             exports._TESTS_dataKey = dataKey
