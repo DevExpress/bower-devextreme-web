@@ -1,7 +1,7 @@
 /*! 
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.1.8
- * Build date: Mon Nov 14 2016
+ * Version: 16.1.9
+ * Build date: Mon Dec 19 2016
  *
  * Copyright (c) 2012 - 2016 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -379,7 +379,7 @@
             E1036: "Validation rules are not defined for any form item",
             E1037: "Invalid structure of grouped data",
             E1038: "Your browser does not support local storage for local web pages",
-            E0139: "The cell position can not be calculated",
+            E1039: "The cell position can not be calculated",
             E1040: "The key value should be unique within the data array",
             W1001: "Key option can not be modified after initialization",
             W1002: "Item '{0}' you are trying to select does not exist",
@@ -829,7 +829,7 @@
       !*** ./Scripts/core/version.js ***!
       \*********************************/
     function(module, exports) {
-        module.exports = "16.1.8"
+        module.exports = "16.1.9"
     },
     /*!********************************!*\
       !*** ./Scripts/core/errors.js ***!
@@ -958,7 +958,7 @@
                 trillions: "#,##0{0},,,,&quot;T&quot;",
                 percent: "0{0}%",
                 decimal: "#{0}",
-                fixedPoint: "#,##0{0}",
+                fixedpoint: "#,##0{0}",
                 exponential: "0{0}E+00",
                 currency: " "
             },
@@ -993,7 +993,7 @@
                 return DEFINED_DATE_FORMATS[format] || DEFINED_DATE_FORMATS[DEFAULT_DATE_FORMAT]
             },
             _convertNumberFormat: function(format, precision) {
-                var result, excelFormat = "currency" === format ? this._getCurrencyFormat() : DEFINED_NUMBER_FORMTATS[format];
+                var result, excelFormat = "currency" === format ? this._getCurrencyFormat() : DEFINED_NUMBER_FORMTATS[format.toLowerCase()];
                 if (excelFormat) {
                     result = stringUtils.format(excelFormat, this._applyPrecision(format, precision))
                 }
@@ -1004,7 +1004,7 @@
                     if ("date" === type) {
                         return exports.excelFormatConverter._convertDateFormat(format)
                     } else {
-                        if (DEFINED_NUMBER_FORMTATS[format]) {
+                        if (DEFINED_NUMBER_FORMTATS[format.toLowerCase()]) {
                             return exports.excelFormatConverter._convertNumberFormat(format, precision)
                         }
                     }
@@ -1052,13 +1052,29 @@
             _getDataType: function(dataType) {
                 return VALID_TYPES[dataType] || "s"
             },
-            _appendFormat: function(format, precision, dataType) {
+            _formatObjectConverter: function(format, precision, dataType, currency) {
                 if (commonUtils.isObject(format)) {
                     if (format.precision) {
                         precision = format.precision
                     }
+                    if (format.currency) {
+                        currency = format.currency
+                    }
                     format = format.type
                 }
+                return {
+                    format: format,
+                    precision: precision,
+                    dataType: dataType,
+                    currency: currency
+                }
+            },
+            _appendFormat: function(format, precision, dataType, currency) {
+                var newFormat = this._formatObjectConverter(format, precision, dataType, currency);
+                format = newFormat.format;
+                precision = newFormat.precision;
+                currency = newFormat.currency;
+                dataType = newFormat.dataType;
                 format = exports.excelFormatConverter.convertFormat(format, precision, dataType);
                 if (format) {
                     if ($.inArray(format, this._styleFormat) === -1) {
@@ -2199,8 +2215,6 @@
                     textOffset = 0;
                     drawCanvasElements(element.childNodes, context, options);
                     break;
-                case "title":
-                    return;
                 case "image":
                     drawImage(context, options);
                     break;
@@ -5408,6 +5422,7 @@
             isObject = commonUtils.isObject,
             isString = commonUtils.isString,
             isDate = commonUtils.isDate,
+            isNumber = commonUtils.isNumber,
             isDefined = commonUtils.isDefined,
             camelize = inflector.camelize;
         var dateUnitIntervals = ["millisecond", "second", "minute", "hour", "day", "week", "month", "quarter", "year"];
@@ -5888,10 +5903,10 @@
             DATE_SERIALIZATION_FORMAT = "yyyy'/'MM'/'dd",
             DATETIME_SERIALIZATION_FORMAT = "yyyy'/'MM'/'dd HH:mm:ss";
         var getDateSerializationFormat = function(value) {
-            if (commonUtils.isNumber(value)) {
+            if (isNumber(value)) {
                 return NUMBER_SERIALIZATION_FORMAT
             } else {
-                if (commonUtils.isString(value)) {
+                if (isString(value)) {
                     if (value.indexOf(":") >= 0) {
                         return DATETIME_SERIALIZATION_FORMAT
                     } else {
@@ -5904,7 +5919,7 @@
             var parsedValue;
             if (!serializationFormat || serializationFormat === NUMBER_SERIALIZATION_FORMAT || serializationFormat === DATE_SERIALIZATION_FORMAT || serializationFormat === DATETIME_SERIALIZATION_FORMAT) {
                 parsedValue = serializationFormat === NUMBER_SERIALIZATION_FORMAT ? value : !isDate(value) && Date.parse(value);
-                return parsedValue ? new Date(parsedValue) : value
+                return isNumber(parsedValue) ? new Date(parsedValue) : value
             }
             if (void 0 !== value) {
                 return localizationParseFunc(value, serializationFormat)
@@ -11706,7 +11721,12 @@
             POINTERLEAVE_NAMESPACED_EVENT_NAME = eventUtils.addNamespace(pointerEvents.leave, HOVEREND_NAMESPACE);
         var Hover = Class.inherit({
             noBubble: true,
-            handlerCache: {},
+            ctor: function() {
+                this._handlerArrayKeyPath = this._eventNamespace + "_HandlerStore"
+            },
+            setup: function(element) {
+                $.data(element, this._handlerArrayKeyPath, {})
+            },
             add: function(element, handleObj) {
                 var that = this,
                     $element = $(element),
@@ -11714,7 +11734,7 @@
                         that._handler(e)
                     };
                 $element.on(this._originalEventName, handleObj.selector, handler);
-                this.handlerCache[handleObj.guid] = handler
+                $.data(element, this._handlerArrayKeyPath)[handleObj.guid] = handler
             },
             _handler: function(e) {
                 if (eventUtils.isTouchEvent(e) || devices.isSimulator()) {
@@ -11727,15 +11747,19 @@
                 })
             },
             remove: function(element, handleObj) {
-                $(element).off(this._originalEventName, handleObj.selector, this.handlerCache[handleObj.guid]);
-                delete this.handlerCache[handleObj.guid]
+                var handler = $.data(element, this._handlerArrayKeyPath)[handleObj.guid];
+                $(element).off(this._originalEventName, handleObj.selector, handler)
+            },
+            teardown: function(element) {
+                $.removeData(element, this._handlerArrayKeyPath)
             }
         });
         var HoverStart = Hover.inherit({
             ctor: function() {
+                this._eventNamespace = HOVERSTART_NAMESPACE;
                 this._eventName = HOVERSTART;
                 this._originalEventName = POINTERENTER_NAMESPACED_EVENT_NAME;
-                this._isMouseDown = false
+                this.callBase()
             },
             _handler: function(e) {
                 var pointers = e.pointers || [];
@@ -11746,8 +11770,10 @@
         });
         var HoverEnd = Hover.inherit({
             ctor: function() {
+                this._eventNamespace = HOVEREND_NAMESPACE;
                 this._eventName = HOVEREND;
-                this._originalEventName = POINTERLEAVE_NAMESPACED_EVENT_NAME
+                this._originalEventName = POINTERLEAVE_NAMESPACED_EVENT_NAME;
+                this.callBase()
             }
         });
         registerEvent(HOVERSTART, new HoverStart);
@@ -12145,7 +12171,7 @@
         TEMPLATE_GENERATORS.dxActionSheet = {
             item: function() {
                 return ["<div>", createElementWithBindAttr("div", {
-                    dxButton: "{ text: $data.text, onClick: $data.clickAction || $data.onClick, type: $data.type, disabled: !!ko.unwrap($data.disabled) }"
+                    dxButton: "{ icon: $data.icon, text: $data.text, onClick: $data.clickAction || $data.onClick, type: $data.type, disabled: !!ko.unwrap($data.disabled) }"
                 }), "</div>"].join("")
             }
         };
@@ -13285,15 +13311,17 @@
                 }
             },
             _renderShadingDimensions: function() {
+                var wrapperWidth = "",
+                    wrapperHeight = "";
                 if (this.option("shading")) {
-                    var $container = this._getContainer(),
-                        wrapperWidth = this._isWindow($container) ? "100%" : $container.outerWidth(),
-                        wrapperHeight = this._isWindow($container) ? "100%" : $container.outerHeight();
-                    this._$wrapper.css({
-                        width: wrapperWidth,
-                        height: wrapperHeight
-                    })
+                    var $container = this._getContainer();
+                    wrapperWidth = this._isWindow($container) ? "100%" : $container.outerWidth();
+                    wrapperHeight = this._isWindow($container) ? "100%" : $container.outerHeight()
                 }
+                this._$wrapper.css({
+                    width: wrapperWidth,
+                    height: wrapperHeight
+                })
             },
             _isWindow: function($element) {
                 return !!$element && $.isWindow($element.get(0))
@@ -18572,7 +18600,10 @@
                 var widgetItem;
                 itemOptions.onClick = executeCommandCallback;
                 if ("menu" === itemOptions.location || "always" === itemOptions.locateInMenu) {
-                    widgetItem = itemOptions
+                    widgetItem = itemOptions;
+                    $.extend(widgetItem, {
+                        isAction: true
+                    })
                 } else {
                     widgetItem = {
                         locateInMenu: itemOptions.locateInMenu,
@@ -20042,6 +20073,9 @@
                     endUpdate = function() {
                         that._component.endUpdate()
                     };
+                if (that._digestCallbacks.isDigestPhase()) {
+                    beginUpdate()
+                }
                 that._digestCallbacks.begin.add(beginUpdate);
                 that._digestCallbacks.end.add(endUpdate);
                 that._componentDisposing.add(function() {
@@ -20110,7 +20144,7 @@
                             that._parse(valuePath).assign(that._scope, value);
                             var scopeValue = that._parse(valuePath)(that._scope);
                             if (scopeValue !== value) {
-                                that._component.option(optionPath, scopeValue)
+                                args.component.option(optionPath, scopeValue)
                             }
                         })
                     }, that._scope);
@@ -20120,6 +20154,7 @@
                         }
                         that._digestCallbacks.end.remove(releaseOption)
                     };
+                    releaseOption();
                     that._digestCallbacks.end.add(releaseOption)
                 })
             },
@@ -24014,7 +24049,6 @@
       \***************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            MemorizedCallbacks = __webpack_require__( /*! ../../core/memorized_callbacks */ 45),
             ngModule = __webpack_require__( /*! ./module */ 151),
             iconUtils = __webpack_require__( /*! ../../core/utils/icon */ 100),
             inflector = __webpack_require__( /*! ../../core/utils/inflector */ 50),
@@ -24055,8 +24089,8 @@
             }
         }]);
         ngModule.service("dxDigestCallbacks", ["$rootScope", function($rootScope) {
-            var begin = new MemorizedCallbacks,
-                end = new MemorizedCallbacks;
+            var begin = $.Callbacks(),
+                end = $.Callbacks();
             var digestPhase = false;
             $rootScope.$watch(function() {
                 if (digestPhase) {
@@ -24071,7 +24105,10 @@
             });
             return {
                 begin: begin,
-                end: end
+                end: end,
+                isDigestPhase: function() {
+                    return digestPhase
+                }
             }
         }])
     },
@@ -27675,7 +27712,6 @@
             _each = $.each,
             clientExporter = __webpack_require__( /*! ../../client_exporter */ 7),
             messageLocalization = __webpack_require__( /*! ../../localization/message */ 81),
-            config = __webpack_require__( /*! ../../core/config */ 15),
             imageExporter = clientExporter.image,
             svgExporter = clientExporter.svg,
             pdfExporter = clientExporter.pdf,
@@ -27979,12 +28015,11 @@
                     x: x + LIST_STROKE_WIDTH,
                     y: y - MENU_ITEM_HEIGHT
                 };
-                attr.text = config().rtlEnabled ? {
-                    x: x + LIST_WIDTH - 2 * LIST_STROKE_WIDTH - HORIZONTAL_TEXT_MARGIN
-                } : {
-                    x: x + HORIZONTAL_TEXT_MARGIN
+                attr.text = {
+                    x: x + HORIZONTAL_TEXT_MARGIN,
+                    y: y - VERTICAL_TEXT_MARGIN,
+                    align: "left"
                 };
-                attr.text.y = y - VERTICAL_TEXT_MARGIN;
                 if ("printing" === options.type) {
                     path = "M " + x + " " + (y - LIST_STROKE_WIDTH) + " L " + (x + LIST_WIDTH) + " " + (y - LIST_STROKE_WIDTH);
                     attr.separator = {
@@ -34979,8 +35014,7 @@
       !*** ./Scripts/viz/components/data_validator.js ***!
       \**************************************************/
     function(module, exports, __webpack_require__) {
-        var $ = __webpack_require__( /*! jquery */ 9),
-            commonUtils = __webpack_require__( /*! ../../core/utils/common */ 14),
+        var commonUtils = __webpack_require__( /*! ../../core/utils/common */ 14),
             STRING = "string",
             NUMERIC = "numeric",
             DATETIME = "datetime",
@@ -34998,12 +35032,11 @@
             _isString = commonUtils.isString,
             _isDate = commonUtils.isDate,
             _isNumber = commonUtils.isNumber,
-            _isObject = commonUtils.isObject,
-            _each = $.each;
+            _isObject = commonUtils.isObject;
 
         function groupingValues(data, others, valueField, index) {
             if (index >= 0) {
-                _each(data.slice(index), function(_, cell) {
+                data.slice(index).forEach(function(cell) {
                     if (_isDefined(cell[valueField])) {
                         others[valueField] += cell[valueField];
                         cell[valueField] = cell["original" + valueField] = void 0
@@ -35012,15 +35045,25 @@
             }
         }
 
-        function processGroup(_, group) {
-            group.valueType = group.valueAxisType = null;
-            _each(group.series, processSeries);
-            group.valueAxis && group.valueAxis.resetTypes(VALUE_TYPE)
+        function processGroups(groups) {
+            groups.forEach(function(group) {
+                group.valueType = group.valueAxisType = null;
+                group.series.forEach(function(series) {
+                    series.updateDataType({})
+                });
+                group.valueAxis && group.valueAxis.resetTypes(VALUE_TYPE)
+            })
+        }
+
+        function resetArgumentAxes(axes) {
+            axes && axes.forEach(function(axis) {
+                axis.resetTypes(ARGUMENT_TYPE)
+            })
         }
 
         function parseCategories(categories, parser) {
             var newArray = [];
-            _each(categories, function(_, category) {
+            categories.forEach(function(category) {
                 var parsedCategory = parser(category);
                 void 0 !== parsedCategory && newArray.push(parsedCategory)
             });
@@ -35030,7 +35073,7 @@
         function parseAxisCategories(groupsData, parsers) {
             var argumentCategories = groupsData.argumentOptions && groupsData.argumentOptions.categories,
                 valueParser = parsers[1];
-            _each(groupsData.groups, function(_, valueGroup) {
+            groupsData.groups.forEach(function(valueGroup) {
                 var categories = valueGroup.valueOptions && valueGroup.valueOptions.categories;
                 if (categories) {
                     valueGroup.valueOptions.categories = parseCategories(categories, valueParser)
@@ -35041,16 +35084,8 @@
             }
         }
 
-        function processSeries(_, series) {
-            series.updateDataType({})
-        }
-
-        function resetAxisTypes(_, axis) {
-            axis.resetTypes(ARGUMENT_TYPE)
-        }
-
         function filterForLogAxis(val, field, incidentOccurred) {
-            if (val <= 0) {
+            if (val <= 0 && null !== val) {
                 incidentOccurred("E2004", [field]);
                 val = null
             }
@@ -35105,17 +35140,17 @@
         }
 
         function prepareParsers(groupsData, skipFields, incidentOccurred) {
-            var sizeParser, valueParser, iep, argumentParser = createParserUnit(groupsData.argumentType, groupsData.argumentAxisType, false, skipFields, incidentOccurred),
+            var sizeParser, valueParser, ignoreEmptyPoints, argumentParser = createParserUnit(groupsData.argumentType, groupsData.argumentAxisType, false, skipFields, incidentOccurred),
                 categoryParsers = [argumentParser],
                 cache = {},
                 list = [];
-            _each(groupsData.groups, function(_, group) {
-                _each(group.series, function(_, series) {
-                    iep = series.getOptions().ignoreEmptyPoints;
-                    valueParser = createParserUnit(group.valueType, group.valueAxisType, iep, skipFields, incidentOccurred);
-                    sizeParser = createParserUnit(NUMERIC, CONTINUOUS, iep, skipFields, incidentOccurred);
+            groupsData.groups.forEach(function(group) {
+                group.series.forEach(function(series) {
+                    ignoreEmptyPoints = series.getOptions().ignoreEmptyPoints;
+                    valueParser = createParserUnit(group.valueType, group.valueAxisType, ignoreEmptyPoints, skipFields, incidentOccurred);
+                    sizeParser = createParserUnit(NUMERIC, CONTINUOUS, ignoreEmptyPoints, skipFields, incidentOccurred);
                     cache[series.getArgumentField()] = argumentParser;
-                    _each(series.getValueFields(), function(_, field) {
+                    series.getValueFields().forEach(function(field) {
                         !categoryParsers[1] && (categoryParsers[1] = valueParser);
                         cache[field] = valueParser
                     });
@@ -35127,9 +35162,9 @@
                     }
                 })
             });
-            _each(cache, function(field, parser) {
-                list.push([field, parser])
-            });
+            for (var field in cache) {
+                list.push([field, cache[field]])
+            }
             list.length && parseAxisCategories(groupsData, categoryParsers);
             return list
         }
@@ -35192,8 +35227,8 @@
             if (!isPie) {
                 return
             }
-            _each(groupsData.groups, function(_, group) {
-                _each(group.series, function(_, series) {
+            groupsData.groups.forEach(function(group) {
+                group.series.forEach(function(series) {
                     groupMinSlices(data, series.getArgumentField(), series.getValueFields()[0], series.getOptions().smallValuesGrouping)
                 })
             })
@@ -35209,89 +35244,95 @@
         function getUniqueArgumentFields(groupsData) {
             var uniqueArgumentFields = [],
                 hash = {};
-            _each(groupsData.groups, function(_, group) {
-                _each(group.series, function(__, series) {
+            groupsData.groups.forEach(function(group) {
+                group.series.forEach(function(series) {
                     addUniqueItemToCollection(series.getArgumentField(), uniqueArgumentFields, hash)
                 })
             });
             return uniqueArgumentFields
         }
 
-        function discreteDataProcessing(data, groupsData, uniqueArgumentFields) {
-            if (groupsData.argumentAxisType !== DISCRETE) {
-                return
+        function sort(a, b) {
+            var result = a - b;
+            if (isNaN(result)) {
+                if (!a) {
+                    return 1
+                }
+                if (!b) {
+                    return -1
+                }
+                return 0
             }
-            var userArgumentCategories = groupsData.argumentOptions ? groupsData.argumentOptions.categories : [],
-                categories = groupsData.categories = $.extend([], userArgumentCategories),
-                hash = {};
-            categories.length && _each(categories, function(_, currentCategory) {
-                hash[currentCategory] = true
-            });
-            _each(uniqueArgumentFields, function(_, field) {
-                _each(data, function(_, item) {
-                    _isDefined(item[field]) && addUniqueItemToCollection(item[field], categories, hash)
-                })
+            return result
+        }
+
+        function sortByArgument(data, argumentField) {
+            return data.slice().sort(function(a, b) {
+                return sort(a[argumentField], b[argumentField])
             })
         }
 
-        function compareWithoutHash(argumentField) {
-            return function(a, b) {
-                var cmpResult = a[argumentField] - b[argumentField];
-                if (isNaN(cmpResult)) {
-                    if (!a[argumentField]) {
-                        return 1
-                    }
-                    if (!b[argumentField]) {
-                        return -1
-                    }
-                    return 0
-                }
-                return cmpResult
+        function sortByCallback(data, callback) {
+            return data.slice().sort(callback)
+        }
+
+        function getSortByCategories(categories) {
+            var hash = {};
+            categories.forEach(function(value, i) {
+                hash[value] = i
+            });
+            return function(data, argumentField) {
+                return data.slice().sort(function(a, b) {
+                    return hash[a[argumentField]] - hash[b[argumentField]]
+                })
             }
         }
 
-        function sortAndCollectCategories(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
-            var getSortingMethod, itemsHash = {},
-                dataByArguments = {},
-                getSortMethodByType = function(sortingByHash, hash) {
-                    return sortingByHash ? function(argumentField) {
-                        return function(a, b) {
-                            return hash[a[argumentField]] - hash[b[argumentField]]
-                        }
-                    } : compareWithoutHash
+        function sortData(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
+            var reSortCategories, dataByArguments = {},
+                isDiscrete = groupsData.argumentAxisType === DISCRETE,
+                userCategories = isDiscrete && groupsData.argumentOptions && groupsData.argumentOptions.categories,
+                sortFunction = function(data) {
+                    return data
                 };
-            if (_isFunction(sortingMethodOption)) {
-                data.sort(sortingMethodOption);
-                discreteDataProcessing(data, groupsData, uniqueArgumentFields)
+            if (!userCategories && _isFunction(sortingMethodOption)) {
+                data = sortByCallback(data, sortingMethodOption)
+            }
+            if (isDiscrete) {
+                groupsData.categories = getCategories(data, uniqueArgumentFields, userCategories)
+            }
+            if (userCategories || !_isFunction(sortingMethodOption) && groupsData.argumentType === STRING) {
+                sortFunction = getSortByCategories(groupsData.categories)
             } else {
-                discreteDataProcessing(data, groupsData, uniqueArgumentFields);
-                if (groupsData.categories) {
-                    _each(groupsData.categories, function(index, value) {
-                        itemsHash[value] = index
-                    });
-                    getSortingMethod = getSortMethodByType(true, itemsHash)
-                } else {
-                    if (true === sortingMethodOption && groupsData.argumentType !== STRING) {
-                        getSortingMethod = getSortMethodByType(false, itemsHash)
-                    }
+                if (true === sortingMethodOption && groupsData.argumentType !== STRING) {
+                    sortFunction = sortByArgument;
+                    reSortCategories = isDiscrete
                 }
             }
-            _each(uniqueArgumentFields, function(_, argumentField) {
-                var sortMethod, currentDataItem;
-                if (getSortingMethod) {
-                    sortMethod = getSortingMethod(argumentField);
-                    currentDataItem = data.slice().sort(sortMethod)
-                } else {
-                    currentDataItem = data
-                }
-                dataByArguments[argumentField] = currentDataItem
+            uniqueArgumentFields.forEach(function(field) {
+                dataByArguments[field] = sortFunction(data, field)
             });
+            if (reSortCategories) {
+                groupsData.categories = groupsData.categories.sort(sort)
+            }
             return dataByArguments
         }
 
+        function getCategories(data, uniqueArgumentFields, userCategories) {
+            var categories = userCategories ? userCategories.slice() : [];
+            uniqueArgumentFields.forEach(function(field) {
+                data.forEach(function(item) {
+                    if (_isDefined(item[field]) && categories.indexOf(item[field]) === -1) {
+                        categories.push(item[field])
+                    }
+                })
+            });
+            return categories
+        }
+
         function checkValueTypeOfGroup(group, cell) {
-            _each(group.series, function(_, series) {
-                _each(series.getValueFields(), function(_, field) {
+            group.series.forEach(function(series) {
+                series.getValueFields().forEach(function(field) {
                     group.valueType = getType(cell[field], group.valueType)
                 })
             });
@@ -35299,8 +35340,8 @@
         }
 
         function checkArgumentTypeOfGroup(series, cell, groupsData) {
-            _each(series, function(_, currentCeries) {
-                groupsData.argumentType = getType(cell[currentCeries.getArgumentField()], groupsData.argumentType)
+            series.forEach(function(currentSeries) {
+                groupsData.argumentType = getType(cell[currentSeries.getArgumentField()], groupsData.argumentType)
             });
             return groupsData.argumentType
         }
@@ -35309,9 +35350,9 @@
             var groupsIndexes, groupsWithUndefinedValueType = [],
                 groupsWithUndefinedArgumentType = [],
                 argumentTypeGroup = groupsData.argumentOptions && axisTypeParser(groupsData.argumentOptions.argumentType);
-            _each(groupsData.groups, function(_, group) {
+            groupsData.groups.some(function(group) {
                 if (!group.series.length) {
-                    return null
+                    return true
                 }
                 var valueTypeGroup = group.valueOptions && axisTypeParser(group.valueOptions.valueType);
                 group.valueType = valueTypeGroup;
@@ -35323,33 +35364,34 @@
                 groupsIndexes = groupsWithUndefinedValueType.map(function(_, index) {
                     return index
                 });
-                _each(data, function(_, cell) {
+                data.some(function(cell) {
                     var defineArg;
-                    _each(groupsWithUndefinedValueType, function(groupIndex, group) {
+                    groupsWithUndefinedValueType.forEach(function(group, groupIndex) {
                         if (checkValueTypeOfGroup(group, cell) && groupsIndexes.indexOf(groupIndex) >= 0) {
                             groupsIndexes.splice(groupIndex, 1)
                         }
                     });
                     if (!defineArg) {
-                        _each(groupsWithUndefinedArgumentType, function(_, group) {
+                        groupsWithUndefinedArgumentType.forEach(function(group) {
                             defineArg = checkArgumentTypeOfGroup(group.series, cell, groupsData)
                         })
                     }
                     if (!checkTypeForAllData && defineArg && 0 === groupsIndexes.length) {
-                        return false
+                        return true
                     }
                 })
             }
         }
 
-        function checkAxisType(groupsData, userArgumentCategories, incidentOccurred) {
+        function checkAxisType(groupsData, incidentOccurred) {
             var argumentOptions = groupsData.argumentOptions || {},
+                userArgumentCategories = argumentOptions && argumentOptions.categories || [],
                 argumentAxisType = correctAxisType(groupsData.argumentType, argumentOptions.type, !!userArgumentCategories.length, incidentOccurred);
-            _each(groupsData.groups, function(_, group) {
+            groupsData.groups.forEach(function(group) {
                 var valueOptions = group.valueOptions || {},
                     valueCategories = valueOptions.categories || [],
                     valueAxisType = correctAxisType(group.valueType, valueOptions.type, !!valueCategories.length, incidentOccurred);
-                _each(group.series, function(_, series) {
+                group.series.forEach(function(series) {
                     var optionsSeries = {};
                     optionsSeries.argumentAxisType = argumentAxisType;
                     optionsSeries.valueAxisType = valueAxisType;
@@ -35368,7 +35410,7 @@
             });
             groupsData.argumentAxisType = groupsData.argumentAxisType || argumentAxisType;
             if (groupsData.argumentAxes) {
-                _each(groupsData.argumentAxes, function(_, axis) {
+                groupsData.argumentAxes.forEach(function(axis) {
                     axis.setTypes(groupsData.argumentAxisType, groupsData.argumentType, ARGUMENT_TYPE);
                     axis.validate(true)
                 })
@@ -35377,8 +35419,9 @@
 
         function verifyData(source, incidentOccurred) {
             var i, ii, k, item, data = [],
-                hasError = !_isArray(source);
-            if (!hasError) {
+                sourceIsDefined = _isDefined(source),
+                hasError = sourceIsDefined && !_isArray(source);
+            if (sourceIsDefined && !hasError) {
                 for (i = 0, ii = source.length, k = 0; i < ii; ++i) {
                     item = source[i];
                     if (_isObject(item)) {
@@ -35397,34 +35440,26 @@
         }
 
         function validateData(data, groupsData, incidentOccurred, options) {
-            var parsers, dataLength, dataByArgumentFields, skipFields = {},
-                argumentOptions = groupsData.argumentOptions,
-                userArgumentCategories = argumentOptions && argumentOptions.categories || [],
-                uniqueArgumentFields = getUniqueArgumentFields(groupsData);
+            var dataByArgumentFields, field, skipFields = {};
             data = verifyData(data, incidentOccurred);
             groupsData.argumentType = groupsData.argumentAxisType = null;
-            _each(groupsData.groups, processGroup);
-            if (groupsData.argumentAxes) {
-                _each(groupsData.argumentAxes, resetAxisTypes)
-            }
+            processGroups(groupsData.groups);
+            resetArgumentAxes(groupsData.argumentAxes);
             checkType(data, groupsData, options.checkTypeForAllData);
-            checkAxisType(groupsData, userArgumentCategories, incidentOccurred);
+            checkAxisType(groupsData, incidentOccurred);
             if (options.convertToAxisDataType) {
-                parsers = prepareParsers(groupsData, skipFields, incidentOccurred);
-                data = parse(data, parsers)
+                data = parse(data, prepareParsers(groupsData, skipFields, incidentOccurred))
             }
             groupPieData(data, groupsData);
-            dataByArgumentFields = sortAndCollectCategories(data, groupsData, options.sortingMethod, uniqueArgumentFields);
-            dataLength = data.length;
-            _each(skipFields, function(field, fieldValue) {
-                if (fieldValue === dataLength) {
+            dataByArgumentFields = sortData(data, groupsData, options.sortingMethod, getUniqueArgumentFields(groupsData));
+            for (field in skipFields) {
+                if (skipFields[field] === data.length) {
                     incidentOccurred("W2002", [field])
                 }
-            });
+            }
             return dataByArgumentFields
         }
-        exports.validateData = validateData;
-        exports.DEBUG_validateData_sortAndCollectCategories = sortAndCollectCategories
+        exports.validateData = validateData
     },
     /*!***********************************************!*\
       !*** ./Scripts/viz/components/parse_utils.js ***!
@@ -35783,7 +35818,8 @@
                     sizePoint = that._getPointSize(),
                     pointsLength = that.getAllPoints().length,
                     isDiscrete = that.argumentAxisType === DISCRETE || that.valueAxisType === DISCRETE,
-                    businessRange = argTranslator.getBusinessRange();
+                    businessRange = argTranslator.getBusinessRange(),
+                    minMaxDefined = _isDefined(min) && _isDefined(max);
                 if (pointsLength && pointsLength > 1) {
                     count = argTranslator.canvasLength / sizePoint;
                     count = count <= 1 ? 1 : count;
@@ -35799,9 +35835,9 @@
                         }
                         tickInterval = Math.ceil(pointsLength / count)
                     } else {
-                        tickInterval = (businessRange.maxVisible - businessRange.minVisible) / count
+                        tickInterval = (minMaxDefined ? max - min : businessRange.maxVisible - businessRange.minVisible) / count
                     }
-                    that._points = that._resample(tickInterval, min - tickInterval, max + tickInterval, _isDefined(min) && _isDefined(max))
+                    that._points = that._resample(tickInterval, min - tickInterval, max + tickInterval, minMaxDefined)
                 }
             },
             _removeOldSegments: function(startIndex) {
@@ -37913,6 +37949,9 @@
                 arg = minArg = argTranslator.translate(that.argument) + (that[argAxis + "Correction"] || 0);
                 val = valTranslator.translate(that.value);
                 minVal = valTranslator.translate(that.minValue);
+                if (null === val) {
+                    val = minVal
+                }
                 that["v" + valAxis] = val;
                 that["v" + argAxis] = arg + that[argIntervalName] / 2;
                 that[valIntervalName] = _abs(val - minVal);
@@ -47995,7 +48034,7 @@
                     axisType = that[axisTypeSelector],
                     min = "logarithmic" === axisType ? 1 : 0;
                 if ("discrete" === axisType) {
-                    that.categories = ["0", "1", "2"]
+                    that.categories = isDate ? [new Date(year, 0, 1), new Date(year, 3, 1), new Date(year, 6, 1), new Date(year, 9, 1)] : ["0", "1", "2"]
                 } else {
                     that[minSelector] = isDate ? new Date(year, 0, 1) : min;
                     that[maxSelector] = isDate ? new Date(year, 11, 31) : 10
@@ -55189,10 +55228,14 @@
                     that._setupSubvalues(subvalues);
                     that._beginValueChanging();
                     that._updateSubvalueIndicators();
-                    if (!_compareArrays(that.__subvalues, that.option(OPTION_SUBVALUES))) {
-                        that.option(OPTION_SUBVALUES, that.__subvalues)
-                    }
                     that._endValueChanging()
+                } else {
+                    that.__subvalues = parseArrayOfNumbers(subvalues);
+                    that._setContentSize();
+                    that._renderContent()
+                }
+                if (!_compareArrays(that.__subvalues, that.option(OPTION_SUBVALUES))) {
+                    that.option(OPTION_SUBVALUES, that.__subvalues)
                 }
             },
             _optionChangesMap: {
@@ -58186,7 +58229,7 @@
         }
 
         function calculateTickIntervalsForSemidiscreteScale(scaleOptions, min, max, screenDelta) {
-            var interval, delta, minorTickInterval = scaleOptions.minorTickInterval,
+            var interval, tickCountByInterval, tickCountByScreen, minorTickInterval = scaleOptions.minorTickInterval,
                 tickInterval = scaleOptions.tickInterval,
                 isDateType = "datetime" === scaleOptions.valueType,
                 gridSpacingFactor = scaleOptions.axisDivisionFactor || {};
@@ -58201,8 +58244,9 @@
                     if (isDateType) {
                         interval = dateToMilliseconds(tickInterval)
                     }
-                    delta = screenDelta / (_ceil((max - min) / interval) + 1)
-                } while (interval && delta < (gridSpacingFactor[tickInterval] || SEMIDISCRETE_GRID_SPACING_FACTOR))
+                    tickCountByInterval = _ceil((max - min) / interval);
+                    tickCountByScreen = _floor(screenDelta / (gridSpacingFactor[tickInterval] || SEMIDISCRETE_GRID_SPACING_FACTOR)) || 1
+                } while (interval && tickCountByInterval > tickCountByScreen)
             }
             return {
                 tickInterval: tickInterval,
@@ -66249,17 +66293,20 @@
         var directionToIndexOffsets = {};
         directionToIndexOffsets[-1] = [2, 0];
         directionToIndexOffsets[1] = [0, 2];
+        var getStaticSideIndex = function(rect) {
+            return rect[2] - rect[0] < rect[3] - rect[1] ? 0 : 1
+        };
+        exports.getStaticSideIndex = getStaticSideIndex;
         exports.buildSidesData = function(rect, directions, _staticSideIndex) {
-            var sides = [rect[2] - rect[0], rect[3] - rect[1]],
-                staticSideIndex = void 0 !== _staticSideIndex ? _staticSideIndex : sides[0] < sides[1] ? 0 : 1,
+            var staticSideIndex = void 0 !== _staticSideIndex ? _staticSideIndex : getStaticSideIndex(rect),
                 variedSideIndex = 1 - staticSideIndex,
                 staticSideDirection = directions[staticSideIndex],
                 variedSideDirection = directions[variedSideIndex],
                 staticSideIndexOffsets = directionToIndexOffsets[staticSideDirection],
                 variedSideIndexOffsets = directionToIndexOffsets[variedSideDirection];
             return {
-                staticSide: sides[staticSideIndex],
-                variedSide: sides[variedSideIndex],
+                staticSide: rect[2 + staticSideIndex] - rect[staticSideIndex],
+                variedSide: rect[2 + variedSideIndex] - rect[variedSideIndex],
                 static1: staticSideIndex + staticSideIndexOffsets[0],
                 static2: staticSideIndex + staticSideIndexOffsets[1],
                 varied1: variedSideIndex + variedSideIndexOffsets[0],
@@ -66359,8 +66406,7 @@
     function(module, exports, __webpack_require__) {
         var _max = Math.max,
             _round = Math.round,
-            _calculateRectangles = __webpack_require__( /*! ./tiling */ 573).calculateRectangles,
-            _buildSidesData = __webpack_require__( /*! ./tiling */ 573).buildSidesData;
+            tiling = __webpack_require__( /*! ./tiling */ 573);
 
         function compare(a, b) {
             return b.value - a.value
@@ -66402,9 +66448,10 @@
         }
 
         function doStep(nodes, head, context) {
-            var sidesData = context.sides || _buildSidesData(context.rect, context.directions),
-                rowData = sidesData.staticSide > 0 ? findAppropriateCollection(nodes, head, {
-                    areaToValue: getArea(context.rect) / context.sum,
+            var sidesData = tiling.buildSidesData(context.rect, context.directions, context.staticSideIndex),
+                area = getArea(context.rect),
+                rowData = area > 0 ? findAppropriateCollection(nodes, head, {
+                    areaToValue: area / context.sum,
                     accumulate: context.accumulate,
                     staticSide: sidesData.staticSide
                 }) : {
@@ -66412,7 +66459,7 @@
                     side: sidesData.variedSide,
                     count: nodes.length - head
                 };
-            _calculateRectangles(nodes, head, context.rect, sidesData, rowData);
+            tiling.calculateRectangles(nodes, head, context.rect, sidesData, rowData);
             context.sum -= rowData.sum;
             return head + rowData.count
         }
@@ -66426,7 +66473,7 @@
                     accumulate: accumulate
                 };
             if (isFixedStaticSide) {
-                context.sides = _buildSidesData(context.rect, context.directions)
+                context.staticSideIndex = tiling.getStaticSideIndex(context.rect)
             }
             items.sort(compare);
             for (i = 0; i < ii;) {
