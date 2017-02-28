@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.4
- * Build date: Tue Jan 17 2017
+ * Version: 16.2.5
+ * Build date: Mon Feb 27 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -32,7 +32,7 @@
       !*** multi dx.viz.debug ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\BuildLabel\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 595)
+        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\BuildLabel\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 598)
     }, , , , ,
     /*!******************************************!*\
       !*** ./js/bundles/modules/parts/core.js ***!
@@ -599,9 +599,17 @@
         };
         var normalizeKey = function(id) {
             var key = isString(id) ? id : id.toString(),
-                arr = key.match(/[^a-zA-Z0-9]/g);
+                arr = key.match(/[^a-zA-Z0-9_]/g);
             arr && $.each(arr, function(_, sign) {
-                key = key.replace(sign, "_" + sign.charCodeAt() + "_")
+                key = key.replace(sign, "__" + sign.charCodeAt() + "__")
+            });
+            return key
+        };
+        var denormalizeKey = function(key) {
+            var arr = key.match(/__\d+__/g);
+            arr && arr.forEach(function(char) {
+                var charCode = parseInt(char.replace("__", ""));
+                key = key.replace(char, String.fromCharCode(charCode))
             });
             return key
         };
@@ -693,6 +701,7 @@
         exports.findBestMatches = findBestMatches;
         exports.getDefaultAlignment = getDefaultAlignment;
         exports.normalizeKey = normalizeKey;
+        exports.denormalizeKey = denormalizeKey;
         exports.equalByValue = equalByValue;
         exports.getKeyHash = getKeyHash;
         exports.escapeRegExp = escapeRegExp;
@@ -784,7 +793,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.4"
+        module.exports = "16.2.5"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
@@ -1004,14 +1013,15 @@
             E1037: "Invalid structure of grouped data",
             E1038: "Your browser does not support local storage for local web pages",
             E1039: "The cell position can not be calculated",
-            E1040: "The key value should be unique within the data array",
+            E1040: "The '{0}' key value should be unique within the data array",
             E1041: "The jszip script should be included before DevExtreme scripts",
             E1042: 'Deferred selection cannot be performed if the "key" field is not set for the Store.',
             W1001: "Key option can not be modified after initialization",
             W1002: "The item with the key '{0}' does not exist",
             W1003: "Group with key '{0}' in which you are trying to select items does not exist",
             W1004: "Item '{0}' you are trying to select in group '{1}' does not exist",
-            W1005: "Due to column data types being unspecified, data has been loaded twice in order to apply initial filter settings. To resolve this issue, specify data types for all grid columns."
+            W1005: "Due to column data types being unspecified, data has been loaded twice in order to apply initial filter settings. To resolve this issue, specify data types for all grid columns.",
+            W1006: "The map service returned the '{0}' error"
         })
     },
     /*!**********************************!*\
@@ -1023,11 +1033,12 @@
             ieRegExp = /(msie) (\d{1,2}\.\d)/,
             ie11RegExp = /(trident).*rv:(\d{1,2}\.\d)/,
             msEdge = /(edge)\/((\d+)?[\w\.]+)/,
+            safari = /(safari)\/([0-9.]+)/,
             mozillaRegExp = /(mozilla)(?:.*? rv:([\w.]+))/;
         var browserFromUA = function(ua) {
             ua = ua.toLowerCase();
             var result = {},
-                matches = ieRegExp.exec(ua) || ie11RegExp.exec(ua) || msEdge.exec(ua) || ua.indexOf("compatible") < 0 && mozillaRegExp.exec(ua) || webkitRegExp.exec(ua) || [],
+                matches = ieRegExp.exec(ua) || ie11RegExp.exec(ua) || msEdge.exec(ua) || ua.indexOf("compatible") < 0 && mozillaRegExp.exec(ua) || ua.indexOf("chrome") < 0 && safari.exec(ua) || webkitRegExp.exec(ua) || [],
                 browserName = matches[1],
                 browserVersion = matches[2];
             if ("trident" === browserName || "edge" === browserName) {
@@ -1088,14 +1099,6 @@
                     result = result + " " + attr.name + '="' + attr.value + '"'
                 }
                 return commonUtils.isDefined(content) ? result + ">" + content + "</" + tagName + ">" : result + " />"
-            },
-            _getDataProviderRowIndex: function(rowIndex) {
-                var correctRowIndex = this._dataProvider.getHeaderRowCount ? this._dataProvider.getHeaderRowCount() : 0;
-                return rowIndex - correctRowIndex
-            },
-            _getExcelRowIndex: function(exRowIndex) {
-                var correctRowIndex = this._dataProvider.getHeaderRowCount ? this._dataProvider.getHeaderRowCount() : 0;
-                return exRowIndex + correctRowIndex
             },
             _getCellIndex: function(rowIndex, cellIndex) {
                 var charCode, sheetIndex = "",
@@ -1176,7 +1179,7 @@
                 var dataProvider = this._dataProvider,
                     value = dataProvider.getCellValue(rowIndex, cellIndex),
                     type = this._getDataType(dataProvider.getCellType(rowIndex, cellIndex)),
-                    formatID = this._styleArray[cellIndex + BOLD_STYLES_COUNT].formatID,
+                    formatID = this._styleArray[this._dataProvider.getStyleId(rowIndex, cellIndex)].formatID,
                     format = commonUtils.isNumber(formatID) ? this._styleFormat[formatID - 1] : null;
                 if ("d" === type && !commonUtils.isDate(value)) {
                     type = "s"
@@ -1194,50 +1197,25 @@
                     type: type
                 }
             },
-            _getHeadersArray: function() {
-                var i, j, column, columns = this._dataProvider.getColumns(true),
-                    result = [];
-                for (i = 0; i < columns.length - 1; i++) {
-                    result.push([]);
-                    for (j = 0; j < columns[i].length; j++) {
-                        column = columns[i][j];
-                        result[i].push({
-                            style: 0,
-                            type: "s",
-                            value: this._appendString(column.caption)
-                        })
-                    }
-                }
-                return result
-            },
             _getDataArray: function() {
-                var rowIndex, cellIndex, cellsArray, cellData, cellsLength, type, styleID, result = [],
-                    rowsLength = this._dataProvider.getRowsCount(),
-                    columns = this._dataProvider.getColumns();
+                var rowIndex, cellIndex, cellsArray, cellData, cellsLength, that = this,
+                    result = [],
+                    dataProvider = that._dataProvider,
+                    rowsLength = dataProvider.getRowsCount(),
+                    columns = dataProvider.getColumns();
                 for (rowIndex = 0; rowIndex < rowsLength; rowIndex++) {
                     cellsArray = [];
                     cellsLength = columns.length;
                     for (cellIndex = 0; cellIndex !== cellsLength; cellIndex++) {
-                        cellData = this._prepareValue(rowIndex, cellIndex);
-                        type = cellData.type;
-                        if (!this._dataProvider.isGroupRow(rowIndex) && commonUtils.isDefined(this._styleArray[cellIndex + BOLD_STYLES_COUNT].formatID) && "s" !== cellData.type) {
-                            type = "n"
-                        }
-                        styleID = cellIndex + BOLD_STYLES_COUNT;
-                        if (this._dataProvider.isGroupRow(rowIndex)) {
-                            styleID = BOLD_STYLES_COUNT - 1
-                        }
-                        if (this._dataProvider.isTotalCell(rowIndex, cellIndex)) {
-                            styleID = this._getBoldStyleID(columns[cellIndex].alignment)
-                        }
+                        cellData = that._prepareValue(rowIndex, cellIndex);
                         cellsArray.push({
-                            style: styleID,
+                            style: dataProvider.getStyleId(rowIndex, cellIndex),
                             value: cellData.value,
-                            type: type
+                            type: cellData.type
                         })
                     }
-                    if (rowIndex && !this._needSheetPr && this._dataProvider.getGroupLevel(this._getDataProviderRowIndex(rowIndex)) > 0) {
-                        this._needSheetPr = true
+                    if (!that._needSheetPr && dataProvider.getGroupLevel(rowIndex) > 0) {
+                        that._needSheetPr = true
                     }
                     result.push(cellsArray)
                 }
@@ -1258,36 +1236,22 @@
                 return Math.min(255, Math.floor((pixelsWidth - 5) / MAX_DIGIT_WIDTH_IN_PIXELS * 100 + .5) / 100)
             },
             _prepareStyleData: function() {
-                var i, column, wrapText = Number(!!this._options.wrapTextEnabled),
-                    alignments = ["center", "left", "right"],
-                    columns = this._dataProvider.getColumns();
-                for (i = 0; i < alignments.length; i++) {
-                    this._styleArray.push({
-                        bold: true,
-                        alignment: alignments[i],
-                        wrapText: 1
-                    })
-                }
-                this._styleArray.push({
-                    bold: true,
-                    alignment: commonUtils.getDefaultAlignment(this._rtlEnabled),
-                    wrapText: 0
+                var that = this,
+                    styles = that._dataProvider.getStyles();
+                that._dataProvider.getColumns().forEach(function(column) {
+                    that._colsArray.push(that._calculateWidth(column.width))
                 });
-                for (i = 0; i < columns.length; i++) {
-                    column = columns[i];
-                    this._styleArray.push({
-                        alignment: commonUtils.isDefined(column.alignment) ? column.alignment : "left",
-                        formatID: this._appendFormat(column.format, column.precision, column.dataType),
-                        wrapText: wrapText
-                    });
-                    this._colsArray.push(this._calculateWidth(column.width))
-                }
+                styles.forEach(function(style) {
+                    that._styleArray.push({
+                        bold: !!style.bold,
+                        alignment: style.alignment || "left",
+                        formatID: that._appendFormat(style.format, style.precision, style.dataType),
+                        wrapText: style.wrapText
+                    })
+                })
             },
             _prepareCellData: function() {
-                if (this._dataProvider.isHeadersVisible()) {
-                    this._cellsArray = this._cellsArray.concat(this._getHeadersArray())
-                }
-                this._cellsArray = this._cellsArray.concat(this._getDataArray())
+                this._cellsArray = this._getDataArray()
             },
             _createXMLRelationships: function(xmlRelationships) {
                 return this._getXMLTag("Relationships", [{
@@ -1321,26 +1285,25 @@
                 return XML_TAG + '<Types xmlns="' + OPEN_XML_FORMAT_URL + '/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" /><Default Extension="xml" ContentType="application/xml" /><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml" /><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml" /><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" /><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml" /></Types>'
             },
             _generateStylesXML: function() {
-                var styleIndex, style, formatIndex, folder = this._zip.folder(XL_FOLDER_NAME),
-                    stylesLength = this._styleArray.length,
+                var formatIndex, that = this,
+                    folder = that._zip.folder(XL_FOLDER_NAME),
                     xmlStyles = [],
                     XML = "";
-                for (formatIndex = 0; formatIndex < this._styleFormat.length; formatIndex++) {
-                    this._styleFormat[formatIndex] = this._getXMLTag("numFmt", [{
+                for (formatIndex = 0; formatIndex < that._styleFormat.length; formatIndex++) {
+                    that._styleFormat[formatIndex] = that._getXMLTag("numFmt", [{
                         name: "numFmtId",
                         value: Number(formatIndex) + CUSTOM_FORMAT_START_INDEX
                     }, {
                         name: "formatCode",
-                        value: this._styleFormat[formatIndex]
+                        value: that._styleFormat[formatIndex]
                     }])
                 }
-                XML = XML + this._getXMLTag("numFmts", [{
+                XML = XML + that._getXMLTag("numFmts", [{
                     name: "count",
-                    value: this._styleFormat.length
-                }], this._styleFormat.join("")) + BASE_STYLE_XML;
-                for (styleIndex = 0; styleIndex < stylesLength; styleIndex++) {
-                    style = this._styleArray[styleIndex];
-                    xmlStyles.push(this._getXMLTag("xf", [{
+                    value: that._styleFormat.length
+                }], that._styleFormat.join("")) + BASE_STYLE_XML;
+                this._styleArray.forEach(function(style) {
+                    xmlStyles.push(that._getXMLTag("xf", [{
                         name: "xfId",
                         value: 0
                     }, {
@@ -1355,25 +1318,25 @@
                     }, {
                         name: "numFmtId",
                         value: commonUtils.isDefined(style.formatID) ? Number(style.formatID) + CUSTOM_FORMAT_START_INDEX - 1 : 0
-                    }], this._getXMLTag("alignment", [{
-                        name: "horizontal",
-                        value: style.alignment
-                    }, {
+                    }], that._getXMLTag("alignment", [{
                         name: "vertical",
                         value: "top"
                     }, {
                         name: "wrapText",
-                        value: style.wrapText
+                        value: Number(!!style.wrapText)
+                    }, {
+                        name: "horizontal",
+                        value: style.alignment
                     }])))
-                }
-                XML += this._getXMLTag("cellXfs", [{
+                });
+                XML += that._getXMLTag("cellXfs", [{
                     name: "count",
                     value: xmlStyles.length
                 }], xmlStyles.join(""));
-                XML += this._getXMLTag("cellStyles", [{
+                XML += that._getXMLTag("cellStyles", [{
                     name: "count",
                     value: 1
-                }], this._getXMLTag("cellStyle", [{
+                }], that._getXMLTag("cellStyle", [{
                     name: "name",
                     value: "Normal"
                 }, {
@@ -1383,12 +1346,12 @@
                     name: "builtinId",
                     value: 0
                 }]));
-                XML = XML_TAG + this._getXMLTag("styleSheet", [{
+                XML = XML_TAG + that._getXMLTag("styleSheet", [{
                     name: "xmlns",
                     value: OPEN_XML_FORMAT_URL + "/spreadsheetml/2006/main"
                 }], XML);
                 folder.file(STYLE_FILE_NAME, XML);
-                this._styleArray = []
+                that._styleArray = []
             },
             _generateStringsXML: function() {
                 var stringIndex, folder = this._zip.folder(XL_FOLDER_NAME),
@@ -1488,7 +1451,7 @@
                         value: rSpans
                     }, {
                         name: "outlineLevel",
-                        value: rowIndex >= headerRowCount ? this._dataProvider.getGroupLevel(this._getDataProviderRowIndex(rowIndex)) : 0
+                        value: rowIndex >= headerRowCount ? this._dataProvider.getGroupLevel(rowIndex) : 0
                     }, {
                         name: "x14ac:dyDescent",
                         value: "0.25"
@@ -1972,7 +1935,7 @@
                     if ("date" === type) {
                         return excelFormatConverter._convertDateFormat(format)
                     } else {
-                        if (DEFINED_NUMBER_FORMTATS[format.toLowerCase()]) {
+                        if (commonUtils.isString(format) && DEFINED_NUMBER_FORMTATS[format.toLowerCase()]) {
                             return excelFormatConverter._convertNumberFormat(format, precision, currency)
                         }
                     }
@@ -2221,6 +2184,7 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             numberLocalization = __webpack_require__( /*! ./number */ 25),
             dependencyInjector = __webpack_require__( /*! ../core/utils/dependency_injector */ 26),
+            isString = __webpack_require__( /*! ../core/utils/common */ 12).isString,
             errors = __webpack_require__( /*! ../core/errors */ 7);
         __webpack_require__( /*! ./core */ 28);
         var FORMATS_TO_PATTERN_MAP = {
@@ -2243,8 +2207,7 @@
             hour: "HH",
             minute: "mm",
             second: "ss",
-            millisecond: "SSS",
-            "datetime-local": "yyyy-MM-ddTHH':'mm':'ss"
+            millisecond: "SSS"
         };
         var parseTime = function(text) {
             var now = new Date,
@@ -2293,12 +2256,6 @@
             minute: function(date) {
                 return formatNumber(date.getMinutes(), 2)
             },
-            h: function(date) {
-                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 1)
-            },
-            hh: function(date) {
-                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 2)
-            },
             hour: function(date) {
                 return formatNumber(date.getHours(), 2)
             },
@@ -2307,12 +2264,6 @@
             },
             dayofweek: function(date) {
                 return days[date.getDay()]
-            },
-            M: function(date) {
-                return date.getMonth() + 1
-            },
-            MM: function(date) {
-                return formatNumber(date.getMonth() + 1, 2)
             },
             month: function(date) {
                 return months[date.getMonth()]
@@ -2350,86 +2301,6 @@
             longdatelongtime: function(date) {
                 return [FORMATTERS.longdate(date), FORMATTERS.longtime(date)].join(", ")
             },
-            d: function(date) {
-                return formatNumber(FORMATTERS.day(date), 1)
-            },
-            dd: function(date) {
-                return formatNumber(FORMATTERS.day(date), 2)
-            },
-            "d MMMM": function(date) {
-                return FORMATTERS.day(date) + " " + FORMATTERS.month(date)
-            },
-            "yyyy/M/d": function(date) {
-                return [FORMATTERS.year(date), FORMATTERS.M(date), FORMATTERS.day(date)].join("/")
-            },
-            "yyyy/MM/dd": function(date) {
-                return [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date)].join("/")
-            },
-            "dd.MM.yyyy": function(date) {
-                return [FORMATTERS.dd(date), FORMATTERS.MM(date), FORMATTERS.year(date)].join(".")
-            },
-            "HH:mm": function(date) {
-                return [FORMATTERS.hour(date), FORMATTERS.minute(date)].join(":")
-            },
-            "HH:mm:ss": function(date) {
-                return [FORMATTERS["HH:mm"](date), FORMATTERS.second(date)].join(":")
-            },
-            "h:mm:ss": function(date) {
-                return [FORMATTERS.h(date), FORMATTERS.minute(date), FORMATTERS.second(date)].join(":")
-            },
-            "h:mm:ss:SSS": function(date) {
-                return [FORMATTERS.h(date), FORMATTERS.minute(date), FORMATTERS.second(date), FORMATTERS.SSS(date)].join(":")
-            },
-            "yyyy/MM/dd HH:mm:ss": function(date) {
-                return [FORMATTERS["yyyy/MM/dd"](date), FORMATTERS["HH:mm:ss"](date)].join(" ")
-            },
-            "yyyy-MM-dd hh:mm:ss.SSS a": function(date) {
-                return [
-                    [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date)].join("-"), [FORMATTERS.hh(date), FORMATTERS.minute(date), FORMATTERS.second(date)].join(":") + "." + FORMATTERS.SSS(date), amPm(date)
-                ].join(" ")
-            },
-            "yyyy-MM-dd": function(date) {
-                return [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date)].join("-")
-            },
-            yyyyMMddTHHmmss: function(date) {
-                return [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date), "T", FORMATTERS.hour(date), FORMATTERS.minute(date), FORMATTERS.second(date)].join("")
-            },
-            "datetime-local": function(date) {
-                return FORMATTERS["yyyy-MM-dd"](date) + "T" + FORMATTERS["HH:mm:ss"](date)
-            },
-            "yyyy-MM-ddTHH:mm:ssZ": function(date) {
-                return FORMATTERS["datetime-local"](date) + "Z"
-            },
-            "yyyy-MM-ddTHH:mmZ": function(date) {
-                return FORMATTERS["yyyy-MM-dd"](date) + "T" + FORMATTERS.hour(date) + ":" + FORMATTERS.minute(date) + "Z"
-            },
-            "dd/MM/yyyy": function(date) {
-                return [FORMATTERS.dd(date), FORMATTERS.MM(date), FORMATTERS.year(date)].join("/")
-            },
-            "yyyy MMMM d": function(date) {
-                return [FORMATTERS.year(date), FORMATTERS.month(date), FORMATTERS.day(date)].join(" ")
-            },
-            "EEEE, d": function(date) {
-                return [FORMATTERS.dayofweek(date), FORMATTERS.d(date)].join(", ")
-            },
-            "EEEE MM yy": function(date) {
-                return [FORMATTERS.dayofweek(date), FORMATTERS.MM(date), FORMATTERS.shortyear(date)].join(" ")
-            },
-            "d MMMM yyyy": function(date) {
-                return [FORMATTERS.day(date), FORMATTERS.month(date), FORMATTERS.year(date)].join(" ")
-            },
-            E: function(date) {
-                return cutCaptions([FORMATTERS.dayofweek(date)], "abbreviated")[0]
-            },
-            EEE: function(date) {
-                return FORMATTERS.E(date)
-            },
-            "EEE hh": function(date) {
-                return [FORMATTERS.EEE(date), FORMATTERS.hh(date)].join(" ")
-            },
-            "ss SSS": function(date) {
-                return [FORMATTERS.second(date), FORMATTERS.SSS(date)].join(" ")
-            },
             quarter: function(date) {
                 var month = date.getMonth();
                 if (month >= 0 && month < 3) {
@@ -2445,13 +2316,28 @@
             },
             quarterandyear: function(date) {
                 return FORMATTERS.quarter(date) + " " + FORMATTERS.year(date)
+            },
+            h: function(date) {
+                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 1)
+            },
+            hh: function(date) {
+                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 2)
+            },
+            M: function(date) {
+                return date.getMonth() + 1
+            },
+            MM: function(date) {
+                return formatNumber(date.getMonth() + 1, 2)
+            },
+            dd: function(date) {
+                return formatNumber(FORMATTERS.day(date), 2)
+            },
+            E: function(date) {
+                return cutCaptions([FORMATTERS.dayofweek(date)], "abbreviated")[0]
+            },
+            EEE: function(date) {
+                return FORMATTERS.E(date)
             }
-        };
-        var parseWithoutTimezone = function(text) {
-            if ("Z" !== text.slice(-1)) {
-                text += "Z"
-            }
-            return removeTimezoneOffset(new Date(text))
         };
         var PARSERS = {
             day: function(text) {
@@ -2501,10 +2387,10 @@
                 return PARSERS.year(year)
             },
             shortdate: function(text) {
-                var parts = text.split("/");
-                if (3 !== parts.length) {
+                if (!/^(0?[1-9]|1[012])\/(0?[1-9]|[12][0-9]|3[01])\/\d{4}/.test(text)) {
                     return
                 }
+                var parts = text.split("/");
                 return new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]))
             },
             longtime: function(text) {
@@ -2516,20 +2402,6 @@
             millisecond: function(text) {
                 return new Date(Number(text))
             },
-            "yyyy MMMM d": function(text) {
-                var parts = text.split(" ");
-                if (3 !== parts.length) {
-                    return
-                }
-                return new Date(Number(parts[0]), $.inArray(parts[1], months), Number(parts[2]))
-            },
-            "HH:mm": function(text) {
-                var parts = text.split(":");
-                return new Date(0, 0, 0, Number(parts[0]), Number(parts[1]), 0, 0)
-            },
-            "yyyy-MM-ddTHH:mm:ssZ": parseWithoutTimezone,
-            "yyyy-MM-ddTHH:mmZ": parseWithoutTimezone,
-            "datetime-local": parseWithoutTimezone,
             mediumdatemediumtime: function(text) {
                 var parts = text.split(", "),
                     dateParts = parts[0].split(" "),
@@ -2557,7 +2429,7 @@
             PARSERS[value] = PARSERS[key]
         });
         var getByFormat = function(obj, format) {
-            return obj[format.toLowerCase()] || obj[format.replace(/'/g, "")]
+            return isString(format) && (obj[format.toLowerCase()] || obj[format.replace(/'/g, "")])
         };
         var cutCaptions = function(captions, format) {
             var lengthByFormat = {
@@ -5026,7 +4898,8 @@
                         }
                         if (0 === optionName.indexOf("on")) {
                             eventName = that._getEventName(optionName)
-                        } else {
+                        }
+                        if (0 !== optionName.indexOf("on")) {
                             throw Error("The '" + optionName + "' option name should start with 'on' prefix")
                         }
                         actionFunc = that.option(optionName)
@@ -5708,7 +5581,7 @@
             androidTablet: "Android",
             win8: "MSAppHost",
             win8Phone: "Windows Phone 8.0",
-            msSurface: "MSIE ARM Tablet PC",
+            msSurface: "Windows Tablet PC",
             desktop: "desktop",
             win10Phone: "Windows Phone 10.0",
             win10: "MSAppHost/3.0"
@@ -5729,7 +5602,7 @@
         var uaParsers = {
             win: function(userAgent) {
                 var isPhone = /windows phone/i.test(userAgent) || userAgent.match(/WPDesktop/),
-                    isTablet = !isPhone && /arm(.*)trident/i.test(userAgent),
+                    isTablet = !isPhone && /Windows(.*)Tablet PC/i.test(userAgent),
                     isDesktop = !isPhone && !isTablet && /msapphost/i.test(userAgent);
                 if (!(isPhone || isTablet || isDesktop)) {
                     return
@@ -6146,7 +6019,7 @@
             clipboard && clipboard.setData("Text", text)
         };
         exports.ready = function(callback) {
-            if ("complete" === document.readyState) {
+            if ("complete" === document.readyState || "loading" !== document.readyState && !document.documentElement.doScroll) {
                 callback();
                 return
             }
@@ -6592,13 +6465,11 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ./common */ 12),
-            inflector = __webpack_require__( /*! ./inflector */ 57),
+            camelize = __webpack_require__( /*! ./inflector */ 57).camelize,
             isObject = commonUtils.isObject,
             isString = commonUtils.isString,
             isDate = commonUtils.isDate,
-            isNumber = commonUtils.isNumber,
-            isDefined = commonUtils.isDefined,
-            camelize = inflector.camelize;
+            isDefined = commonUtils.isDefined;
         var dateUnitIntervals = ["millisecond", "second", "minute", "hour", "day", "week", "month", "quarter", "year"];
         var toMilliseconds = function(value) {
             switch (value) {
@@ -6769,7 +6640,8 @@
                 day: date1.getDate() !== date2.getDate(),
                 hour: date1.getHours() !== date2.getHours(),
                 minute: date1.getMinutes() !== date2.getMinutes(),
-                second: date1.getSeconds() !== date2.getSeconds()
+                second: date1.getSeconds() !== date2.getSeconds(),
+                millisecond: date1.getMilliseconds() !== date2.getMilliseconds()
             };
             $.each(differences, function(key, value) {
                 if (value) {
@@ -7003,7 +6875,7 @@
             return date && date.getFullYear() - date.getFullYear() % 10
         };
         var getShortDateFormat = function() {
-            return "yyyy/M/d"
+            return "yyyy/MM/dd"
         };
         var getFirstMonthDate = function(date) {
             if (!isDefined(date)) {
@@ -7074,45 +6946,6 @@
         var makeDate = function(date) {
             return new Date(date)
         };
-        var NUMBER_SERIALIZATION_FORMAT = "number",
-            DATE_SERIALIZATION_FORMAT = "yyyy'/'MM'/'dd",
-            DATETIME_SERIALIZATION_FORMAT = "yyyy'/'MM'/'dd HH:mm:ss";
-        var getDateSerializationFormat = function(value) {
-            if (isNumber(value)) {
-                return NUMBER_SERIALIZATION_FORMAT
-            } else {
-                if (isString(value)) {
-                    if (value.indexOf(":") >= 0) {
-                        return DATETIME_SERIALIZATION_FORMAT
-                    } else {
-                        return DATE_SERIALIZATION_FORMAT
-                    }
-                } else {
-                    if (value) {
-                        return null
-                    }
-                }
-            }
-        };
-        var deserializeDate = function(value, serializationFormat, localizationParseFunc) {
-            var parsedValue;
-            if (!serializationFormat || serializationFormat === NUMBER_SERIALIZATION_FORMAT || serializationFormat === DATE_SERIALIZATION_FORMAT || serializationFormat === DATETIME_SERIALIZATION_FORMAT) {
-                parsedValue = serializationFormat === NUMBER_SERIALIZATION_FORMAT ? value : !isDate(value) && Date.parse(value);
-                return isNumber(parsedValue) ? new Date(parsedValue) : value
-            }
-            if (void 0 !== value) {
-                return localizationParseFunc(value, serializationFormat)
-            }
-        };
-        var serializeDate = function(value, serializationFormat, localizationFormatFunc) {
-            if (serializationFormat === NUMBER_SERIALIZATION_FORMAT) {
-                return value && value.valueOf && value.valueOf()
-            }
-            if (serializationFormat) {
-                return localizationFormatFunc(value, serializationFormat) || null
-            }
-            return value
-        };
         var dateUtils = {
             dateUnitIntervals: dateUnitIntervals,
             convertMillisecondsToDateUnits: convertMillisecondsToDateUnits,
@@ -7158,9 +6991,6 @@
             fixTimezoneGap: fixTimezoneGap,
             getTimezonesDifference: getTimezonesDifference,
             makeDate: makeDate,
-            deserializeDate: deserializeDate,
-            serializeDate: serializeDate,
-            getDateSerializationFormat: getDateSerializationFormat,
             getDatesInterval: getDatesInterval
         };
         module.exports = dateUtils
@@ -7328,7 +7158,8 @@
                         day: true,
                         hour: ticks[0].getHours() > 0,
                         minute: ticks[0].getMinutes() > 0,
-                        second: ticks[0].getSeconds() > 0
+                        second: ticks[0].getSeconds() > 0,
+                        millisecond: ticks[0].getMilliseconds() > 0
                     }
                 }
                 resultFormat = this.getDateFormatByDifferences(maxDiff);
@@ -10893,7 +10724,8 @@
             Widget = __webpack_require__( /*! ../../ui/widget/ui.widget */ 91),
             KoTemplate = __webpack_require__( /*! ./template */ 101),
             Editor = __webpack_require__( /*! ../../ui/editor/editor */ 102),
-            Locker = __webpack_require__( /*! ../../core/utils/locker */ 108);
+            Locker = __webpack_require__( /*! ../../core/utils/locker */ 108),
+            config = __webpack_require__( /*! ../../core/config */ 13);
         var LOCKS_DATA_KEY = "dxKoLocks",
             CREATED_WITH_KO_DATA_KEY = "dxKoCreation",
             DX_POLYMORPH_WIDGET_TEMPLATE = "<!-- ko dxPolymorphWidget: { name: $data.widget, options: $data.options } --><!-- /ko -->";
@@ -10904,9 +10736,11 @@
             }
             ko.bindingHandlers[componentName] = {
                 init: function(domNode, valueAccessor) {
-                    var component, $element = $(domNode),
+                    var component, isBindingPropertyPredicate, $element = $(domNode),
                         optionChangedCallbacks = $.Callbacks(),
                         optionsByReference = {},
+                        knockoutConfig = config().knockout,
+                        isBindingPropertyPredicateName = knockoutConfig && knockoutConfig.isBindingPropertyPredicateName,
                         ctorOptions = {
                             onInitializing: function() {
                                 optionsByReference = this._getOptionsByReference();
@@ -10915,6 +10749,7 @@
                                     if (component) {
                                         component.beginUpdate()
                                     }
+                                    isBindingPropertyPredicate = isBindingPropertyPredicateName && model && model[isBindingPropertyPredicateName];
                                     unwrapModel(model);
                                     if (component) {
                                         component.endUpdate()
@@ -11008,18 +10843,25 @@
                         ctorOptions = null
                     };
                     var unwrapModelValue = function(currentModel, propertyName, propertyPath) {
-                        var unwrappedPropertyValue;
-                        ko.computed(function() {
-                            var propertyValue = currentModel[propertyName];
-                            applyModelValueToOption(propertyPath, propertyValue);
-                            unwrappedPropertyValue = ko.unwrap(propertyValue)
-                        }, null, {
-                            disposeWhenNodeIsRemoved: domNode
-                        });
-                        if ($.isPlainObject(unwrappedPropertyValue)) {
-                            if (!optionsByReference[propertyPath]) {
-                                unwrapModel(unwrappedPropertyValue, propertyPath)
+                        if (propertyPath === isBindingPropertyPredicateName) {
+                            return
+                        }
+                        if (!isBindingPropertyPredicate || isBindingPropertyPredicate(propertyPath, propertyName, currentModel)) {
+                            var unwrappedPropertyValue;
+                            ko.computed(function() {
+                                var propertyValue = currentModel[propertyName];
+                                applyModelValueToOption(propertyPath, propertyValue);
+                                unwrappedPropertyValue = ko.unwrap(propertyValue)
+                            }, null, {
+                                disposeWhenNodeIsRemoved: domNode
+                            });
+                            if ($.isPlainObject(unwrappedPropertyValue)) {
+                                if (!optionsByReference[propertyPath]) {
+                                    unwrapModel(unwrappedPropertyValue, propertyPath)
+                                }
                             }
+                        } else {
+                            ctorOptions[propertyPath] = currentModel[propertyName]
                         }
                     };
                     var unwrapModel = function(model, propertyPath) {
@@ -11231,7 +11073,7 @@
                 if (templateSource instanceof ChildDefaultTemplate) {
                     return this._defaultTemplates[templateSource.name]
                 }
-                if (commonUtils.isFunction(templateSource.render)) {
+                if (commonUtils.isFunction(templateSource.render) && !templateSource.jquery) {
                     return templateSource
                 }
                 if (templateSource.nodeType || templateSource.jquery) {
@@ -11733,10 +11575,10 @@
         });
         registerTemplateEngine("mustache", {
             compile: function(element) {
-                return Mustache.compile(outerHtml(element))
+                return outerHtml(element)
             },
             render: function(template, data) {
-                return template(data)
+                return Mustache.render(template, data)
             }
         });
         registerTemplateEngine("hogan", {
@@ -13211,7 +13053,9 @@
                     _clearSelection: $.noop,
                     isNative: true
                 }, function(e) {
-                    if ("mousemove" !== e.originalEvent.originalEvent.type) {
+                    var originalEvent = e.originalEvent.originalEvent;
+                    e._cancelPreventDefault = true;
+                    if (originalEvent && "mousemove" !== originalEvent.type) {
                         e.preventDefault()
                     }
                 })
@@ -13236,8 +13080,8 @@
                     $container = this._$container;
                 var contentWidth = $content.outerWidth(),
                     contentHeight = $content.outerHeight(),
-                    containerWidth = $container.width(),
-                    containerHeight = $container.height();
+                    containerWidth = $container.outerWidth(),
+                    containerHeight = $container.outerHeight();
                 return {
                     width: containerWidth - contentWidth,
                     height: containerHeight - contentHeight
@@ -13641,11 +13485,13 @@
             _move: function(e) {
                 var eventData = eventUtils.eventData(e),
                     dragOffset = this._calculateOffset(eventData);
-                this._fireEvent(DRAG_EVENT, e, {
+                e = this._fireEvent(DRAG_EVENT, e, {
                     offset: dragOffset
                 });
                 this._processDropTargets(e);
-                e.preventDefault()
+                if (!e._cancelPreventDefault) {
+                    e.preventDefault()
+                }
             },
             _calculateOffset: function(eventData) {
                 return {
@@ -16917,7 +16763,7 @@
             },
             canBack: function(stackKey) {
                 var stack = stackKey ? this.navigationStacks[stackKey] : this.currentStack;
-                return stack.canBack()
+                return stack ? stack.canBack() : false
             },
             saveState: function(storage) {
                 if (this.currentStack.items.length) {
@@ -20570,7 +20416,6 @@
             _getDefaultOptions: function() {
                 return $.extend(this.callBase(), {
                     selectionMode: "none",
-                    selectAllMode: "page",
                     selectionRequired: false,
                     selectionByClick: true,
                     selectedItems: [],
@@ -20615,12 +20460,6 @@
             _getIndexByItemData: function(itemData) {
                 return this._editStrategy.getIndexByItemData(itemData)
             },
-            _initDataSource: function() {
-                this.callBase();
-                if ("allPages" === this.option("selectAllMode")) {
-                    this._dataSource && this._dataSource.requireTotalCount(true)
-                }
-            },
             _isKeySpecified: function() {
                 return !!(this._dataSource && this._dataSource.key())
             },
@@ -20651,12 +20490,6 @@
                     filter: function() {
                         return that._dataSource && that._dataSource.filter()
                     },
-                    getItemData: function(item) {
-                        return item
-                    },
-                    isItemSelected: function() {
-                        return false
-                    },
                     totalCount: function() {
                         var items = that.option("items");
                         var dataSource = that._dataSource;
@@ -20669,9 +20502,6 @@
                         return that._dataSource && that._dataSource.key()
                     },
                     keyOf: that.keyOf.bind(that),
-                    isSelectableItem: function() {
-                        return true
-                    },
                     load: function(options) {
                         if (that._dataSource) {
                             var loadOptions = that._dataSource.loadOptions();
@@ -20931,11 +20761,6 @@
                     return
                 }
                 switch (args.name) {
-                    case "selectAllMode":
-                        this._initDataSource();
-                        this._dataSource.pageIndex(0);
-                        this._loadDataSource();
-                        break;
                     case "selectionMode":
                         if ("multi" === args.value) {
                             this._showDeprecatedSelectionMode()
@@ -21163,6 +20988,7 @@
             Action = __webpack_require__( /*! ../../core/action */ 42),
             Guid = __webpack_require__( /*! ../../core/guid */ 147),
             domUtils = __webpack_require__( /*! ../../core/utils/dom */ 51),
+            dataUtils = __webpack_require__( /*! ../../core/utils/data */ 43),
             Widget = __webpack_require__( /*! ../widget/ui.widget */ 91),
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
             pointerEvents = __webpack_require__( /*! ../../events/pointer */ 72),
@@ -21445,7 +21271,7 @@
             _getIndexByItem: function(item) {
                 return this.option("items").indexOf(item)
             },
-            _itemOptionChanged: function(item, property, value) {
+            _itemOptionChanged: function(item, property, value, oldValue) {
                 var $item = this._findItemElementByItem(item);
                 if (!$item.length) {
                     return
@@ -21463,7 +21289,7 @@
                         var property = matches[matches.length - 1],
                             itemPath = args.fullName.replace("." + property, ""),
                             item = this.option(itemPath);
-                        this._itemOptionChanged(item, property, args.value);
+                        this._itemOptionChanged(item, property, args.value, args.previousValue);
                         return
                     }
                 }
@@ -21764,13 +21590,26 @@
             },
             _renderItemFrame: function(index, itemData, $container, $itemToReplace) {
                 var $itemFrame = $("<div>");
-                new this.constructor.ItemClass($itemFrame, this, itemData || {});
+                new this.constructor.ItemClass($itemFrame, this._itemOptions(), itemData || {});
                 if ($itemToReplace && $itemToReplace.length) {
                     $itemToReplace.replaceWith($itemFrame)
                 } else {
                     $itemFrame.appendTo($container)
                 }
                 return $itemFrame
+            },
+            _itemOptions: function() {
+                var that = this;
+                return {
+                    watchMethod: function() {
+                        return that.option("integrationOptions.watchMethod")
+                    },
+                    fieldGetter: function(field) {
+                        var expr = that.option(field + "Expr"),
+                            getter = dataUtils.compileGetter(expr);
+                        return getter
+                    }
+                }
             },
             _postprocessRenderItem: $.noop,
             _executeItemRenderAction: function(index, itemData, itemElement) {
@@ -22489,6 +22328,10 @@
                             extra = data;
                             data = data.data
                         }
+                        if (!$.isArray(data)) {
+                            errors.log("W4000");
+                            data = $.makeArray(data)
+                        }
                         loadResult = $.extend({
                             data: data,
                             extra: extra
@@ -22513,8 +22356,8 @@
                 return this.store().load(loadOptions.storeLoadOptions).done(handleSuccess).fail(pendingDeferred.reject)
             },
             _processStoreLoadResult: function(loadResult, pendingDeferred) {
-                var that = this;
-                var data = $.makeArray(loadResult.data),
+                var that = this,
+                    data = loadResult.data,
                     extra = loadResult.extra,
                     storeLoadOptions = loadResult.storeLoadOptions;
 
@@ -22790,7 +22633,9 @@
             E4018: "The server has returned a non-numeric value in a response to an item count request",
             E4019: "Mixing of group operators inside a single group of filter expression is not allowed",
             E4020: "Unknown store type is detected: {0}",
-            E4021: "The server hasn't returned value in a response to an total count request"
+            E4021: "The server response does not provide the totalCount value",
+            E4022: "The server response does not provide the groupCount value",
+            W4000: "Data returned from the server has an incorrect structure"
         });
 
         function handleError(error) {
@@ -23778,8 +23623,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             Class = __webpack_require__( /*! ../../core/class */ 22),
-            publicComponentUtils = __webpack_require__( /*! ../../core/utils/public_component */ 38),
-            dataUtils = __webpack_require__( /*! ../../core/utils/data */ 43);
+            publicComponentUtils = __webpack_require__( /*! ../../core/utils/public_component */ 38);
         var INVISIBLE_STATE_CLASS = "dx-state-invisible",
             DISABLED_STATE_CLASS = "dx-state-disabled",
             ITEM_CONTENT_PLACEHOLDER_CLASS = "dx-item-content-placeholder";
@@ -23788,7 +23632,7 @@
                 var oldValue;
                 return function(value) {
                     if (oldValue !== value) {
-                        callback(value);
+                        callback(value, oldValue);
                         oldValue = value
                     }
                 }
@@ -23801,9 +23645,9 @@
             }
         };
         var CollectionItem = Class.inherit({
-            ctor: function($element, collection, rawData) {
+            ctor: function($element, options, rawData) {
                 this._$element = $element;
-                this._collection = collection;
+                this._options = options;
                 this._rawData = rawData;
                 publicComponentUtils.attachInstanceToElement($element, this, this._dispose);
                 this._render()
@@ -23820,13 +23664,12 @@
             },
             _startWatcher: function(field, render) {
                 var rawData = this._rawData,
-                    expr = this._collection.option(field + "Expr"),
-                    exprGetter = dataUtils.compileGetter(expr);
-                var watcher = forcibleWatcher(this._collection.option("integrationOptions.watchMethod"), function() {
+                    exprGetter = this._options.fieldGetter(field);
+                var watcher = forcibleWatcher(this._options.watchMethod(), function() {
                     return exprGetter(rawData)
-                }, function(value) {
+                }, function(value, oldValue) {
                     this._dirty = true;
-                    render(value)
+                    render(value, oldValue)
                 }.bind(this));
                 this._watchers.push(watcher)
             },
@@ -23839,11 +23682,11 @@
                     return true
                 }
             },
-            _renderDisabled: function(disabled) {
-                this._$element.toggleClass(DISABLED_STATE_CLASS, !!disabled)
+            _renderDisabled: function(value, oldValue) {
+                this._$element.toggleClass(DISABLED_STATE_CLASS, !!value)
             },
-            _renderVisible: function(visible) {
-                this._$element.toggleClass(INVISIBLE_STATE_CLASS, void 0 !== visible && !visible)
+            _renderVisible: function(value, oldValue) {
+                this._$element.toggleClass(INVISIBLE_STATE_CLASS, void 0 !== value && !value)
             },
             _dispose: function() {
                 $.each(this._watchers, function(_, watcher) {
@@ -24214,28 +24057,45 @@
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12);
         module.exports = Class.inherit({
             ctor: function(options) {
-                options = options || {};
-                this._selectionStrategy = options.deferred ? new deferredStrategy(this) : new standardStrategy(this);
-                this._selectionMode = options.mode;
-                this._filter = options.filter;
-                this._getItemData = options.getItemData;
-                this._isItemSelected = options.isItemSelected;
-                this._totalCount = options.totalCount;
-                this._key = options.key;
-                this._keyOf = options.keyOf;
-                this._isSelectableItem = options.isSelectableItem;
-                this._load = options.load;
-                this._dataFields = options.dataFields;
-                this._plainItems = options.plainItems;
+                this.options = $.extend(this._getDefaultOptions(), options, {
+                    selectedItemKeys: options.selectedKeys || []
+                });
+                this._selectionStrategy = this.options.deferred ? new deferredStrategy(this.options) : new standardStrategy(this.options);
                 this._focusedItemIndex = -1;
-                this._selectedItemKeys = options.selectedKeys || [];
-                this._selectionFilter = void 0 === options.selectionFilter ? [] : options.selectionFilter;
-                this._selectedItems = [];
-                this._selectionChangeHandler = options.onSelectionChanged || $.noop;
-                this._maxFilterLengthInRequest = options.maxFilterLengthInRequest || 0;
-                this._equalByReference = options.equalByReference;
-                if (!this._equalByReference) {
-                    this._selectionStrategy.updateSelectedItemKeyHash(this._selectedItemKeys)
+                if (!this.options.equalByReference) {
+                    this._selectionStrategy.updateSelectedItemKeyHash(this.options.selectedItemKeys)
+                }
+            },
+            _getDefaultOptions: function() {
+                return {
+                    deferred: false,
+                    equalByReference: false,
+                    mode: "multiple",
+                    selectedItems: [],
+                    selectionFilter: [],
+                    maxFilterLengthInRequest: 0,
+                    onSelectionChanged: $.noop,
+                    key: $.noop,
+                    keyOf: function(item) {
+                        return item
+                    },
+                    load: function() {
+                        return $.Deferred().resolve([])
+                    },
+                    totalCount: function() {
+                        return -1
+                    },
+                    isSelectableItem: function() {
+                        return true
+                    },
+                    isItemSelected: function() {
+                        return false
+                    },
+                    getItemData: function(item) {
+                        return item
+                    },
+                    dataFields: $.noop,
+                    filter: $.noop
                 }
             },
             validate: function() {
@@ -24249,10 +24109,10 @@
             },
             selectionFilter: function(value) {
                 if (void 0 === value) {
-                    return this._selectionFilter
+                    return this.options.selectionFilter
                 }
-                var filterIsChanged = this._selectionFilter !== value && JSON.stringify(this._selectionFilter) !== JSON.stringify(value);
-                this._selectionFilter = value;
+                var filterIsChanged = this.options.selectionFilter !== value && JSON.stringify(this.options.selectionFilter) !== JSON.stringify(value);
+                this.options.selectionFilter = value;
                 filterIsChanged && this.onSelectionChanged()
             },
             setSelection: function(keys) {
@@ -24287,21 +24147,21 @@
                 this._selectionStrategy.onSelectionChanged()
             },
             changeItemSelection: function(itemIndex, keys) {
-                var isSelectedItemsChanged, items = this._plainItems(),
+                var isSelectedItemsChanged, items = this.options.plainItems(),
                     item = items[itemIndex];
                 if (!this.isSelectable() || !this.isDataItem(item)) {
                     return false
                 }
-                var itemData = this._getItemData(item),
-                    itemKey = this._keyOf(itemData);
+                var itemData = this.options.getItemData(item),
+                    itemKey = this.options.keyOf(itemData);
                 keys = keys || {};
-                if (keys.shift && "multiple" === this._selectionMode && this._focusedItemIndex >= 0) {
+                if (keys.shift && "multiple" === this.options.mode && this._focusedItemIndex >= 0) {
                     isSelectedItemsChanged = this.changeItemSelectionWhenShiftKeyPressed(itemIndex, items)
                 } else {
                     if (keys.control) {
                         this._resetItemSelectionWhenShiftKeyPressed();
                         var isSelected = this._selectionStrategy.isItemDataSelected(itemData);
-                        if ("single" === this._selectionMode) {
+                        if ("single" === this.options.mode) {
                             this.clearSelectedItems()
                         }
                         if (isSelected) {
@@ -24312,8 +24172,8 @@
                         isSelectedItemsChanged = true
                     } else {
                         this._resetItemSelectionWhenShiftKeyPressed();
-                        var isKeysEqual = this._selectionStrategy.equalKeys(this._selectedItemKeys[0], itemKey);
-                        if (1 !== this._selectedItemKeys.length || !isKeysEqual) {
+                        var isKeysEqual = this._selectionStrategy.equalKeys(this.options.selectedItemKeys[0], itemKey);
+                        if (1 !== this.options.selectedItemKeys.length || !isKeysEqual) {
                             this._setSelectedItems([itemKey], [itemData]);
                             isSelectedItemsChanged = true
                         }
@@ -24326,10 +24186,10 @@
                 }
             },
             isDataItem: function(item) {
-                return this._isSelectableItem(item)
+                return this.options.isSelectableItem(item)
             },
             isSelectable: function() {
-                return "single" === this._selectionMode || "multiple" === this._selectionMode
+                return "single" === this.options.mode || "multiple" === this.options.mode
             },
             isItemSelected: function(arg) {
                 return this._selectionStrategy.isItemKeySelected(arg)
@@ -24339,7 +24199,7 @@
             },
             changeItemSelectionWhenShiftKeyPressed: function(itemIndex, items) {
                 var itemIndexStep, index, isSelectedItemsChanged = false,
-                    keyOf = this._keyOf,
+                    keyOf = this.options.keyOf,
                     key = keyOf(items[this._focusedItemIndex].data),
                     isFocusedItemSelected = items[this._focusedItemIndex] && this.isItemSelected(key);
                 if (!commonUtils.isDefined(this._shiftFocusedItemIndex)) {
@@ -24350,7 +24210,7 @@
                     itemIndexStep = this._focusedItemIndex < this._shiftFocusedItemIndex ? 1 : -1;
                     for (index = this._focusedItemIndex; index !== this._shiftFocusedItemIndex; index += itemIndexStep) {
                         if (this.isDataItem(items[index])) {
-                            itemKey = keyOf(this._getItemData(items[index]));
+                            itemKey = keyOf(this.options.getItemData(items[index]));
                             this._removeSelectedItem(itemKey);
                             isSelectedItemsChanged = true
                         }
@@ -24360,7 +24220,7 @@
                     itemIndexStep = itemIndex < this._shiftFocusedItemIndex ? 1 : -1;
                     for (index = itemIndex; index !== this._shiftFocusedItemIndex; index += itemIndexStep) {
                         if (this.isDataItem(items[index])) {
-                            data = this._getItemData(items[index]);
+                            data = this.options.getItemData(items[index]);
                             itemKey = keyOf(data);
                             this._addSelectedItem(data, itemKey);
                             isSelectedItemsChanged = true
@@ -24368,7 +24228,7 @@
                     }
                 }
                 if (this.isDataItem(items[this._focusedItemIndex]) && !isFocusedItemSelected) {
-                    data = this._getItemData(items[index]);
+                    data = this.options.getItemData(items[index]);
                     itemKey = keyOf(data);
                     this._addSelectedItem(data, itemKey);
                     isSelectedItemsChanged = true
@@ -24393,11 +24253,11 @@
                 }
             },
             _onePageSelectAll: function(isDeselect) {
-                var items = this._plainItems();
+                var items = this.options.plainItems();
                 for (var i = 0; i < items.length; i++) {
                     var item = items[i],
-                        itemData = this._getItemData(item),
-                        itemKey = this._keyOf(itemData),
+                        itemData = this.options.getItemData(item),
+                        itemKey = this.options.keyOf(itemData),
                         isSelected = this.isItemSelected(itemKey);
                     if (!isSelected && !isDeselect) {
                         this._addSelectedItem(itemData, itemKey)
@@ -24425,16 +24285,16 @@
             dataQuery = __webpack_require__( /*! ../../data/query */ 152);
         module.exports = SelectionStrategy.inherit({
             getSelectedItems: function() {
-                return this._loadFilteredData(this._getSelectionOption("_selectionFilter"))
+                return this._loadFilteredData(this.options.selectionFilter)
             },
             getSelectedItemKeys: function() {
                 var d = $.Deferred(),
                     that = this,
-                    key = this._getSelectionOption("_key")(),
+                    key = this.options.key(),
                     select = commonUtils.isString(key) ? [key] : key;
-                this._loadFilteredData(this._getSelectionOption("_selectionFilter"), null, select).done(function(items) {
+                this._loadFilteredData(this.options.selectionFilter, null, select).done(function(items) {
                     var keys = items.map(function(item) {
-                        return that._getSelectionOption("_keyOf")(item)
+                        return that.options.keyOf(item)
                     });
                     d.resolve(keys)
                 }).fail(d.reject);
@@ -24442,15 +24302,15 @@
             },
             selectedItemKeys: function(keys, preserve, isDeselect, isSelectAll) {
                 if (isSelectAll) {
-                    var filter = this._getSelectionOption("_filter")();
+                    var filter = this.options.filter();
                     if (!filter) {
-                        this._setSelectionOption("_selectionFilter", isDeselect ? [] : null)
+                        this._setOption("selectionFilter", isDeselect ? [] : null)
                     } else {
                         this._addSelectionFilter(isDeselect, filter, false)
                     }
                 } else {
                     if (!preserve) {
-                        this._setSelectionOption("_selectionFilter", [])
+                        this._setOption("selectionFilter", [])
                     }
                     for (var i = 0; i < keys.length; i++) {
                         if (isDeselect) {
@@ -24464,7 +24324,7 @@
                 return $.Deferred().resolve()
             },
             setSelectedItems: function(keys) {
-                this._setSelectionOption("_selectionFilter", null);
+                this._setOption("selectionFilter", null);
                 for (var i = 0; i < keys.length; i++) {
                     this.addSelectedItem(keys[i])
                 }
@@ -24473,14 +24333,14 @@
                 return this.isItemKeySelected(itemData)
             },
             isItemKeySelected: function(itemData) {
-                var selectionFilter = this._getSelectionOption("_selectionFilter");
+                var selectionFilter = this.options.selectionFilter;
                 if (!selectionFilter) {
                     return true
                 }
                 return !!dataQuery([itemData]).filter(selectionFilter).toArray().length
             },
             _processSelectedItem: function(key) {
-                var keyField = this._getSelectionOption("_key")(),
+                var keyField = this.options.key(),
                     filter = [keyField, "=", key];
                 if ($.isArray(keyField)) {
                     filter = [];
@@ -24502,7 +24362,7 @@
                 this._addSelectionFilter(true, filter, true)
             },
             validate: function() {
-                var key = this._getSelectionOption("_key");
+                var key = this.options.key;
                 if (key && void 0 === key()) {
                     throw errors.Error("E1042")
                 }
@@ -24548,7 +24408,7 @@
                 var that = this,
                     needAddFilter = true,
                     currentFilter = isDeselect ? ["!", filter] : filter,
-                    selectionFilter = that._getSelectionOption("_selectionFilter") || [];
+                    selectionFilter = that.options.selectionFilter || [];
                 selectionFilter = that._denormalizeFilter(selectionFilter);
                 if (selectionFilter && selectionFilter.length) {
                     if (that._hasSameFilter(selectionFilter, currentFilter)) {
@@ -24565,7 +24425,7 @@
                     selectionFilter.push(currentFilter)
                 }
                 selectionFilter = that._normalizeFilter(selectionFilter);
-                that._setSelectionOption("_selectionFilter", !isDeselect && !selectionFilter.length ? null : selectionFilter)
+                that._setOption("selectionFilter", !isDeselect && !selectionFilter.length ? null : selectionFilter)
             },
             _normalizeFilter: function(filter) {
                 if (filter && 1 === filter.length) {
@@ -24591,8 +24451,8 @@
                 return false
             },
             getSelectAllState: function() {
-                var filter = this._getSelectionOption("_filter")(),
-                    selectionFilter = this._getSelectionOption("_selectionFilter");
+                var filter = this.options.filter(),
+                    selectionFilter = this.options.selectionFilter;
                 if (!selectionFilter) {
                     return true
                 }
@@ -24623,32 +24483,30 @@
             getKeyHash = commonUtils.getKeyHash,
             Class = __webpack_require__( /*! ../../core/class */ 22);
         module.exports = Class.inherit({
-            ctor: function(Selection) {
-                this._selection = Selection;
+            ctor: function(options) {
+                this.options = options;
                 this._clearItemKeys()
             },
             _clearItemKeys: function() {
-                this._setSelectionOption("_addedItemKeys", []);
-                this._setSelectionOption("_removedItemKeys", []);
-                this._setSelectionOption("_removedItems", []);
-                this._setSelectionOption("_addedItems", [])
+                this._setOption("addedItemKeys", []);
+                this._setOption("removedItemKeys", []);
+                this._setOption("removedItems", []);
+                this._setOption("addedItems", [])
             },
             validate: $.noop,
-            _getSelectionOption: function(name) {
-                return this._selection[name]
-            },
-            _setSelectionOption: function(name, value) {
-                this._selection[name] = value
+            _setOption: function(name, value) {
+                this.options[name] = value
             },
             onSelectionChanged: function() {
-                var addedItemKeys = this._getSelectionOption("_addedItemKeys"),
-                    removedItemKeys = this._getSelectionOption("_removedItemKeys"),
-                    addedItems = this._getSelectionOption("_addedItems"),
-                    removedItems = this._getSelectionOption("_removedItems"),
-                    selectedItems = this._getSelectionOption("_selectedItems"),
-                    selectedItemKeys = this._getSelectionOption("_selectedItemKeys");
+                var addedItemKeys = this.options.addedItemKeys,
+                    removedItemKeys = this.options.removedItemKeys,
+                    addedItems = this.options.addedItems,
+                    removedItems = this.options.removedItems,
+                    selectedItems = this.options.selectedItems,
+                    selectedItemKeys = this.options.selectedItemKeys,
+                    onSelectionChanged = this.options.onSelectionChanged || $.noop;
                 this._clearItemKeys();
-                this._getSelectionOption("_selectionChangeHandler")({
+                onSelectionChanged({
                     selectedItems: selectedItems,
                     selectedItemKeys: selectedItemKeys,
                     addedItemKeys: addedItemKeys,
@@ -24658,7 +24516,7 @@
                 })
             },
             equalKeys: function(key1, key2) {
-                if (this._getSelectionOption("_equalByReference")) {
+                if (this.options.equalByReference) {
                     if (commonUtils.isObject(key1) && commonUtils.isObject(key2)) {
                         return key1 === key2
                     }
@@ -24671,24 +24529,24 @@
                 this.validate();
                 return this.selectedItemKeys(keys, preserve, isDeselect, isSelectAll)
             },
-            _loadFilteredData: function(filterExpr, filterFunction, select) {
-                var filterLength = encodeURI(JSON.stringify(filterExpr)).length,
-                    needLoadAllData = this._getSelectionOption("_maxFilterLengthInRequest") && filterLength > this._getSelectionOption("_maxFilterLengthInRequest"),
+            _loadFilteredData: function(remoteFilter, localFilter, select) {
+                var filterLength = encodeURI(JSON.stringify(remoteFilter)).length,
+                    needLoadAllData = this.options.maxFilterLengthInRequest && filterLength > this.options.maxFilterLengthInRequest,
                     deferred = $.Deferred(),
                     loadOptions = {
-                        filter: needLoadAllData ? void 0 : filterExpr,
-                        select: needLoadAllData ? this._getSelectionOption("_dataFields")() : select || this._getSelectionOption("_dataFields")()
+                        filter: needLoadAllData ? void 0 : remoteFilter,
+                        select: needLoadAllData ? this.options.dataFields() : select || this.options.dataFields()
                     };
-                if (filterExpr && 0 === filterExpr.length) {
+                if (remoteFilter && 0 === remoteFilter.length) {
                     deferred.resolve([])
                 } else {
-                    this._getSelectionOption("_load")(loadOptions).done(function(items) {
+                    this.options.load(loadOptions).done(function(items) {
                         var filteredItems = items;
                         if (needLoadAllData) {
-                            filteredItems = dataQuery(filteredItems).filter(filterExpr).toArray()
+                            filteredItems = dataQuery(filteredItems).filter(remoteFilter).toArray()
                         }
-                        if (filterFunction) {
-                            filteredItems = dataQuery(filteredItems).filter(filterFunction).toArray()
+                        if (localFilter) {
+                            filteredItems = dataQuery(filteredItems).filter(localFilter).toArray()
                         }
                         deferred.resolve(filteredItems)
                     }).fail($.proxy(deferred.reject, deferred))
@@ -24699,24 +24557,24 @@
                 for (var i = 0; i < keys.length; i++) {
                     var keyHash = getKeyHash(keys[i]);
                     if (!commonUtils.isObject(keyHash)) {
-                        this._getSelectionOption("_keyHashIndices")[keyHash] = this._getSelectionOption("_keyHashIndices")[keyHash] || [];
-                        var keyIndices = this._getSelectionOption("_keyHashIndices")[keyHash];
+                        this.options.keyHashIndices[keyHash] = this.options.keyHashIndices[keyHash] || [];
+                        var keyIndices = this.options.keyHashIndices[keyHash];
                         keyIndices.push(i)
                     }
                 }
             },
             _isAnyItemSelected: function(items) {
                 for (var i = 0; i < items.length; i++) {
-                    if (this._getSelectionOption("_isItemSelected")(items[i])) {
+                    if (this.options.isItemSelected(items[i])) {
                         return
                     }
                 }
                 return false
             },
             _getFullSelectAllState: function() {
-                var items = this._getSelectionOption("_plainItems")(),
-                    dataFilter = this._getSelectionOption("_filter")(),
-                    selectedItems = this._getSelectionOption("_selectedItems");
+                var items = this.options.plainItems(),
+                    dataFilter = this.options.filter(),
+                    selectedItems = this.options.selectedItems;
                 if (dataFilter) {
                     selectedItems = dataQuery(selectedItems).filter(dataFilter).toArray()
                 }
@@ -24724,20 +24582,20 @@
                 if (!selectedItemsLength) {
                     return this._isAnyItemSelected(items)
                 }
-                if (selectedItemsLength >= this._getSelectionOption("_totalCount")()) {
+                if (selectedItemsLength >= this.options.totalCount()) {
                     return true
                 }
                 return
             },
             _getVisibleSelectAllState: function() {
-                var items = this._getSelectionOption("_plainItems")(),
+                var items = this.options.plainItems(),
                     hasSelectedItems = false,
                     hasUnselectedItems = false;
                 for (var i = 0; i < items.length; i++) {
                     var item = items[i],
-                        itemData = this._getSelectionOption("_getItemData")(item),
-                        key = this._getSelectionOption("_keyOf")(itemData);
-                    if (this._getSelectionOption("_isSelectableItem")(item)) {
+                        itemData = this.options.getItemData(item),
+                        key = this.options.keyOf(itemData);
+                    if (this.options.isSelectableItem(item)) {
                         if (this.isItemKeySelected(key)) {
                             hasSelectedItems = true
                         } else {
@@ -24839,51 +24697,75 @@
             }
         }
         module.exports = SelectionStrategy.inherit({
-            ctor: function(Selection) {
-                this.callBase(Selection);
+            ctor: function(options) {
+                this.callBase(options);
                 this._initSelectedItemKeyHash()
             },
             _initSelectedItemKeyHash: function() {
-                this._setSelectionOption("_keyHashIndices", this._getSelectionOption("_equalByReference") ? null : {})
+                this._setOption("keyHashIndices", this.options.equalByReference ? null : {})
             },
             getSelectedItemKeys: function() {
-                return this._getSelectionOption("_selectedItemKeys").slice(0)
+                return this.options.selectedItemKeys.slice(0)
             },
             getSelectedItems: function() {
-                return this._getSelectionOption("_selectedItems").slice(0)
+                return this.options.selectedItems.slice(0)
             },
             _preserveSelectionUpdate: function(items, isDeselect) {
-                var keyOf = this._getSelectionOption("_keyOf");
+                var keyIndicesToRemoveMap, keyIndex, i, keyOf = this.options.keyOf;
                 if (!keyOf) {
                     return
                 }
-                for (var i = 0; i < items.length; i++) {
+                var isBatchDeselect = isDeselect && items.length > 1 && !this.options.equalByReference;
+                if (isBatchDeselect) {
+                    keyIndicesToRemoveMap = {}
+                }
+                for (i = 0; i < items.length; i++) {
                     var item = items[i],
                         key = keyOf(item);
                     if (isDeselect) {
-                        this.removeSelectedItem(key)
+                        keyIndex = this.removeSelectedItem(key, keyIndicesToRemoveMap);
+                        if (keyIndicesToRemoveMap && keyIndex >= 0) {
+                            keyIndicesToRemoveMap[keyIndex] = true
+                        }
                     } else {
                         this.addSelectedItem(key, item)
                     }
                 }
+                if (isBatchDeselect) {
+                    this._batchRemoveSelectedItems(keyIndicesToRemoveMap)
+                }
+            },
+            _batchRemoveSelectedItems: function(keyIndicesToRemoveMap) {
+                var selectedItemKeys = this.options.selectedItemKeys.slice(0);
+                var selectedItems = this.options.selectedItems.slice(0);
+                this.options.selectedItemKeys.length = 0;
+                this.options.selectedItems.length = 0;
+                for (var i = 0; i < selectedItemKeys.length; i++) {
+                    if (!keyIndicesToRemoveMap[i]) {
+                        this.options.selectedItemKeys.push(selectedItemKeys[i]);
+                        this.options.selectedItems.push(selectedItems[i])
+                    }
+                }
+                this._initSelectedItemKeyHash();
+                this.updateSelectedItemKeyHash(this.options.selectedItemKeys)
             },
             _loadSelectedItemsCore: function(keys, isDeselect, isSelectAll) {
                 var deferred = $.Deferred(),
-                    key = this._getSelectionOption("_key");
+                    key = this.options.key;
                 if (!keys.length && !isSelectAll) {
                     deferred.resolve([]);
                     return deferred
                 }
-                if (isSelectAll && isDeselect && !this._getSelectionOption("_filter")) {
+                if (isSelectAll && isDeselect && !this.options.filter) {
                     return this._clearSelection()
                 }
                 var selectionFilterCreator = new SelectionFilterCreator(key(), keys, isSelectAll, this.equalKeys.bind(this)),
-                    combinedFilter = selectionFilterCreator.getCombinedFilter(this._getSelectionOption("_filter")());
+                    combinedFilter = selectionFilterCreator.getCombinedFilter(this.options.filter());
                 var deselectedItems = [];
                 if (isDeselect) {
-                    deselectedItems = combinedFilter ? dataQuery(this._getSelectionOption("_selectedItems")).filter(combinedFilter).toArray() : this._getSelectionOption("_selectedItems").slice(0)
+                    deselectedItems = combinedFilter ? dataQuery(this.options.selectedItems).filter(combinedFilter).toArray() : this.options.selectedItems.slice(0)
                 }
-                var filteredItems = deselectedItems.length ? deselectedItems : this._getSelectionOption("_plainItems")().filter(this._getSelectionOption("_isSelectableItem")).map(this._getSelectionOption("_getItemData"));
+                var filteredItems = deselectedItems.length ? deselectedItems : this.options.plainItems().filter(this.options.isSelectableItem).map(this.options.getItemData);
                 var filter = selectionFilterCreator.getFilter();
                 if (filter) {
                     filteredItems = dataQuery(filteredItems).filter(filter).toArray()
@@ -24891,13 +24773,13 @@
                 if (!isSelectAll && (deselectedItems.length || filteredItems.length === keys.length)) {
                     deferred.resolve(filteredItems)
                 } else {
-                    deferred = this._loadFilteredData(combinedFilter, selectionFilterCreator.getFunction())
+                    deferred = this._loadFilteredData(combinedFilter, selectionFilterCreator.getFilter())
                 }
                 return deferred
             },
             _replaceSelectionUpdate: function(items) {
                 var internalKeys = [],
-                    keyOf = this._getSelectionOption("_keyOf");
+                    keyOf = this.options.keyOf;
                 if (!keyOf) {
                     return
                 }
@@ -24943,46 +24825,51 @@
             addSelectedItem: function(key, itemData) {
                 var keyHash = this._getKeyHash(key);
                 if (this._indexOfSelectedItemKey(keyHash) === -1) {
-                    if (!commonUtils.isObject(keyHash) && this._getSelectionOption("_keyHashIndices")) {
-                        this._getSelectionOption("_keyHashIndices")[keyHash] = [this._getSelectionOption("_selectedItemKeys").length]
+                    if (!commonUtils.isObject(keyHash) && this.options.keyHashIndices) {
+                        this.options.keyHashIndices[keyHash] = [this.options.selectedItemKeys.length]
                     }
-                    this._getSelectionOption("_selectedItemKeys").push(key);
-                    this._getSelectionOption("_addedItemKeys").push(key);
-                    this._getSelectionOption("_addedItems").push(itemData);
-                    this._getSelectionOption("_selectedItems").push(itemData)
+                    this.options.selectedItemKeys.push(key);
+                    this.options.addedItemKeys.push(key);
+                    this.options.addedItems.push(itemData);
+                    this.options.selectedItems.push(itemData)
                 }
             },
-            _getSelectedIndexByKey: function(key) {
-                var selectedItemKeys = this._getSelectionOption("_selectedItemKeys");
+            _getSelectedIndexByKey: function(key, ignoreIndicesMap) {
+                var selectedItemKeys = this.options.selectedItemKeys;
                 for (var index = 0; index < selectedItemKeys.length; index++) {
-                    if (this.equalKeys(selectedItemKeys[index], key)) {
+                    if ((!ignoreIndicesMap || !ignoreIndicesMap[index]) && this.equalKeys(selectedItemKeys[index], key)) {
                         return index
                     }
                 }
                 return -1
             },
-            _getSelectedIndexByHash: function(key) {
-                var indices = this._getSelectionOption("_keyHashIndices")[key];
+            _getSelectedIndexByHash: function(key, ignoreIndicesMap) {
+                var indices = this.options.keyHashIndices[key];
+                if (indices && indices.length > 1 && ignoreIndicesMap) {
+                    indices = indices.filter(function(index) {
+                        return !ignoreIndicesMap[index]
+                    })
+                }
                 return indices && indices[0] >= 0 ? indices[0] : -1
             },
-            _indexOfSelectedItemKey: function(key) {
+            _indexOfSelectedItemKey: function(key, ignoreIndicesMap) {
                 var selectedIndex;
-                if (this._getSelectionOption("_equalByReference")) {
-                    selectedIndex = this._getSelectionOption("_selectedItemKeys").indexOf(key)
+                if (this.options.equalByReference) {
+                    selectedIndex = this.options.selectedItemKeys.indexOf(key)
                 } else {
                     if (commonUtils.isObject(key)) {
-                        selectedIndex = this._getSelectedIndexByKey(key)
+                        selectedIndex = this._getSelectedIndexByKey(key, ignoreIndicesMap)
                     } else {
-                        selectedIndex = this._getSelectedIndexByHash(key)
+                        selectedIndex = this._getSelectedIndexByHash(key, ignoreIndicesMap)
                     }
                 }
                 return selectedIndex
             },
             _shiftSelectedKeyIndices: function(keyIndex) {
-                for (var currentKeyIndex = keyIndex; currentKeyIndex < this._getSelectionOption("_selectedItemKeys").length; currentKeyIndex++) {
-                    var currentKey = this._getSelectionOption("_selectedItemKeys")[currentKeyIndex],
+                for (var currentKeyIndex = keyIndex; currentKeyIndex < this.options.selectedItemKeys.length; currentKeyIndex++) {
+                    var currentKey = this.options.selectedItemKeys[currentKeyIndex],
                         currentKeyHash = getKeyHash(currentKey),
-                        currentKeyIndices = this._getSelectionOption("_keyHashIndices")[currentKeyHash];
+                        currentKeyIndices = this.options.keyHashIndices[currentKeyHash];
                     if (!currentKeyIndices) {
                         continue
                     }
@@ -24993,31 +24880,36 @@
                     }
                 }
             },
-            removeSelectedItem: function(key) {
+            removeSelectedItem: function(key, keyIndicesToRemoveMap) {
                 var keyHash = this._getKeyHash(key),
-                    keyIndex = this._indexOfSelectedItemKey(keyHash);
+                    isBatchDeselect = !!keyIndicesToRemoveMap,
+                    keyIndex = this._indexOfSelectedItemKey(keyHash, keyIndicesToRemoveMap);
                 if (keyIndex < 0) {
-                    return
+                    return keyIndex
                 }
-                this._getSelectionOption("_selectedItemKeys").splice(keyIndex, 1);
-                this._getSelectionOption("_removedItemKeys").push(key);
-                this._getSelectionOption("_removedItems").push(this._getSelectionOption("_selectedItems")[keyIndex]);
-                this._getSelectionOption("_selectedItems").splice(keyIndex, 1);
-                if (commonUtils.isObject(keyHash) || !this._getSelectionOption("_keyHashIndices")) {
-                    return
+                this.options.removedItemKeys.push(key);
+                this.options.removedItems.push(this.options.selectedItems[keyIndex]);
+                if (isBatchDeselect) {
+                    return keyIndex
                 }
-                var keyIndices = this._getSelectionOption("_keyHashIndices")[keyHash];
+                this.options.selectedItemKeys.splice(keyIndex, 1);
+                this.options.selectedItems.splice(keyIndex, 1);
+                if (commonUtils.isObject(keyHash) || !this.options.keyHashIndices) {
+                    return keyIndex
+                }
+                var keyIndices = this.options.keyHashIndices[keyHash];
                 if (!keyIndices) {
-                    return
+                    return keyIndex
                 }
                 keyIndices.shift();
                 if (!keyIndices.length) {
-                    delete this._getSelectionOption("_keyHashIndices")[keyHash]
+                    delete this.options.keyHashIndices[keyHash]
                 }
-                this._shiftSelectedKeyIndices(keyIndex)
+                this._shiftSelectedKeyIndices(keyIndex);
+                return keyIndex
             },
             _needRemoveItemKey: function(keys, key) {
-                var hashIndices = this._getSelectionOption("_keyHashIndices");
+                var hashIndices = this.options.keyHashIndices;
                 if (!hashIndices) {
                     return keys.indexOf(key) < 0
                 }
@@ -25033,36 +24925,36 @@
             _updateAddedItemKeys: function(keys, items) {
                 for (var i = 0; i < keys.length; i++) {
                     if (this._indexOfSelectedItemKey(keys[i]) < 0) {
-                        this._getSelectionOption("_addedItemKeys").push(keys[i]);
-                        this._getSelectionOption("_addedItems").push(items[i])
+                        this.options.addedItemKeys.push(keys[i]);
+                        this.options.addedItems.push(items[i])
                     }
                 }
             },
             _updateRemovedItemKeys: function(keys) {
-                var oldSelectedKeys = this._getSelectionOption("_selectedItemKeys"),
-                    oldSelectedItems = this._getSelectionOption("_selectedItems");
+                var oldSelectedKeys = this.options.selectedItemKeys,
+                    oldSelectedItems = this.options.selectedItems;
                 for (var i = 0; i < oldSelectedKeys.length; i++) {
                     if (this._needRemoveItemKey(keys, oldSelectedKeys[i])) {
-                        this._getSelectionOption("_removedItemKeys").push(oldSelectedKeys[i]);
-                        this._getSelectionOption("_removedItems").push(oldSelectedItems[i])
+                        this.options.removedItemKeys.push(oldSelectedKeys[i]);
+                        this.options.removedItems.push(oldSelectedItems[i])
                     }
                 }
             },
             _getKeyHash: function(key) {
-                return this._getSelectionOption("_equalByReference") ? key : getKeyHash(key)
+                return this.options.equalByReference ? key : getKeyHash(key)
             },
             setSelectedItems: function(keys, items) {
                 this._updateRemovedItemKeys(keys, items);
                 this._updateAddedItemKeys(keys, items);
-                if (!this._getSelectionOption("_equalByReference")) {
+                if (!this.options.equalByReference) {
                     this._initSelectedItemKeyHash();
                     this.updateSelectedItemKeyHash(keys)
                 }
-                this._setSelectionOption("_selectedItemKeys", keys);
-                this._setSelectionOption("_selectedItems", items)
+                this._setOption("selectedItemKeys", keys);
+                this._setOption("selectedItems", items)
             },
             isItemDataSelected: function(itemData) {
-                var key = this._getSelectionOption("_keyOf")(itemData);
+                var key = this.options.keyOf(itemData);
                 return this.isItemKeySelected(key)
             },
             isItemKeySelected: function(key) {
@@ -26063,9 +25955,11 @@
                 }
             }
         };
+        var ACCEPTABLE_JSON_FORMAT_PROPERTIES = ["skeleton", "date", "time", "datetime", "raw"];
         var $ = __webpack_require__( /*! jquery */ 9),
             Globalize = __webpack_require__( /*! globalize */ 172),
             dateLocalization = __webpack_require__( /*! ../date */ 27),
+            isObject = __webpack_require__( /*! ../../core/utils/common */ 12).isObject,
             errors = __webpack_require__( /*! ../../core/errors */ 7);
         if (Globalize && Globalize.formatDate) {
             if ("en" === Globalize.locale().locale) {
@@ -26208,7 +26102,7 @@
                     if (!text) {
                         return
                     }
-                    if (!format || "function" === typeof format || format.formatter && !format.parser) {
+                    if (!format || "function" === typeof format || isObject(format) && !this._isAcceptableFormat(format)) {
                         if (format) {
                             errors.log("W0012")
                         }
@@ -26223,6 +26117,16 @@
                         }
                     }
                     return Globalize.parseDate(text, format)
+                },
+                _isAcceptableFormat: function(format) {
+                    if (format.parser) {
+                        return true
+                    }
+                    for (var i = 0; i < ACCEPTABLE_JSON_FORMAT_PROPERTIES.length; i++) {
+                        if (format.hasOwnProperty(ACCEPTABLE_JSON_FORMAT_PROPERTIES[i])) {
+                            return true
+                        }
+                    }
                 },
                 firstDayOfWeekIndex: function() {
                     var firstDay = Globalize.locale().supplemental.weekData.firstDay();
@@ -26791,7 +26695,8 @@
         var LocalStoreBackend = Class.inherit({
             ctor: function(store, storeOptions) {
                 this._store = store;
-                this._dirty = false;
+                this._dirty = !!storeOptions.data;
+                this.save();
                 var immediate = this._immediate = storeOptions.immediate;
                 var flushInterval = Math.max(100, storeOptions.flushInterval || 1e4);
                 if (!immediate) {
@@ -26825,12 +26730,12 @@
         });
         var DomLocalStoreBackend = LocalStoreBackend.inherit({
             ctor: function(store, storeOptions) {
-                this.callBase(store, storeOptions);
                 var name = storeOptions.name;
                 if (!name) {
                     throw errors.Error("E4013")
                 }
-                this._key = "dx-data-localStore-" + name
+                this._key = "dx-data-localStore-" + name;
+                this.callBase(store, storeOptions)
             },
             _loadImpl: function() {
                 var raw = localStorage.getItem(this._key);
@@ -27063,7 +26968,7 @@
                 } else {
                     url = this._url
                 }
-                if ("customQueryParams" in loadOptions) {
+                if (loadOptions.customQueryParams) {
                     var params = mixins.escapeServiceOperationParams(loadOptions.customQueryParams, this.version());
                     if (4 === this.version()) {
                         url = mixins.formatFunctionInvocationUrl(url, params)
@@ -28007,51 +27912,52 @@
             }
         }).include(mixins.SharedMethods);
         module.exports = ODataContext
-    }, , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ,
+    }, , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ,
     /*!*****************************************!*\
       !*** ./js/bundles/modules/parts/viz.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var DevExpress = __webpack_require__( /*! ./core */ 5);
         __webpack_require__( /*! ./data */ 180);
-        var viz = DevExpress.viz = __webpack_require__( /*! ../../../bundles/modules/viz */ 445);
-        viz.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 446).currentTheme;
-        viz.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 446).registerTheme;
-        viz.exportFromMarkup = __webpack_require__( /*! ../../../viz/export */ 448).exportFromMarkup;
-        viz.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 450).currentPalette;
-        viz.getPalette = __webpack_require__( /*! ../../../viz/palette */ 450).getPalette;
-        viz.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 450).registerPalette;
-        viz.dxChart = __webpack_require__( /*! ../../../viz/chart */ 451);
-        viz.dxPieChart = __webpack_require__( /*! ../../../viz/pie_chart */ 521);
-        viz.dxPolarChart = __webpack_require__( /*! ../../../viz/polar_chart */ 523);
-        viz.dxLinearGauge = __webpack_require__( /*! ../../../viz/linear_gauge */ 525);
-        viz.dxCircularGauge = __webpack_require__( /*! ../../../viz/circular_gauge */ 535);
-        viz.dxBarGauge = __webpack_require__( /*! ../../../viz/bar_gauge */ 539);
-        viz.dxRangeSelector = __webpack_require__( /*! ../../../viz/range_selector */ 541);
-        viz.dxVectorMap = __webpack_require__( /*! ../../../viz/vector_map */ 551);
+        var viz = DevExpress.viz = __webpack_require__( /*! ../../../bundles/modules/viz */ 446);
+        viz.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 447).currentTheme;
+        viz.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 447).registerTheme;
+        viz.exportFromMarkup = __webpack_require__( /*! ../../../viz/export */ 449).exportFromMarkup;
+        viz.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 451).currentPalette;
+        viz.getPalette = __webpack_require__( /*! ../../../viz/palette */ 451).getPalette;
+        viz.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 451).registerPalette;
+        viz.dxChart = __webpack_require__( /*! ../../../viz/chart */ 452);
+        viz.dxPieChart = __webpack_require__( /*! ../../../viz/pie_chart */ 523);
+        viz.dxPolarChart = __webpack_require__( /*! ../../../viz/polar_chart */ 525);
+        viz.dxLinearGauge = __webpack_require__( /*! ../../../viz/linear_gauge */ 527);
+        viz.dxCircularGauge = __webpack_require__( /*! ../../../viz/circular_gauge */ 537);
+        viz.dxBarGauge = __webpack_require__( /*! ../../../viz/bar_gauge */ 541);
+        viz.dxRangeSelector = __webpack_require__( /*! ../../../viz/range_selector */ 543);
+        viz.dxVectorMap = __webpack_require__( /*! ../../../viz/vector_map */ 553);
         viz.map = {};
         viz.map.sources = {};
-        viz.map.projection = __webpack_require__( /*! ../../../viz/vector_map/projection */ 564).projection;
-        viz.dxSparkline = __webpack_require__( /*! ../../../viz/sparkline */ 565);
-        viz.dxBullet = __webpack_require__( /*! ../../../viz/bullet */ 568);
-        viz.dxTreeMap = __webpack_require__( /*! ../../../viz/tree_map */ 570);
+        viz.map.projection = __webpack_require__( /*! ../../../viz/vector_map/projection */ 566).projection;
+        viz.dxSparkline = __webpack_require__( /*! ../../../viz/sparkline */ 567);
+        viz.dxBullet = __webpack_require__( /*! ../../../viz/bullet */ 570);
+        viz.dxTreeMap = __webpack_require__( /*! ../../../viz/tree_map */ 572);
         var core = {};
         viz.core = core;
-        core.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 446).currentTheme;
-        core.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 446).registerTheme;
-        core.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 450).currentPalette;
-        core.getPalette = __webpack_require__( /*! ../../../viz/palette */ 450).getPalette;
-        core.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 450).registerPalette;
-        viz.BaseWidget = __webpack_require__( /*! ../../../viz/core/base_widget */ 453);
-        viz.findTheme = __webpack_require__( /*! ../../../viz/themes */ 446).findTheme;
-        viz.refreshAll = __webpack_require__( /*! ../../../viz/themes */ 446).refreshAll;
+        core.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 447).currentTheme;
+        core.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 447).registerTheme;
+        core.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 451).currentPalette;
+        core.getPalette = __webpack_require__( /*! ../../../viz/palette */ 451).getPalette;
+        core.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 451).registerPalette;
+        viz.BaseWidget = __webpack_require__( /*! ../../../viz/core/base_widget */ 454);
+        viz.findTheme = __webpack_require__( /*! ../../../viz/themes */ 447).findTheme;
+        viz.refreshAll = __webpack_require__( /*! ../../../viz/themes */ 447).refreshAll;
+        viz.refreshPaths = __webpack_require__( /*! ../../../viz/utils */ 594).refreshPaths;
         viz.gauges = {
             __internals: {}
         };
         viz._dashboard = {};
-        viz._dashboard.Renderer = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 456).Renderer;
-        viz._dashboard.SvgElement = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 456).SvgElement;
-        viz._dashboard.patchFontOptions = __webpack_require__( /*! ../../../viz/core/utils */ 447).patchFontOptions;
+        viz._dashboard.Renderer = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 457).Renderer;
+        viz._dashboard.SvgElement = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 457).SvgElement;
+        viz._dashboard.patchFontOptions = __webpack_require__( /*! ../../../viz/core/utils */ 448).patchFontOptions;
         module.exports = viz
     },
     /*!***********************************!*\
@@ -28066,7 +27972,7 @@
       \**************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
             themes = {},
             themesMapping = {},
             themesSchemeMapping = {},
@@ -28764,7 +28670,7 @@
       !*** ./js/viz/export.js ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./core/export */ 449)
+        module.exports = __webpack_require__( /*! ./core/export */ 450)
     },
     /*!*******************************!*\
       !*** ./js/viz/core/export.js ***!
@@ -29191,7 +29097,7 @@
                     cursor: "pointer",
                     rx: 4,
                     ry: 4,
-                    filter: that._shadow.ref
+                    filter: that._shadow.id
                 });
                 rect.data({
                     "export-element-type": "list"
@@ -29295,7 +29201,7 @@
       \***************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
             _floor = Math.floor,
             _ceil = Math.ceil,
             _Color = __webpack_require__( /*! ../color */ 32),
@@ -29528,15 +29434,15 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../core/utils/common */ 12),
             registerComponent = __webpack_require__( /*! ../core/component_registrator */ 52),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 447),
-            overlapping = __webpack_require__( /*! ./chart_components/base_chart */ 452).overlapping,
-            translatorsModule = __webpack_require__( /*! ./translators/translator2d */ 500),
-            rangeModule = __webpack_require__( /*! ./translators/range */ 506),
-            LayoutManagerModule = __webpack_require__( /*! ./chart_components/layout_manager */ 493),
-            multiAxesSynchronizer = __webpack_require__( /*! ./chart_components/multi_axes_synchronizer */ 507),
-            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 508).AdvancedChart,
-            scrollBarModule = __webpack_require__( /*! ./chart_components/scroll_bar */ 519),
-            crosshairModule = __webpack_require__( /*! ./chart_components/crosshair */ 520),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
+            overlapping = __webpack_require__( /*! ./chart_components/base_chart */ 453).overlapping,
+            translatorsModule = __webpack_require__( /*! ./translators/translator2d */ 501),
+            rangeModule = __webpack_require__( /*! ./translators/range */ 507),
+            LayoutManagerModule = __webpack_require__( /*! ./chart_components/layout_manager */ 494),
+            multiAxesSynchronizer = __webpack_require__( /*! ./chart_components/multi_axes_synchronizer */ 508),
+            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 509).AdvancedChart,
+            scrollBarModule = __webpack_require__( /*! ./chart_components/scroll_bar */ 520),
+            crosshairModule = __webpack_require__( /*! ./chart_components/crosshair */ 521),
             MAX_ADJUSTMENT_ATTEMPTS = 5,
             DEFAULT_PANE_NAME = "default",
             DEFAULT_PANES = [{
@@ -30528,6 +30434,7 @@
                 }
             }
         });
+        dxChart.addPlugin(__webpack_require__( /*! ./chart_components/shutter_zoom */ 522));
         registerComponent("dxChart", dxChart);
         module.exports = dxChart;
         module.exports._test_prepareSegmentRectPoints = function() {
@@ -30549,21 +30456,21 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
-            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 453),
-            legendModule = __webpack_require__( /*! ../components/legend */ 459),
-            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 461),
-            seriesModule = __webpack_require__( /*! ../series/base_series */ 463),
-            chartThemeManagerModule = __webpack_require__( /*! ../components/chart_theme_manager */ 487),
-            LayoutManagerModule = __webpack_require__( /*! ./layout_manager */ 493),
-            trackerModule = __webpack_require__( /*! ./tracker */ 494),
-            headerBlockModule = __webpack_require__( /*! ./header_block */ 495),
+            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 454),
+            legendModule = __webpack_require__( /*! ../components/legend */ 460),
+            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 462),
+            seriesModule = __webpack_require__( /*! ../series/base_series */ 464),
+            chartThemeManagerModule = __webpack_require__( /*! ../components/chart_theme_manager */ 488),
+            LayoutManagerModule = __webpack_require__( /*! ./layout_manager */ 494),
+            trackerModule = __webpack_require__( /*! ./tracker */ 495),
+            headerBlockModule = __webpack_require__( /*! ./header_block */ 496),
             REINIT_REFRESH_ACTION = "_reinit",
             REINIT_DATA_SOURCE_REFRESH_ACTION = "_updateDataSource",
             DATA_INIT_REFRESH_ACTION = "_dataInit",
             FORCE_RENDER_REFRESH_ACTION = "_forceRender",
             RESIZE_REFRESH_ACTION = "_resize",
             ACTIONS_BY_PRIORITY = [REINIT_REFRESH_ACTION, REINIT_DATA_SOURCE_REFRESH_ACTION, DATA_INIT_REFRESH_ACTION, FORCE_RENDER_REFRESH_ACTION, RESIZE_REFRESH_ACTION],
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _noop = $.noop,
             _map = vizUtils.map,
             _each = $.each,
@@ -30915,7 +30822,7 @@
                 }).linkOn(root, "crosshair");
                 that._legendGroup = renderer.g().attr({
                     "class": "dxc-legend",
-                    clipId: that._getCanvasClipRectID()
+                    "clip-path": that._getCanvasClipRectID()
                 }).linkOn(root, "legend");
                 that._scrollBarGroup = renderer.g().attr({
                     "class": "dxc-scroll-bar"
@@ -30952,10 +30859,7 @@
                 disposeObject("_headerBlock");
                 disposeObject("_tracker");
                 disposeObject("_crosshair");
-                that.layoutManager = null;
-                that.paneAxis = null;
-                that._userOptions = null;
-                that._canvas = null;
+                that.layoutManager = that.paneAxis = that._userOptions = that._canvas = that._groupsData = null;
                 unlinkGroup("_stripsGroup");
                 unlinkGroup("_gridGroup");
                 unlinkGroup("_axesGroup");
@@ -30969,6 +30873,7 @@
                 unlinkGroup("_scrollBarGroup");
                 disposeObject("_canvasClipRect");
                 disposeObject("_panesBackgroundGroup");
+                disposeObject("_backgroundRect");
                 disposeObject("_stripsGroup");
                 disposeObject("_gridGroup");
                 disposeObject("_axesGroup");
@@ -31014,9 +30919,13 @@
                 })
             },
             _getTrackerSettings: function() {
+                return this._getSelectionModes()
+            },
+            _getSelectionModes: function() {
+                var themeManager = this._themeManager;
                 return {
-                    seriesSelectionMode: this._themeManager.getOptions("seriesSelectionMode"),
-                    pointSelectionMode: this._themeManager.getOptions("pointSelectionMode")
+                    seriesSelectionMode: themeManager.getOptions("seriesSelectionMode"),
+                    pointSelectionMode: themeManager.getOptions("pointSelectionMode")
                 }
             },
             _updateTracker: function(trackerCanvases) {
@@ -31255,7 +31164,8 @@
                     legendData: {
                         text: item[this._legendItemTextField],
                         argument: item.argument,
-                        id: item.index
+                        id: item.index,
+                        argumentIndex: item.argumentIndex
                     },
                     getLegendStyles: item.getLegendStyles(),
                     visible: item.isVisible()
@@ -31392,8 +31302,7 @@
                 that._repopulateSeries();
                 that._seriesPopulatedHandlerCore();
                 that._populateBusinessRange();
-                that._collectPointsByArg();
-                that._tracker.updateSeries(that._getStoredSeries());
+                that._tracker.updateSeries(that.series);
                 that._updateLegend();
                 needRedraw && that._forceRender()
             },
@@ -31482,7 +31391,7 @@
                 return _isDefined(this.option("dataSource")) && this._dataIsLoaded()
             },
             _populateSeries: function() {
-                var particularSeriesOptions, particularSeries, seriesTheme, data, i, that = this,
+                var particularSeriesOptions, particularSeries, seriesTheme, data, i, eventPipe, that = this,
                     themeManager = that._themeManager,
                     hasSeriesTemplate = !!themeManager.getOptions("seriesTemplate"),
                     seriesOptions = hasSeriesTemplate ? that._templatedSeries : that.option("series"),
@@ -31501,6 +31410,11 @@
                 that.series = [];
                 that.templateData = [];
                 themeManager.resetPalette();
+                eventPipe = function(data) {
+                    that.series.forEach(function(currentSeries) {
+                        currentSeries.notify(data)
+                    })
+                };
                 for (i = 0; i < allSeriesOptions.length; i++) {
                     particularSeriesOptions = _extend(true, {}, allSeriesOptions[i], extraOptions);
                     if (!particularSeriesOptions.name) {
@@ -31520,7 +31434,10 @@
                     particularSeries = new seriesModule.Series({
                         renderer: that._renderer,
                         seriesGroup: that._seriesGroup,
-                        labelsGroup: that._labelsGroup
+                        labelsGroup: that._labelsGroup,
+                        eventTrigger: that._eventTrigger,
+                        commonSeriesModes: that._getSelectionModes(),
+                        eventPipe: eventPipe
                     }, seriesTheme);
                     if (!particularSeries.isUpdated) {
                         that._incidentOccurred("E2101", [seriesTheme.type])
@@ -31578,11 +31495,11 @@
         });
         exports.overlapping = overlapping;
         exports.BaseChart = BaseChart;
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/export */ 449).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/title */ 496).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/tooltip */ 497).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 498).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/data_source */ 499).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin);
         var _change_TITLE = BaseChart.prototype._change_TITLE;
         BaseChart.prototype._change_TITLE = function() {
             _change_TITLE.apply(this, arguments);
@@ -31605,12 +31522,12 @@
             _isObject = __webpack_require__( /*! ../../core/utils/common */ 12).isObject,
             _Number = Number,
             DOMComponent = __webpack_require__( /*! ../../core/dom_component */ 36),
-            helpers = __webpack_require__( /*! ./helpers */ 454),
-            _parseScalar = __webpack_require__( /*! ./utils */ 447).parseScalar,
-            errors = __webpack_require__( /*! ./errors_warnings */ 455),
+            helpers = __webpack_require__( /*! ./helpers */ 455),
+            _parseScalar = __webpack_require__( /*! ./utils */ 448).parseScalar,
+            errors = __webpack_require__( /*! ./errors_warnings */ 456),
             _log = errors.log,
-            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 456),
-            _Layout = __webpack_require__( /*! ./layout */ 458),
+            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 457),
+            _Layout = __webpack_require__( /*! ./layout */ 459),
             OPTION_RTL_ENABLED = "rtlEnabled",
             _option = DOMComponent.prototype.option;
 
@@ -31686,6 +31603,7 @@
                 that._themeManager.setCallback(function() {
                     that._requestChange(that._themeDependentChanges)
                 });
+                that._renderElementAttributes();
                 that._initRenderer();
                 linkTarget = that._useLinks && that._renderer.root;
                 linkTarget && linkTarget.enableLinks().virtualLink("core").virtualLink("peripheral");
@@ -31700,7 +31618,7 @@
                 that._change(that._initialChanges);
                 that._resumeChanges()
             },
-            _initialChanges: ["LAYOUT", "RESIZE_HANDLER", "THEME", "ELEMENT_ATTR"],
+            _initialChanges: ["LAYOUT", "RESIZE_HANDLER", "THEME"],
             _initPlugins: function() {
                 var that = this;
                 $.each(that._plugins, function(_, plugin) {
@@ -31738,8 +31656,8 @@
                     queue = that._optionsQueue;
                 that._optionsQueue = null;
                 that.beginUpdate();
-                $.each(queue, function(_, args) {
-                    _option.apply(that, args)
+                $.each(queue, function(_, action) {
+                    action()
                 });
                 that.endUpdate()
             },
@@ -31764,8 +31682,8 @@
                     }
                 }
             },
-            _optionChangesOrder: ["EVENTS", "THEME", "RENDERER", "RESIZE_HANDLER", "ELEMENT_ATTR"],
-            _layoutChangesOrder: ["CONTAINER_SIZE", "LAYOUT"],
+            _optionChangesOrder: ["EVENTS", "THEME", "RENDERER", "RESIZE_HANDLER"],
+            _layoutChangesOrder: ["ELEMENT_ATTR", "CONTAINER_SIZE", "LAYOUT"],
             _customChangesOrder: [],
             _change_EVENTS: function() {
                 this._eventTrigger.applyChanges()
@@ -31780,7 +31698,8 @@
                 this._setupResizeHandler()
             },
             _change_ELEMENT_ATTR: function() {
-                this._renderElementAttributes()
+                this._renderElementAttributes();
+                this._change(["CONTAINER_SIZE"])
             },
             _change_CONTAINER_SIZE: function() {
                 this._updateSize()
@@ -31922,9 +31841,19 @@
                 var that = this;
                 if (that._initialized && that._applyingChanges && (arguments.length > 1 || _isObject(name))) {
                     that._optionsQueue = that._optionsQueue || [];
-                    that._optionsQueue.push(arguments)
+                    that._optionsQueue.push(that._getActionForUpdating(arguments))
                 } else {
                     return _option.apply(that, arguments)
+                }
+            },
+            _getActionForUpdating: function(args) {
+                var that = this;
+                return that._deprecatedOptionsSuppressed ? function() {
+                    that._suppressDeprecatedWarnings();
+                    _option.apply(that, args);
+                    that._resumeDeprecatedWarnings()
+                } : function() {
+                    _option.apply(that, args)
                 }
             },
             _clean: $.noop,
@@ -32173,7 +32102,7 @@
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
             getSvgMarkup = __webpack_require__( /*! ../../../core/utils/svg */ 35).getSvgMarkup,
             doc = document,
-            animation = __webpack_require__( /*! ./animation */ 457),
+            animation = __webpack_require__( /*! ./animation */ 458),
             math = Math,
             mathMin = math.min,
             mathMax = math.max,
@@ -32184,7 +32113,7 @@
             mathAbs = math.abs,
             mathPI = math.PI,
             _isDefined = commonUtils.isDefined,
-            vizUtils = __webpack_require__( /*! ../utils */ 447),
+            vizUtils = __webpack_require__( /*! ../utils */ 448),
             _normalizeEnum = vizUtils.normalizeEnum,
             _normalizeBBox = vizUtils.normalizeBBox,
             _rotateBBox = vizUtils.rotateBBox,
@@ -32270,8 +32199,8 @@
             return doc.createElementNS("http://www.w3.org/2000/svg", tagName)
         }
 
-        function getPatternUrl(id, pathModified) {
-            return null !== id ? "url(" + (pathModified ? window.location.href : "") + "#" + id + ")" : ""
+        function getFuncIri(id, pathModified) {
+            return null !== id ? "url(" + (pathModified ? window.location.href.split("#")[0] : "") + "#" + id + ")" : id
         }
 
         function extend(target, source) {
@@ -32514,6 +32443,15 @@
             return that
         }
 
+        function fixFuncIri(wrapper, attribute) {
+            var element = wrapper.element,
+                id = wrapper.attr(attribute);
+            if (id && id.indexOf("DevExpress") !== -1) {
+                element.removeAttribute(attribute);
+                element.setAttribute(attribute, getFuncIri(id, wrapper.renderer.pathModified))
+            }
+        }
+
         function baseAttr(that, attrs) {
             attrs = attrs || {};
             var key, value, hasTransformations, recalculateDashStyle, sw, i, settings = that._settings,
@@ -32552,9 +32490,9 @@
                         if (key === KEY_STROKE_WIDTH) {
                             recalculateDashStyle = true
                         } else {
-                            if ("clipId" === key) {
-                                key = "clip-path";
-                                value = getPatternUrl(value, renderer.pathModified)
+                            if (value && ("fill" === key || "clip-path" === key || "filter" === key) && value.indexOf("DevExpress") !== -1) {
+                                that._addFixIRICallback();
+                                value = getFuncIri(value, renderer.pathModified)
                             } else {
                                 if (/^(translate(X|Y)|rotate[XY]?|scale(X|Y)|sharp)$/i.test(key)) {
                                     hasTransformations = true;
@@ -32596,80 +32534,71 @@
             return that
         }
 
-        function createPathAttr(baseAttr) {
-            return function(attrs) {
-                var segments, that = this;
-                if (isObjectArgument(attrs)) {
-                    attrs = extend({}, attrs);
-                    segments = attrs.segments;
-                    if ("points" in attrs) {
-                        segments = buildPathSegments(attrs.points, that.type);
-                        delete attrs.points
-                    }
-                    if (segments) {
-                        attrs.d = combinePathParam(segments);
-                        that.segments = segments;
-                        delete attrs.segments
-                    }
+        function pathAttr(attrs) {
+            var segments, that = this;
+            if (isObjectArgument(attrs)) {
+                attrs = extend({}, attrs);
+                segments = attrs.segments;
+                if ("points" in attrs) {
+                    segments = buildPathSegments(attrs.points, that.type);
+                    delete attrs.points
                 }
-                return baseAttr(that, attrs)
+                if (segments) {
+                    attrs.d = combinePathParam(segments);
+                    that.segments = segments;
+                    delete attrs.segments
+                }
             }
+            return baseAttr(that, attrs)
         }
 
-        function createArcAttr(baseAttr, buildArcPath) {
-            return function(attrs) {
-                var x, y, innerRadius, outerRadius, startAngle, endAngle, settings = this._settings;
-                if (isObjectArgument(attrs)) {
-                    attrs = extend({}, attrs);
-                    if ("x" in attrs || "y" in attrs || "innerRadius" in attrs || "outerRadius" in attrs || "startAngle" in attrs || "endAngle" in attrs) {
-                        settings.x = x = "x" in attrs ? attrs.x : settings.x;
-                        delete attrs.x;
-                        settings.y = y = "y" in attrs ? attrs.y : settings.y;
-                        delete attrs.y;
-                        settings.innerRadius = innerRadius = "innerRadius" in attrs ? attrs.innerRadius : settings.innerRadius;
-                        delete attrs.innerRadius;
-                        settings.outerRadius = outerRadius = "outerRadius" in attrs ? attrs.outerRadius : settings.outerRadius;
-                        delete attrs.outerRadius;
-                        settings.startAngle = startAngle = "startAngle" in attrs ? attrs.startAngle : settings.startAngle;
-                        delete attrs.startAngle;
-                        settings.endAngle = endAngle = "endAngle" in attrs ? attrs.endAngle : settings.endAngle;
-                        delete attrs.endAngle;
-                        attrs.d = buildArcPath.apply(null, normalizeArcParams(x, y, innerRadius, outerRadius, startAngle, endAngle))
-                    }
+        function arcAttr(attrs) {
+            var x, y, innerRadius, outerRadius, startAngle, endAngle, settings = this._settings;
+            if (isObjectArgument(attrs)) {
+                attrs = extend({}, attrs);
+                if ("x" in attrs || "y" in attrs || "innerRadius" in attrs || "outerRadius" in attrs || "startAngle" in attrs || "endAngle" in attrs) {
+                    settings.x = x = "x" in attrs ? attrs.x : settings.x;
+                    delete attrs.x;
+                    settings.y = y = "y" in attrs ? attrs.y : settings.y;
+                    delete attrs.y;
+                    settings.innerRadius = innerRadius = "innerRadius" in attrs ? attrs.innerRadius : settings.innerRadius;
+                    delete attrs.innerRadius;
+                    settings.outerRadius = outerRadius = "outerRadius" in attrs ? attrs.outerRadius : settings.outerRadius;
+                    delete attrs.outerRadius;
+                    settings.startAngle = startAngle = "startAngle" in attrs ? attrs.startAngle : settings.startAngle;
+                    delete attrs.startAngle;
+                    settings.endAngle = endAngle = "endAngle" in attrs ? attrs.endAngle : settings.endAngle;
+                    delete attrs.endAngle;
+                    attrs.d = buildArcPath.apply(null, normalizeArcParams(x, y, innerRadius, outerRadius, startAngle, endAngle))
                 }
-                return baseAttr(this, attrs)
             }
+            return baseAttr(this, attrs)
         }
 
-        function createRectAttr(baseAttr) {
-            return function(attrs) {
-                var x, y, width, height, sw, maxSW, newSW, that = this;
-                if (isObjectArgument(attrs)) {
-                    attrs = extend({}, attrs);
-                    if (void 0 !== attrs.x || void 0 !== attrs.y || void 0 !== attrs.width || void 0 !== attrs.height || void 0 !== attrs[KEY_STROKE_WIDTH]) {
-                        void 0 !== attrs.x ? x = that._originalX = attrs.x : x = that._originalX || 0;
-                        void 0 !== attrs.y ? y = that._originalY = attrs.y : y = that._originalY || 0;
-                        void 0 !== attrs.width ? width = that._originalWidth = attrs.width : width = that._originalWidth || 0;
-                        void 0 !== attrs.height ? height = that._originalHeight = attrs.height : height = that._originalHeight || 0;
-                        void 0 !== attrs[KEY_STROKE_WIDTH] ? sw = that._originalSW = attrs[KEY_STROKE_WIDTH] : sw = that._originalSW;
-                        maxSW = ~~((width < height ? width : height) / 2);
-                        newSW = (sw || 0) < maxSW ? sw || 0 : maxSW;
-                        attrs.x = x + newSW / 2;
-                        attrs.y = y + newSW / 2;
-                        attrs.width = width - newSW;
-                        attrs.height = height - newSW;
-                        ((sw || 0) !== newSW || !(0 === newSW && void 0 === sw)) && (attrs[KEY_STROKE_WIDTH] = newSW)
-                    }
-                    if ("sharp" in attrs) {
-                        delete attrs.sharp
-                    }
+        function rectAttr(attrs) {
+            var x, y, width, height, sw, maxSW, newSW, that = this;
+            if (isObjectArgument(attrs)) {
+                attrs = extend({}, attrs);
+                if (void 0 !== attrs.x || void 0 !== attrs.y || void 0 !== attrs.width || void 0 !== attrs.height || void 0 !== attrs[KEY_STROKE_WIDTH]) {
+                    void 0 !== attrs.x ? x = that._originalX = attrs.x : x = that._originalX || 0;
+                    void 0 !== attrs.y ? y = that._originalY = attrs.y : y = that._originalY || 0;
+                    void 0 !== attrs.width ? width = that._originalWidth = attrs.width : width = that._originalWidth || 0;
+                    void 0 !== attrs.height ? height = that._originalHeight = attrs.height : height = that._originalHeight || 0;
+                    void 0 !== attrs[KEY_STROKE_WIDTH] ? sw = that._originalSW = attrs[KEY_STROKE_WIDTH] : sw = that._originalSW;
+                    maxSW = ~~((width < height ? width : height) / 2);
+                    newSW = (sw || 0) < maxSW ? sw || 0 : maxSW;
+                    attrs.x = x + newSW / 2;
+                    attrs.y = y + newSW / 2;
+                    attrs.width = width - newSW;
+                    attrs.height = height - newSW;
+                    ((sw || 0) !== newSW || !(0 === newSW && void 0 === sw)) && (attrs[KEY_STROKE_WIDTH] = newSW)
                 }
-                return baseAttr(that, attrs)
+                if ("sharp" in attrs) {
+                    delete attrs.sharp
+                }
             }
+            return baseAttr(that, attrs)
         }
-        var pathAttr = createPathAttr(baseAttr),
-            arcAttr = createArcAttr(baseAttr, buildArcPath),
-            rectAttr = createRectAttr(baseAttr);
 
         function textAttr(attrs) {
             var settings, isResetRequired, wasStroked, isStroked, that = this;
@@ -33119,7 +33048,18 @@
             _getJQElement: function() {
                 return this._$element || (this._$element = $(this.element))
             },
+            _addFixIRICallback: function() {
+                var that = this;
+                that._fixFuncIri = function() {
+                    fixFuncIri(that, "fill");
+                    fixFuncIri(that, "clip-path");
+                    fixFuncIri(that, "filter")
+                };
+                fixFuncIriCallbacks.add(that._fixFuncIri);
+                that._addFixIRICallback = function() {}
+            },
             dispose: function() {
+                fixFuncIriCallbacks.remove(this._fixFuncIri);
                 this._getJQElement().remove();
                 return this
             },
@@ -33208,15 +33148,16 @@
             smartAttr: function(attrs) {
                 var that = this;
                 if (attrs.hatching) {
+                    attrs = extend({}, attrs);
                     attrs.fill = that._hatching = that.renderer.lockHatching(attrs.fill, attrs.hatching, that._hatching);
-                    attrs.hatching = null
+                    delete attrs.hatching
                 } else {
                     if (that._hatching) {
                         that.renderer.releaseHatching(that._hatching);
                         that._hatching = null
                     }
                 }
-                return baseAttr(that, attrs)
+                return that.attr(attrs)
             },
             css: function(styles) {
                 return baseCss(this, styles)
@@ -33623,7 +33564,7 @@
                     height: step,
                     patternUnits: "userSpaceOnUse"
                 }).append(that._defs);
-                pattern.id = getPatternUrl(id, that.pathModified);
+                pattern.id = id;
                 rect = that.rect(0, 0, step, step).attr({
                     fill: color,
                     opacity: hatching.opacity
@@ -33693,7 +33634,7 @@
                         in2: "compositeResult",
                         operator: "over"
                     }).append(filter);
-                filter.ref = getPatternUrl(id, that.pathModified);
+                filter.id = id;
                 filter.gaussianBlur = gaussianBlur;
                 filter.offset = offset;
                 filter.flood = flood;
@@ -33724,16 +33665,16 @@
             },
             brightFilter: function(type, slope) {
                 var that = this,
-                    filterId = getNextDefsSvgId(),
+                    id = getNextDefsSvgId(),
                     filter = that._createElement("filter", {
-                        id: filterId
+                        id: id
                     }).append(that._defs),
                     componentTransferElement = that._createElement("feComponentTransfer").append(filter),
                     attrs = {
                         type: type,
                         slope: slope
                     };
-                filter.ref = getPatternUrl(filterId, that.pathModified);
+                filter.id = id;
                 that._createElement("feFuncR", attrs).append(componentTransferElement);
                 that._createElement("feFuncG", attrs).append(componentTransferElement);
                 that._createElement("feFuncB", attrs).append(componentTransferElement);
@@ -33744,15 +33685,15 @@
                     return this._grayScaleFilter
                 }
                 var that = this,
-                    filterId = getNextDefsSvgId(),
+                    id = getNextDefsSvgId(),
                     filter = that._createElement("filter", {
-                        id: filterId
+                        id: id
                     }).append(that._defs);
                 that._createElement("feColorMatrix").attr({
                     type: "matrix",
                     values: "0.3333 0.3333 0.3333 0 0 0.3333 0.3333 0.3333 0 0 0.3333 0.3333 0.3333 0 0 0 0 0 0.6 0"
                 }).append(filter);
-                filter.ref = getPatternUrl(filterId, that.pathModified);
+                filter.id = id;
                 that._grayScaleFilter = filter;
                 return filter
             },
@@ -33803,6 +33744,27 @@
 
         function getHatchingHash(color, hatching) {
             return "@" + color + "::" + hatching.step + ":" + hatching.width + ":" + hatching.opacity + ":" + hatching.direction
+        }
+        var fixFuncIriCallbacks = function() {
+            var callbacks = [];
+            return {
+                add: function(fn) {
+                    callbacks.push(fn)
+                },
+                remove: function(fn) {
+                    callbacks = callbacks.filter(function(el) {
+                        return el !== fn
+                    })
+                },
+                fire: function() {
+                    callbacks.forEach(function(fn) {
+                        fn()
+                    })
+                }
+            }
+        }();
+        exports.refreshPaths = function() {
+            fixFuncIriCallbacks.fire()
         }
     },
     /*!********************************************!*\
@@ -34005,7 +33967,7 @@
       !*** ./js/viz/core/layout.js ***!
       \*******************************/
     function(module, exports, __webpack_require__) {
-        var _normalizeEnum = __webpack_require__( /*! ./utils */ 447).normalizeEnum,
+        var _normalizeEnum = __webpack_require__( /*! ./utils */ 448).normalizeEnum,
             _min = Math.min,
             _max = Math.max,
             ALIGN_START = 0,
@@ -34236,8 +34198,8 @@
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
-            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 460),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 461),
             _Number = Number,
             _math = Math,
             _round = _math.round,
@@ -34274,20 +34236,23 @@
             parsePosition = _enumParser([OUTSIDE, INSIDE]),
             parseItemsAlignment = _enumParser([LEFT, CENTER, RIGHT]);
 
-        function getPattern(renderer, states, action, color) {
-            if (!states || !states[action]) {
+        function getState(state, color) {
+            if (!state) {
                 return
             }
-            var hatching, direction = states[action].hatching.direction,
-                colorFromAction = states[action].fill;
+            var hatching, direction = state.hatching.direction,
+                colorFromAction = state.fill;
             color = colorFromAction === NONE ? color : colorFromAction;
             direction = !direction || direction === NONE ? RIGHT : direction;
-            hatching = _extend({}, states[action].hatching, {
+            hatching = _extend({}, state.hatching, {
                 direction: direction,
                 step: DEFAULT_MARKER_HATCHING_STEP,
                 width: DEFAULT_MARKER_HATCHING_WIDTH
             });
-            return renderer.pattern(color, hatching)
+            return {
+                fill: color,
+                hatching: hatching
+            }
         }
 
         function parseMargins(options) {
@@ -34343,7 +34308,7 @@
         function applyMarkerState(id, idToIndexMap, items, stateName) {
             var item = idToIndexMap && items[idToIndexMap[id]];
             if (item) {
-                item.marker.attr(item.states[stateName])
+                item.marker.smartAttr(item.states[stateName])
             }
         }
 
@@ -34547,12 +34512,14 @@
             that._backgroundClass = settings.backgroundClass;
             that._itemGroupClass = settings.itemGroupClass;
             that._textField = settings.textField;
-            that._getCustomizeObject = settings.getFormatObject;
-            that._patterns = []
+            that._getCustomizeObject = settings.getFormatObject
         };
         var legendPrototype = _Legend.prototype = objectUtils.clone(layoutElementModule.LayoutElement.prototype);
         $.extend(legendPrototype, {
             constructor: _Legend,
+            getOptions: function() {
+                return this._options
+            },
             update: function(data, options) {
                 var that = this;
                 that._data = data;
@@ -34597,14 +34564,9 @@
                     options = that._options,
                     initMarkerSize = options.markerSize,
                     renderer = that._renderer,
-                    i = 0,
                     maxBBoxHeight = 0,
                     createMarker = getMarkerCreator(options.markerShape || options.markerType);
                 that._markersId = {};
-                for (; i < that._patterns.length; i++) {
-                    that._patterns[i].dispose()
-                }
-                that._patterns = [];
                 that._items = vizUtils.map(items, function(dataItem, i) {
                     var group = that._insideLegendGroup,
                         markerSize = _Number(dataItem.size > 0 ? dataItem.size : initMarkerSize),
@@ -34616,26 +34578,14 @@
                             opacity: normalState.opacity
                         }).append(group),
                         label = that._createLabel(dataItem, group),
-                        hoverPattern = getPattern(renderer, stateOfDataItem, "hover", normalStateFill),
-                        selectionPattern = getPattern(renderer, stateOfDataItem, "selection", normalStateFill),
                         states = {
                             normal: {
                                 fill: normalStateFill
-                            }
+                            },
+                            hovered: getState(stateOfDataItem.hover, normalStateFill),
+                            selected: getState(stateOfDataItem.selection, normalStateFill)
                         },
                         labelBBox = label.getBBox();
-                    if (hoverPattern) {
-                        states.hovered = {
-                            fill: hoverPattern.id
-                        };
-                        that._patterns.push(hoverPattern)
-                    }
-                    if (selectionPattern) {
-                        states.selected = {
-                            fill: selectionPattern.id
-                        };
-                        that._patterns.push(selectionPattern)
-                    }
                     if (void 0 !== dataItem.id) {
                         that._markersId[dataItem.id] = i
                     }
@@ -34651,7 +34601,8 @@
                         markerSize: markerSize,
                         tracker: {
                             id: dataItem.id,
-                            argument: dataItem.argument
+                            argument: dataItem.argument,
+                            argumentIndex: dataItem.argumentIndex
                         },
                         states: states,
                         itemTextPosition: options.itemTextPosition,
@@ -35090,8 +35041,7 @@
       !*** ./js/viz/components/data_validator.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
-        var $ = __webpack_require__( /*! jquery */ 9),
-            commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
+        var commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             STRING = "string",
             NUMERIC = "numeric",
             DATETIME = "datetime",
@@ -35101,20 +35051,19 @@
             LOGARITHMIC = "logarithmic",
             VALUE_TYPE = "valueType",
             ARGUMENT_TYPE = "argumentType",
-            axisTypeParser = __webpack_require__( /*! ../core/utils */ 447).enumParser([STRING, NUMERIC, DATETIME]),
-            _getParser = __webpack_require__( /*! ./parse_utils */ 462).getParser,
+            axisTypeParser = __webpack_require__( /*! ../core/utils */ 448).enumParser([STRING, NUMERIC, DATETIME]),
+            _getParser = __webpack_require__( /*! ./parse_utils */ 463).getParser,
             _isDefined = commonUtils.isDefined,
             _isFunction = commonUtils.isFunction,
             _isArray = commonUtils.isArray,
             _isString = commonUtils.isString,
             _isDate = commonUtils.isDate,
             _isNumber = commonUtils.isNumber,
-            _isObject = commonUtils.isObject,
-            _each = $.each;
+            _isObject = commonUtils.isObject;
 
         function groupingValues(data, others, valueField, index) {
             if (index >= 0) {
-                _each(data.slice(index), function(_, cell) {
+                data.slice(index).forEach(function(cell) {
                     if (_isDefined(cell[valueField])) {
                         others[valueField] += cell[valueField];
                         cell[valueField] = cell["original" + valueField] = void 0
@@ -35123,15 +35072,25 @@
             }
         }
 
-        function processGroup(_, group) {
-            group.valueType = group.valueAxisType = null;
-            _each(group.series, processSeries);
-            group.valueAxis && group.valueAxis.resetTypes(VALUE_TYPE)
+        function processGroups(groups) {
+            groups.forEach(function(group) {
+                group.valueType = group.valueAxisType = null;
+                group.series.forEach(function(series) {
+                    series.updateDataType({})
+                });
+                group.valueAxis && group.valueAxis.resetTypes(VALUE_TYPE)
+            })
+        }
+
+        function resetArgumentAxes(axes) {
+            axes && axes.forEach(function(axis) {
+                axis.resetTypes(ARGUMENT_TYPE)
+            })
         }
 
         function parseCategories(categories, parser) {
             var newArray = [];
-            _each(categories, function(_, category) {
+            categories.forEach(function(category) {
                 var parsedCategory = parser(category);
                 void 0 !== parsedCategory && newArray.push(parsedCategory)
             });
@@ -35141,7 +35100,7 @@
         function parseAxisCategories(groupsData, parsers) {
             var argumentCategories = groupsData.argumentOptions && groupsData.argumentOptions.categories,
                 valueParser = parsers[1];
-            _each(groupsData.groups, function(_, valueGroup) {
+            groupsData.groups.forEach(function(valueGroup) {
                 var categories = valueGroup.valueOptions && valueGroup.valueOptions.categories;
                 if (categories) {
                     valueGroup.valueOptions.categories = parseCategories(categories, valueParser)
@@ -35150,14 +35109,6 @@
             if (argumentCategories) {
                 groupsData.argumentOptions.categories = parseCategories(argumentCategories, parsers[0])
             }
-        }
-
-        function processSeries(_, series) {
-            series.updateDataType({})
-        }
-
-        function resetAxisTypes(_, axis) {
-            axis.resetTypes(ARGUMENT_TYPE)
         }
 
         function filterForLogAxis(val, field, incidentOccurred) {
@@ -35203,10 +35154,18 @@
 
         function createParserUnit(type, axisType, ignoreEmptyPoints, skipFields, incidentOccurred) {
             var parser = type ? _getParser(type) : eigen,
-                filter = axisType === LOGARITHMIC ? filterForLogAxis : eigen;
+                filter = axisType === LOGARITHMIC ? filterForLogAxis : eigen,
+                filterInfinity = axisType !== DISCRETE ? function(x) {
+                    return isFinite(x) || void 0 === x ? x : null
+                } : eigen,
+                filterNulls = ignoreEmptyPoints ? function(x) {
+                    return null === x ? void 0 : x
+                } : eigen;
             return function(unit, field) {
-                var parseUnit = filter(parser(unit), field, incidentOccurred);
-                null === parseUnit && ignoreEmptyPoints && (parseUnit = void 0);
+                var filterLogValues = function(x) {
+                        return filter(x, field, incidentOccurred)
+                    },
+                    parseUnit = filterNulls(filterLogValues(filterInfinity(parser(unit))));
                 if (void 0 === parseUnit) {
                     skipFields[field] = (skipFields[field] || 0) + 1;
                     validUnit(unit, field, incidentOccurred)
@@ -35220,13 +35179,13 @@
                 categoryParsers = [argumentParser],
                 cache = {},
                 list = [];
-            _each(groupsData.groups, function(_, group) {
-                _each(group.series, function(_, series) {
+            groupsData.groups.forEach(function(group) {
+                group.series.forEach(function(series) {
                     ignoreEmptyPoints = series.getOptions().ignoreEmptyPoints;
                     valueParser = createParserUnit(group.valueType, group.valueAxisType, ignoreEmptyPoints, skipFields, incidentOccurred);
                     sizeParser = createParserUnit(NUMERIC, CONTINUOUS, ignoreEmptyPoints, skipFields, incidentOccurred);
                     cache[series.getArgumentField()] = argumentParser;
-                    _each(series.getValueFields(), function(_, field) {
+                    series.getValueFields().forEach(function(field) {
                         !categoryParsers[1] && (categoryParsers[1] = valueParser);
                         cache[field] = valueParser
                     });
@@ -35238,9 +35197,9 @@
                     }
                 })
             });
-            _each(cache, function(field, parser) {
-                list.push([field, parser])
-            });
+            for (var field in cache) {
+                list.push([field, cache[field]])
+            }
             list.length && parseAxisCategories(groupsData, categoryParsers);
             return list
         }
@@ -35303,8 +35262,8 @@
             if (!isPie) {
                 return
             }
-            _each(groupsData.groups, function(_, group) {
-                _each(group.series, function(_, series) {
+            groupsData.groups.forEach(function(group) {
+                group.series.forEach(function(series) {
                     groupMinSlices(data, series.getArgumentField(), series.getValueFields()[0], series.getOptions().smallValuesGrouping)
                 })
             })
@@ -35320,97 +35279,108 @@
         function getUniqueArgumentFields(groupsData) {
             var uniqueArgumentFields = [],
                 hash = {};
-            _each(groupsData.groups, function(_, group) {
-                _each(group.series, function(__, series) {
+            groupsData.groups.forEach(function(group) {
+                group.series.forEach(function(series) {
                     addUniqueItemToCollection(series.getArgumentField(), uniqueArgumentFields, hash)
                 })
             });
             return uniqueArgumentFields
         }
 
-        function discreteDataProcessing(data, groupsData, uniqueArgumentFields) {
-            if (groupsData.argumentAxisType !== DISCRETE) {
-                return
+        function sort(a, b) {
+            var result = a - b;
+            if (isNaN(result)) {
+                if (!a) {
+                    return 1
+                }
+                if (!b) {
+                    return -1
+                }
+                return 0
             }
-            var userArgumentCategories = groupsData.argumentOptions ? groupsData.argumentOptions.categories : [],
-                categories = groupsData.categories = $.extend([], userArgumentCategories),
-                hash = {};
-            categories.length && _each(categories, function(_, currentCategory) {
-                hash[currentCategory] = true
-            });
-            _each(uniqueArgumentFields, function(_, field) {
-                _each(data, function(_, item) {
-                    _isDefined(item[field]) && addUniqueItemToCollection(item[field], categories, hash)
-                })
+            return result
+        }
+
+        function sortByArgument(data, argumentField) {
+            return data.slice().sort(function(a, b) {
+                return sort(a[argumentField], b[argumentField])
             })
         }
 
-        function compareWithoutHash(argumentField) {
-            return function(a, b) {
-                var result = a[argumentField] - b[argumentField];
-                if (isNaN(result)) {
-                    if (!a[argumentField]) {
-                        return 1
-                    }
-                    if (!b[argumentField]) {
-                        return -1
-                    }
-                    return 0
-                }
-                return result
-            }
-        }
-
-        function sortAndCollectCategories(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
-            var getSortingMethod, itemsHash = {},
-                dataByArguments = {},
-                getSortMethodByType = function(sortingByHash, hash) {
-                    return sortingByHash ? function(argumentField) {
-                        return function(a, b) {
-                            return hash[a[argumentField]] - hash[b[argumentField]]
-                        }
-                    } : compareWithoutHash
-                };
-            if (_isFunction(sortingMethodOption)) {
-                data.sort(sortingMethodOption);
-                discreteDataProcessing(data, groupsData, uniqueArgumentFields)
-            } else {
-                discreteDataProcessing(data, groupsData, uniqueArgumentFields);
-                if (groupsData.categories) {
-                    _each(groupsData.categories, function(index, value) {
-                        itemsHash[value] = index
-                    });
-                    getSortingMethod = getSortMethodByType(true, itemsHash)
-                } else {
-                    if (true === sortingMethodOption && groupsData.argumentType !== STRING) {
-                        getSortingMethod = getSortMethodByType(false, itemsHash)
-                    }
-                }
-            }
-            _each(uniqueArgumentFields, function(_, argumentField) {
-                var sortMethod, currentDataItem;
-                if (getSortingMethod) {
-                    sortMethod = getSortingMethod(argumentField);
-                    currentDataItem = data.slice().sort(sortMethod)
-                } else {
-                    currentDataItem = data
-                }
-                dataByArguments[argumentField] = currentDataItem
-            });
-            return dataByArguments
+        function sortByCallback(data, callback) {
+            return data.slice().sort(callback)
         }
 
         function checkValueTypeOfGroup(group, cell) {
-            _each(group.series, function(_, series) {
-                _each(series.getValueFields(), function(_, field) {
+            group.series.forEach(function(series) {
+                series.getValueFields().forEach(function(field) {
                     group.valueType = getType(cell[field], group.valueType)
                 })
             });
             return group.valueType
         }
 
+        function getSortByCategories(categories) {
+            var hash = {};
+            categories.forEach(function(value, i) {
+                hash[value] = i
+            });
+            return function(data, argumentField) {
+                return data.slice().sort(function(a, b) {
+                    return hash[a[argumentField]] - hash[b[argumentField]]
+                })
+            }
+        }
+
+        function sortData(data, groupsData, sortingMethodOption, uniqueArgumentFields) {
+            var reSortCategories, dataByArguments = {},
+                isDiscrete = groupsData.argumentAxisType === DISCRETE,
+                userCategories = isDiscrete && groupsData.argumentOptions && groupsData.argumentOptions.categories,
+                sortFunction = function(data) {
+                    return data
+                };
+            if (!userCategories && _isFunction(sortingMethodOption)) {
+                data = sortByCallback(data, sortingMethodOption)
+            }
+            if (isDiscrete) {
+                groupsData.categories = getCategories(data, uniqueArgumentFields, userCategories)
+            }
+            if (userCategories || !_isFunction(sortingMethodOption) && groupsData.argumentType === STRING) {
+                sortFunction = getSortByCategories(groupsData.categories)
+            } else {
+                if (true === sortingMethodOption && groupsData.argumentType !== STRING) {
+                    sortFunction = sortByArgument;
+                    reSortCategories = isDiscrete
+                }
+            }
+            uniqueArgumentFields.forEach(function(field) {
+                dataByArguments[field] = sortFunction(data, field)
+            });
+            if (reSortCategories) {
+                groupsData.categories = groupsData.categories.sort(sort)
+            }
+            return dataByArguments
+        }
+
+        function checkItemExistence(collection, item) {
+            return collection.map(function(collectionItem) {
+                return collectionItem.valueOf()
+            }).indexOf(item.valueOf()) === -1
+        }
+
+        function getCategories(data, uniqueArgumentFields, userCategories) {
+            var categories = userCategories ? userCategories.slice() : [];
+            uniqueArgumentFields.forEach(function(field) {
+                data.forEach(function(item) {
+                    var dataItem = item[field];
+                    _isDefined(dataItem) && checkItemExistence(categories, dataItem) && categories.push(dataItem)
+                })
+            });
+            return categories
+        }
+
         function checkArgumentTypeOfGroup(series, cell, groupsData) {
-            _each(series, function(_, currentSeries) {
+            series.forEach(function(currentSeries) {
                 groupsData.argumentType = getType(cell[currentSeries.getArgumentField()], groupsData.argumentType)
             });
             return groupsData.argumentType
@@ -35420,9 +35390,9 @@
             var groupsIndexes, groupsWithUndefinedValueType = [],
                 groupsWithUndefinedArgumentType = [],
                 argumentTypeGroup = groupsData.argumentOptions && axisTypeParser(groupsData.argumentOptions.argumentType);
-            _each(groupsData.groups, function(_, group) {
+            groupsData.groups.some(function(group) {
                 if (!group.series.length) {
-                    return null
+                    return true
                 }
                 var valueTypeGroup = group.valueOptions && axisTypeParser(group.valueOptions.valueType);
                 group.valueType = valueTypeGroup;
@@ -35434,33 +35404,34 @@
                 groupsIndexes = groupsWithUndefinedValueType.map(function(_, index) {
                     return index
                 });
-                _each(data, function(_, cell) {
+                data.some(function(cell) {
                     var defineArg;
-                    _each(groupsWithUndefinedValueType, function(groupIndex, group) {
+                    groupsWithUndefinedValueType.forEach(function(group, groupIndex) {
                         if (checkValueTypeOfGroup(group, cell) && groupsIndexes.indexOf(groupIndex) >= 0) {
                             groupsIndexes.splice(groupIndex, 1)
                         }
                     });
                     if (!defineArg) {
-                        _each(groupsWithUndefinedArgumentType, function(_, group) {
+                        groupsWithUndefinedArgumentType.forEach(function(group) {
                             defineArg = checkArgumentTypeOfGroup(group.series, cell, groupsData)
                         })
                     }
                     if (!checkTypeForAllData && defineArg && 0 === groupsIndexes.length) {
-                        return false
+                        return true
                     }
                 })
             }
         }
 
-        function checkAxisType(groupsData, userArgumentCategories, incidentOccurred) {
+        function checkAxisType(groupsData, incidentOccurred) {
             var argumentOptions = groupsData.argumentOptions || {},
+                userArgumentCategories = argumentOptions && argumentOptions.categories || [],
                 argumentAxisType = correctAxisType(groupsData.argumentType, argumentOptions.type, !!userArgumentCategories.length, incidentOccurred);
-            _each(groupsData.groups, function(_, group) {
+            groupsData.groups.forEach(function(group) {
                 var valueOptions = group.valueOptions || {},
                     valueCategories = valueOptions.categories || [],
                     valueAxisType = correctAxisType(group.valueType, valueOptions.type, !!valueCategories.length, incidentOccurred);
-                _each(group.series, function(_, series) {
+                group.series.forEach(function(series) {
                     var optionsSeries = {};
                     optionsSeries.argumentAxisType = argumentAxisType;
                     optionsSeries.valueAxisType = valueAxisType;
@@ -35479,7 +35450,7 @@
             });
             groupsData.argumentAxisType = groupsData.argumentAxisType || argumentAxisType;
             if (groupsData.argumentAxes) {
-                _each(groupsData.argumentAxes, function(_, axis) {
+                groupsData.argumentAxes.forEach(function(axis) {
                     axis.setTypes(groupsData.argumentAxisType, groupsData.argumentType, ARGUMENT_TYPE);
                     axis.validate(true)
                 })
@@ -35488,8 +35459,9 @@
 
         function verifyData(source, incidentOccurred) {
             var i, ii, k, item, data = [],
-                hasError = !_isArray(source);
-            if (!hasError) {
+                sourceIsDefined = _isDefined(source),
+                hasError = sourceIsDefined && !_isArray(source);
+            if (sourceIsDefined && !hasError) {
                 for (i = 0, ii = source.length, k = 0; i < ii; ++i) {
                     item = source[i];
                     if (_isObject(item)) {
@@ -35508,34 +35480,26 @@
         }
 
         function validateData(data, groupsData, incidentOccurred, options) {
-            var parsers, dataLength, dataByArgumentFields, skipFields = {},
-                argumentOptions = groupsData.argumentOptions,
-                userArgumentCategories = argumentOptions && argumentOptions.categories || [],
-                uniqueArgumentFields = getUniqueArgumentFields(groupsData);
+            var dataByArgumentFields, field, skipFields = {};
             data = verifyData(data, incidentOccurred);
             groupsData.argumentType = groupsData.argumentAxisType = null;
-            _each(groupsData.groups, processGroup);
-            if (groupsData.argumentAxes) {
-                _each(groupsData.argumentAxes, resetAxisTypes)
-            }
+            processGroups(groupsData.groups);
+            resetArgumentAxes(groupsData.argumentAxes);
             checkType(data, groupsData, options.checkTypeForAllData);
-            checkAxisType(groupsData, userArgumentCategories, incidentOccurred);
+            checkAxisType(groupsData, incidentOccurred);
             if (options.convertToAxisDataType) {
-                parsers = prepareParsers(groupsData, skipFields, incidentOccurred);
-                data = parse(data, parsers)
+                data = parse(data, prepareParsers(groupsData, skipFields, incidentOccurred))
             }
             groupPieData(data, groupsData);
-            dataByArgumentFields = sortAndCollectCategories(data, groupsData, options.sortingMethod, uniqueArgumentFields);
-            dataLength = data.length;
-            _each(skipFields, function(field, fieldValue) {
-                if (fieldValue === dataLength) {
+            dataByArgumentFields = sortData(data, groupsData, options.sortingMethod, getUniqueArgumentFields(groupsData));
+            for (field in skipFields) {
+                if (skipFields[field] === data.length) {
                     incidentOccurred("W2002", [field])
                 }
-            });
+            }
             return dataByArgumentFields
         }
-        exports.validateData = validateData;
-        exports.DEBUG_validateData_sortAndCollectCategories = sortAndCollectCategories
+        exports.validateData = validateData
     },
     /*!******************************************!*\
       !*** ./js/viz/components/parse_utils.js ***!
@@ -35593,9 +35557,9 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             seriesNS = {},
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            pointModule = __webpack_require__( /*! ./points/base_point */ 464),
+            pointModule = __webpack_require__( /*! ./points/base_point */ 465),
             _isDefined = commonUtils.isDefined,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _map = vizUtils.map,
             _each = $.each,
             _extend = $.extend,
@@ -35604,16 +35568,16 @@
             _Event = $.Event,
             _noop = $.noop,
             _inArray = $.inArray,
-            states = __webpack_require__( /*! ../components/consts */ 465).states,
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477),
-            lineSeries = __webpack_require__( /*! ./line_series */ 479),
-            areaSeries = __webpack_require__( /*! ./area_series */ 480),
-            barSeries = __webpack_require__( /*! ./bar_series */ 481),
-            rangeSeries = __webpack_require__( /*! ./range_series */ 482),
-            bubbleSeries = __webpack_require__( /*! ./bubble_series */ 483),
-            pieSeries = __webpack_require__( /*! ./pie_series */ 484),
-            financialSeries = __webpack_require__( /*! ./financial_series */ 485),
-            stackedSeries = __webpack_require__( /*! ./stacked_series */ 486),
+            states = __webpack_require__( /*! ../components/consts */ 466).states,
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478),
+            lineSeries = __webpack_require__( /*! ./line_series */ 480),
+            areaSeries = __webpack_require__( /*! ./area_series */ 481),
+            barSeries = __webpack_require__( /*! ./bar_series */ 482),
+            rangeSeries = __webpack_require__( /*! ./range_series */ 483),
+            bubbleSeries = __webpack_require__( /*! ./bubble_series */ 484),
+            pieSeries = __webpack_require__( /*! ./pie_series */ 485),
+            financialSeries = __webpack_require__( /*! ./financial_series */ 486),
+            stackedSeries = __webpack_require__( /*! ./stacked_series */ 487),
             DISCRETE = "discrete",
             SELECTED_STATE = states.selectedMark,
             HOVER_STATE = states.hoverMark,
@@ -35625,8 +35589,18 @@
             RESET_ITEM = states.resetItem,
             NONE_MODE = "none",
             INCLUDE_POINTS = "includepoints",
-            EXCLUDE_POINTS = "excludepoints",
             NEAREST_POINT = "nearestpoint",
+            SERIES_SELECTION_CHANGED = "seriesSelectionChanged",
+            POINT_SELECTION_CHANGED = "pointSelectionChanged",
+            SERIES_HOVER_CHANGED = "seriesHoverChanged",
+            POINT_HOVER_CHANGED = "pointHoverChanged",
+            ALL_SERIES_POINTS = "allseriespoints",
+            ALL_ARGUMENT_POINTS = "allargumentpoints",
+            POINT_HOVER = "pointHover",
+            CLEAR_POINT_HOVER = "clearPointHover",
+            SERIES_SELECT = "seriesSelect",
+            POINT_SELECT = "pointSelect",
+            POINT_DESELECT = "pointDeselect",
             getEmptyBusinessRange = function() {
                 return {
                     arg: {},
@@ -35649,7 +35623,8 @@
         $.extend(seriesNS.mixins.polar, lineSeries.polar, areaSeries.polar, barSeries.polar, rangeSeries.polar, bubbleSeries.polar, stackedSeries.polar);
 
         function includePointsMode(mode) {
-            return mode === INCLUDE_POINTS || "allseriespoints" === mode
+            mode = _normalizeEnum(mode);
+            return mode === INCLUDE_POINTS || mode === ALL_SERIES_POINTS
         }
 
         function getLabelOptions(labelOptions, defaultColor) {
@@ -35691,18 +35666,53 @@
             }
         }
 
-        function applyPointStyle(point, styleName) {
-            !point.isSelected() && !point.hasSelectedView && point.applyStyle(styleName)
+        function setPointHoverState(point, legendCallback) {
+            point.fullState |= HOVER_STATE;
+            point.applyView(legendCallback)
         }
 
-        function Series(renderSettings, options) {
+        function releasePointHoverState(point, legendCallback) {
+            point.fullState &= ~HOVER_STATE;
+            point.applyView(legendCallback);
+            point.releaseHoverState()
+        }
+
+        function setPointSelectedState(point, legendCallback) {
+            point.fullState |= SELECTED_STATE;
+            point.applyView(legendCallback)
+        }
+
+        function releasePointSelectedState(point, legendCallback) {
+            point.fullState &= ~SELECTED_STATE;
+            point.applyView(legendCallback)
+        }
+
+        function mergePointOptionsCore(base, extra) {
+            var options = _extend({}, base, extra);
+            options.border = _extend({}, base && base.border, extra && extra.border);
+            return options
+        }
+
+        function mergePointOptions(base, extra) {
+            var options = mergePointOptionsCore(base, extra);
+            options.image = _extend(true, {}, base.image, extra.image);
+            options.selectionStyle = mergePointOptionsCore(base.selectionStyle, extra.selectionStyle);
+            options.hoverStyle = mergePointOptionsCore(base.hoverStyle, extra.hoverStyle);
+            return options
+        }
+
+        function Series(settings, options) {
             var that = this;
             that.fullState = 0;
-            that._extGroups = renderSettings;
-            that._renderer = renderSettings.renderer;
-            that._group = renderSettings.renderer.g().attr({
+            that._extGroups = settings;
+            that._renderer = settings.renderer;
+            that._group = settings.renderer.g().attr({
                 "class": "dxc-series"
             });
+            that._eventTrigger = settings.eventTrigger;
+            that._eventPipe = settings.eventPipe;
+            that._seriesModes = settings.commonSeriesModes;
+            that._legendCallback = _noop;
             that.updateOptions(options)
         }
         exports.Series = Series;
@@ -35734,12 +35744,12 @@
             },
             applyClip: function() {
                 this._group.attr({
-                    clipId: this._paneClipRectID
+                    "clip-path": this._paneClipRectID
                 })
             },
             resetClip: function() {
                 this._group.attr({
-                    clipId: null
+                    "clip-path": null
                 })
             },
             getTagField: function() {
@@ -35757,12 +35767,18 @@
                     point = pointsArray[index],
                     pointsByArgument = that.pointsByArgument;
                 if (that._checkData(data)) {
-                    options = that._customizePoint(data) || that._getCreatingPointOptions(data);
+                    options = that._getCreatingPointOptions(data);
                     if (point) {
                         point.update(data, options)
                     } else {
                         point = new pointModule.Point(that, data, options);
+                        if (that.isSelected() && includePointsMode(that.lastSelectionMode)) {
+                            point.setView(SELECTION)
+                        }
                         pointsArray.push(point)
+                    }
+                    if (point.hasValue()) {
+                        that.customizePoint(point, data)
                     }
                     arg = point.argument.valueOf();
                     pointByArgument = pointsByArgument[arg];
@@ -35814,7 +35830,7 @@
                 }
                 that._options = newOptions;
                 that._pointOptions = null;
-                that._deletePatterns();
+                that._renderer.initHatching();
                 that.name = newOptions.name;
                 that.pane = newOptions.pane;
                 that.axis = newOptions.axis;
@@ -35944,6 +35960,7 @@
                     segmentCount = 0,
                     firstDrawing = that._firstDrawing,
                     closeSegment = points[0] && points[0].hasValue() && that._options.closed;
+                that._legendCallback = legendCallback || that._legendCallback;
                 that._graphics = that._graphics || [];
                 that._prepareSeriesToDrawing();
                 if (!that._visible) {
@@ -35969,8 +35986,7 @@
                             point: p,
                             groups: groupForPoint,
                             hasAnimation: animationEnabled,
-                            firstDrawing: firstDrawing,
-                            legendCallback: legendCallback
+                            firstDrawing: firstDrawing
                         });
                         segment.push(p)
                     } else {
@@ -35986,10 +36002,10 @@
                 hideLayoutLabels && that.hideLabels();
                 animationEnabled && that._animate(firstDrawing);
                 if (that.isSelected()) {
-                    that._changeStyle(legendCallback, APPLY_SELECTED)
+                    that._changeStyle(that.lastSelectionMode, void 0, true)
                 } else {
                     if (that.isHovered()) {
-                        that._changeStyle(legendCallback, APPLY_HOVER)
+                        that._changeStyle(that.lastHoverMode, void 0, true)
                     }
                 }
             },
@@ -36023,48 +36039,42 @@
                     this[methodName] = methods[methodName]
                 }
             },
-            setSelectedState: function(state, mode, legendCallback) {
+            _setPointsView: function(view, target) {
+                this.getPoints().forEach(function(point) {
+                    if (target !== point) {
+                        point.setView(view)
+                    }
+                })
+            },
+            _resetPointsView: function(view, target) {
+                this.getPoints().forEach(function(point) {
+                    if (target !== point) {
+                        point.resetView(view)
+                    }
+                })
+            },
+            _resetNearestPoint: function() {
+                var that = this;
+                that._nearestPoint && that._nearestPoint.resetView(HOVER);
+                that._nearestPoint = null
+            },
+            _setSelectedState: function(mode) {
                 var that = this;
                 that.lastSelectionMode = _normalizeEnum(mode || that._options.selectionMode);
-                if (state && !that.isSelected()) {
-                    that.fullState = that.fullState | SELECTED_STATE;
-                    that._nearestPoint && applyPointStyle(that._nearestPoint, NORMAL);
-                    that._nearestPoint = null;
-                    that._changeStyle(legendCallback, APPLY_SELECTED)
-                } else {
-                    if (!state && that.isSelected()) {
-                        that.fullState = that.fullState & ~SELECTED_STATE;
-                        if (that.isHovered()) {
-                            that._changeStyle(legendCallback, APPLY_HOVER, SELECTION)
-                        } else {
-                            that._changeStyle(legendCallback, RESET_ITEM)
-                        }
-                    }
+                that.fullState = that.fullState | SELECTED_STATE;
+                that._resetNearestPoint();
+                that._changeStyle(that.lastSelectionMode);
+                if (that.lastSelectionMode !== NONE_MODE && that.isHovered() && includePointsMode(that.lastHoverMode)) {
+                    that._resetPointsView(HOVER)
                 }
             },
-            setHoverState: function(state, mode, legendCallback) {
+            _releaseSelectedState: function() {
                 var that = this;
-                that.lastHoverMode = _normalizeEnum(mode || that._options.hoverMode);
-                if (state && !that.isHovered()) {
-                    that.fullState = that.fullState | HOVER_STATE;
-                    !that.isSelected() && that._changeStyle(legendCallback, APPLY_HOVER)
-                } else {
-                    if (!state && that.isHovered()) {
-                        that._nearestPoint = null;
-                        that.fullState = that.fullState & ~HOVER_STATE;
-                        !that.isSelected() && that._changeStyle(legendCallback, RESET_ITEM)
-                    }
+                that.fullState = that.fullState & ~SELECTED_STATE;
+                that._changeStyle(that.lastSelectionMode, SELECTION);
+                if (that.lastSelectionMode !== NONE_MODE && that.isHovered() && includePointsMode(that.lastHoverMode)) {
+                    that._setPointsView(HOVER)
                 }
-            },
-            setHoverView: function() {
-                if (this._canChangeView()) {
-                    this._applyStyle(this._styles.hover);
-                    return this
-                }
-                return null
-            },
-            releaseHoverView: function() {
-                this._canChangeView() && this._applyStyle(this._styles.normal)
             },
             isFullStackedSeries: function() {
                 return 0 === this.type.indexOf("fullstacked")
@@ -36078,66 +36088,34 @@
             _canChangeView: function() {
                 return !this.isSelected() && _normalizeEnum(this._options.hoverMode) !== NONE_MODE
             },
-            _changeStyle: function(legendCallBack, legendAction, prevStyle) {
-                var pointStyle, that = this,
-                    style = that._calcStyle(prevStyle);
-                if (style.mode === NONE_MODE) {
-                    return
+            _changeStyle: function(mode, resetView, skipPoints) {
+                var that = this,
+                    state = that.fullState,
+                    styles = [NORMAL, HOVER, SELECTION, SELECTION];
+                if ("none" === that.lastHoverMode) {
+                    state &= ~HOVER_STATE
                 }
-                legendCallBack(legendAction);
-                if (includePointsMode(style.mode)) {
-                    pointStyle = style.pointStyle;
-                    _each(that._points || [], function(_, p) {
-                        applyPointStyle(p, pointStyle)
-                    })
+                if ("none" === that.lastSelectionMode) {
+                    state &= ~SELECTED_STATE
                 }
-                that._applyStyle(style.series)
-            },
-            _calcStyle: function(prevStyle) {
-                var result, that = this,
-                    styles = that._styles,
-                    pointNormalState = false;
-                switch (that.fullState) {
-                    case 0:
-                        result = {
-                            pointStyle: NORMAL,
-                            mode: INCLUDE_POINTS,
-                            series: styles.normal
-                        };
-                        break;
-                    case 1:
-                        pointNormalState = prevStyle && that.lastHoverMode === EXCLUDE_POINTS || that.lastHoverMode === NEAREST_POINT && includePointsMode(that.lastSelectionMode);
-                        result = {
-                            pointStyle: pointNormalState ? NORMAL : HOVER,
-                            mode: pointNormalState ? INCLUDE_POINTS : that.lastHoverMode,
-                            series: styles.hover
-                        };
-                        break;
-                    case 2:
-                        result = {
-                            pointStyle: SELECTION,
-                            mode: that.lastSelectionMode,
-                            series: styles.selection
-                        };
-                        break;
-                    case 3:
-                        pointNormalState = that.lastSelectionMode === EXCLUDE_POINTS && includePointsMode(that.lastHoverMode);
-                        result = {
-                            pointStyle: pointNormalState ? NORMAL : SELECTION,
-                            mode: pointNormalState ? INCLUDE_POINTS : that.lastSelectionMode,
-                            series: styles.selection
-                        }
+                if (includePointsMode(mode) && !skipPoints) {
+                    if (!resetView) {
+                        that._setPointsView(styles[state])
+                    } else {
+                        that._resetPointsView(resetView)
+                    }
                 }
-                return result
+                that._legendCallback([RESET_ITEM, APPLY_HOVER, APPLY_SELECTED, APPLY_SELECTED][state]);
+                that._applyStyle(that._styles[styles[state]])
             },
             updateHover: function(x, y) {
                 var that = this,
                     currentNearestPoint = that._nearestPoint,
                     point = that.isHovered() && that.lastHoverMode === NEAREST_POINT && that.getNeighborPoint(x, y);
-                if (point !== currentNearestPoint && !that.isSelected()) {
-                    currentNearestPoint && applyPointStyle(currentNearestPoint, NORMAL);
+                if (point !== currentNearestPoint && !(that.isSelected() && that.lastSelectionMode !== NONE_MODE)) {
+                    that._resetNearestPoint();
                     if (point) {
-                        applyPointStyle(point, HOVER);
+                        point.setView(HOVER);
                         that._nearestPoint = point
                     }
                 }
@@ -36151,7 +36129,7 @@
             getLabelVisibility: function() {
                 return this.areLabelsVisible() && this._options.label && this._options.label.visible
             },
-            _customizePoint: function(pointData) {
+            customizePoint: function(point, pointData) {
                 var customizeObject, pointOptions, customLabelOptions, customOptions, useLabelCustomOptions, usePointCustomOptions, that = this,
                     options = that._options,
                     customizePoint = options.customizePoint,
@@ -36176,9 +36154,9 @@
                 if (useLabelCustomOptions || usePointCustomOptions) {
                     pointOptions = that._parsePointOptions(that._preparePointOptions(customOptions), customLabelOptions || options.label, pointData);
                     pointOptions.styles.useLabelCustomOptions = useLabelCustomOptions;
-                    pointOptions.styles.usePointCustomOptions = usePointCustomOptions
+                    pointOptions.styles.usePointCustomOptions = usePointCustomOptions;
+                    point.updateOptions(pointOptions)
                 }
-                return pointOptions
             },
             show: function() {
                 if (!this._visible) {
@@ -36207,9 +36185,8 @@
                 var that = this,
                     options = that._options,
                     styles = that._createPointStyles(pointOptions, data),
-                    parsedOptions = _extend(true, {}, pointOptions, {
+                    parsedOptions = _extend({}, pointOptions, {
                         type: options.type,
-                        tag: that.tag,
                         rotated: options.rotated,
                         styles: styles,
                         widgetType: options.widgetType,
@@ -36222,8 +36199,8 @@
                 return parsedOptions
             },
             _preparePointOptions: function(customOptions) {
-                var point = this._getOptionsForPoint();
-                return customOptions ? _extend(true, {}, point, customOptions) : point
+                var pointOptions = this._getOptionsForPoint();
+                return customOptions ? mergePointOptions(pointOptions, customOptions) : pointOptions
             },
             _getMarkerGroupOptions: function() {
                 return _extend(false, {}, this._getOptionsForPoint(), {
@@ -36317,61 +36294,88 @@
             getVisiblePoints: function() {
                 return (this._drawnPoints || []).slice()
             },
-            setPointHoverState: function(data) {
-                var point = data.point;
-                if (data.setState) {
-                    point.fullState |= HOVER_STATE
-                }
-                if (!(this.isSelected() && includePointsMode(this.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView) {
-                    point.applyStyle(HOVER)
-                }
-            },
-            releasePointHoverState: function(data) {
-                var that = this,
-                    point = data.point;
-                if (data.setState) {
-                    point.fullState &= ~HOVER_STATE
-                }
-                if (!(that.isSelected() && includePointsMode(that.lastSelectionMode)) && !point.isSelected() && !point.hasSelectedView) {
-                    if (!(that.isHovered() && includePointsMode(that.lastHoverMode)) || that.isSelected() && that.lastSelectionMode === EXCLUDE_POINTS) {
-                        point.applyStyle(NORMAL)
-                    }
-                }
-                point.releaseHoverState()
-            },
-            setPointSelectedState: function(data) {
-                var point = data.point;
-                if (data.setState) {
-                    point.fullState |= SELECTED_STATE
-                } else {
-                    point.hasSelectedView = true
-                }
-                point.applyStyle(SELECTION)
-            },
-            releasePointSelectedState: function(data) {
-                var pointStyle, that = this,
-                    point = data.point;
-                if (data.setState) {
-                    point.fullState &= ~SELECTED_STATE
-                } else {
-                    point.hasSelectedView = false
-                }
-                if (that.isHovered() && includePointsMode(that.lastHoverMode) || point.isHovered()) {
-                    pointStyle = HOVER
-                } else {
-                    if (that.isSelected() && includePointsMode(that.lastSelectionMode)) {
-                        pointStyle = SELECTION
-                    } else {
-                        pointStyle = NORMAL
-                    }
-                }
-                point.applyStyle(pointStyle)
-            },
             selectPoint: function(point) {
-                triggerEvent(this._extGroups.seriesGroup, new _Event("selectpoint"), point)
+                if (!point.isSelected()) {
+                    setPointSelectedState(point, this._legendCallback);
+                    this._eventPipe({
+                        action: POINT_SELECT,
+                        target: point
+                    });
+                    this._eventTrigger(POINT_SELECTION_CHANGED, {
+                        target: point
+                    })
+                }
             },
             deselectPoint: function(point) {
-                triggerEvent(this._extGroups.seriesGroup, new _Event("deselectpoint"), point)
+                if (point.isSelected()) {
+                    releasePointSelectedState(point, this._legendCallback);
+                    this._eventPipe({
+                        action: POINT_DESELECT,
+                        target: point
+                    });
+                    this._eventTrigger(POINT_SELECTION_CHANGED, {
+                        target: point
+                    })
+                }
+            },
+            hover: function(mode) {
+                var that = this,
+                    eventTrigger = that._eventTrigger;
+                if (that.isHovered()) {
+                    return
+                }
+                that.lastHoverMode = _normalizeEnum(mode || that._options.hoverMode);
+                that.fullState = that.fullState | HOVER_STATE;
+                that._changeStyle(that.lastHoverMode, void 0, that.isSelected() && that.lastSelectionMode !== NONE_MODE);
+                eventTrigger(SERIES_HOVER_CHANGED, {
+                    target: that
+                })
+            },
+            clearHover: function() {
+                var that = this,
+                    eventTrigger = that._eventTrigger;
+                if (!that.isHovered()) {
+                    return
+                }
+                that._resetNearestPoint();
+                that.fullState = that.fullState & ~HOVER_STATE;
+                that._changeStyle(that.lastHoverMode, HOVER, that.isSelected() && that.lastSelectionMode !== NONE_MODE);
+                eventTrigger(SERIES_HOVER_CHANGED, {
+                    target: that
+                })
+            },
+            hoverPoint: function(point) {
+                var that = this;
+                if (!point.isHovered()) {
+                    point.clearHover();
+                    setPointHoverState(point, that._legendCallback);
+                    that._canChangeView() && that._applyStyle(that._styles.hover);
+                    that._eventPipe({
+                        action: POINT_HOVER,
+                        target: point
+                    });
+                    that._eventTrigger(POINT_HOVER_CHANGED, {
+                        target: point
+                    })
+                }
+            },
+            clearPointHover: function() {
+                var that = this;
+                that.getPoints().some(function(currentPoint) {
+                    if (currentPoint.isHovered()) {
+                        releasePointHoverState(currentPoint, that._legendCallback);
+                        that._canChangeView() && that._applyStyle(that._styles.normal);
+                        that._eventPipe({
+                            action: CLEAR_POINT_HOVER,
+                            target: currentPoint
+                        });
+                        that._eventTrigger(POINT_HOVER_CHANGED, {
+                            target: currentPoint
+                        });
+                        return true
+                    }
+                    return false
+                })
             },
             showPointTooltip: function(point) {
                 triggerEvent(this._extGroups.seriesGroup, new _Event("showpointtooltip"), point)
@@ -36381,19 +36385,118 @@
             },
             select: function() {
                 var that = this;
-                triggerEvent(that._extGroups.seriesGroup, new _Event("selectseries", {
-                    target: that
-                }), that._options.selectionMode);
-                that._group.toForeground()
+                if (!that.isSelected()) {
+                    that._setSelectedState(that._options.selectionMode);
+                    that._eventPipe({
+                        action: SERIES_SELECT,
+                        target: that
+                    });
+                    that._group.toForeground();
+                    that._eventTrigger(SERIES_SELECTION_CHANGED, {
+                        target: that
+                    })
+                }
             },
             clearSelection: function() {
                 var that = this;
-                triggerEvent(that._extGroups.seriesGroup, new _Event("deselectseries", {
-                    target: that
-                }), that._options.selectionMode)
+                if (that.isSelected()) {
+                    that._releaseSelectedState();
+                    that._eventTrigger(SERIES_SELECTION_CHANGED, {
+                        target: that
+                    })
+                }
             },
             getPointsByArg: function(arg) {
                 return this.pointsByArgument[arg.valueOf()] || []
+            },
+            getPointsByKeys: function(arg) {
+                return this.getPointsByArg(arg)
+            },
+            notify: function(data) {
+                var that = this,
+                    action = data.action,
+                    seriesModes = that._seriesModes,
+                    target = data.target,
+                    targetOptions = target.getOptions(),
+                    pointHoverMode = _normalizeEnum(targetOptions.hoverMode),
+                    selectionModeOfPoint = _normalizeEnum(targetOptions.selectionMode);
+                if (action === POINT_HOVER) {
+                    that._hoverPointHandler(target, pointHoverMode, data.notifyLegend)
+                } else {
+                    if (action === CLEAR_POINT_HOVER) {
+                        that._clearPointHoverHandler(target, pointHoverMode, data.notifyLegend)
+                    } else {
+                        if (action === SERIES_SELECT) {
+                            target !== that && "single" === seriesModes.seriesSelectionMode && that.clearSelection()
+                        } else {
+                            if (action === POINT_SELECT) {
+                                if ("single" === seriesModes.pointSelectionMode) {
+                                    that.getPoints().some(function(currentPoint) {
+                                        if (currentPoint !== target && currentPoint.isSelected()) {
+                                            that.deselectPoint(currentPoint);
+                                            return true
+                                        }
+                                        return false
+                                    })
+                                }
+                                that._selectPointHandler(target, selectionModeOfPoint)
+                            } else {
+                                if (action === POINT_DESELECT) {
+                                    that._deselectPointHandler(target, selectionModeOfPoint)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            _selectPointHandler: function(target, mode) {
+                var that = this;
+                if (mode === ALL_SERIES_POINTS) {
+                    target.series === that && that._setPointsView(SELECTION, target)
+                } else {
+                    if (mode === ALL_ARGUMENT_POINTS) {
+                        that.getPointsByKeys(target.argument, target.argumentIndex).forEach(function(currentPoint) {
+                            currentPoint !== target && currentPoint.setView(SELECTION)
+                        })
+                    }
+                }
+            },
+            _deselectPointHandler: function(target, mode) {
+                if (mode === ALL_SERIES_POINTS) {
+                    target.series === this && this._resetPointsView(SELECTION, target)
+                } else {
+                    if (mode === ALL_ARGUMENT_POINTS) {
+                        this.getPointsByKeys(target.argument, target.argumentIndex).forEach(function(currentPoint) {
+                            currentPoint !== target && currentPoint.resetView(SELECTION)
+                        })
+                    }
+                }
+            },
+            _hoverPointHandler: function(target, mode, notifyLegend) {
+                var that = this;
+                if (target.series !== that && mode === ALL_ARGUMENT_POINTS) {
+                    that.getPointsByKeys(target.argument, target.argumentIndex).forEach(function(currentPoint) {
+                        currentPoint.setView(HOVER)
+                    });
+                    notifyLegend && that._legendCallback(target)
+                } else {
+                    if (mode === ALL_SERIES_POINTS && target.series === that) {
+                        that._setPointsView(HOVER, target)
+                    }
+                }
+            },
+            _clearPointHoverHandler: function(target, mode, notifyLegend) {
+                var that = this;
+                if (mode === ALL_ARGUMENT_POINTS) {
+                    target.series !== that && that.getPointsByKeys(target.argument, target.argumentIndex).forEach(function(currentPoint) {
+                        currentPoint.resetView(HOVER)
+                    });
+                    notifyLegend && that._legendCallback(target)
+                } else {
+                    if (mode === ALL_SERIES_POINTS && target.series === that) {
+                        that._resetPointsView(HOVER, target)
+                    }
+                }
             },
             _deletePoints: function() {
                 var that = this;
@@ -36401,12 +36504,6 @@
                 that._disposePoints(that._aggregatedPoints);
                 that._disposePoints(that._oldPoints);
                 that._points = that._oldPoints = that._aggregatedPoints = that._originalPoints = that._drawnPoints = null
-            },
-            _deletePatterns: function() {
-                _each(this._patterns || [], function(_, pattern) {
-                    pattern && pattern.dispose()
-                });
-                this._patterns = []
             },
             _deleteTrackers: function() {
                 var that = this;
@@ -36422,9 +36519,8 @@
                 that._group.dispose();
                 that._labelsGroup && that._labelsGroup.dispose();
                 that._errorBarGroup && that._errorBarGroup.dispose();
-                that._deletePatterns();
                 that._deleteTrackers();
-                that._group = that._extGroups = that._markersGroup = that._elementsGroup = that._bordersGroup = that._labelsGroup = that._errorBarGroup = that._graphics = that._rangeData = that._renderer = that.translators = that._styles = that._options = that._pointOptions = that._drawnPoints = that._aggregatedPoints = that.pointsByArgument = that._segments = that._prevSeries = that._patterns = null
+                that._group = that._extGroups = that._markersGroup = that._elementsGroup = that._bordersGroup = that._labelsGroup = that._errorBarGroup = that._graphics = that._rangeData = that._renderer = that.translators = that._styles = that._options = that._pointOptions = that._drawnPoints = that._aggregatedPoints = that.pointsByArgument = that._segments = that._prevSeries = null
             },
             correctPosition: _noop,
             drawTrackers: _noop,
@@ -36451,16 +36547,17 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             mixins = {},
-            statesConsts = __webpack_require__( /*! ../../components/consts */ 465).states,
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
-            barPoint = __webpack_require__( /*! ./bar_point */ 469),
-            bubblePoint = __webpack_require__( /*! ./bubble_point */ 470),
-            piePoint = __webpack_require__( /*! ./pie_point */ 471),
-            rangeSymbolPoint = __webpack_require__( /*! ./range_symbol_point */ 472),
-            rangeBarPoint = __webpack_require__( /*! ./range_bar_point */ 473),
-            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 474),
-            stockPoint = __webpack_require__( /*! ./stock_point */ 475),
-            polarPoints = __webpack_require__( /*! ./polar_point */ 476),
+            statesConsts = __webpack_require__( /*! ../../components/consts */ 466).states,
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            barPoint = __webpack_require__( /*! ./bar_point */ 470),
+            bubblePoint = __webpack_require__( /*! ./bubble_point */ 471),
+            piePoint = __webpack_require__( /*! ./pie_point */ 472),
+            rangeSymbolPoint = __webpack_require__( /*! ./range_symbol_point */ 473),
+            rangeBarPoint = __webpack_require__( /*! ./range_bar_point */ 474),
+            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 475),
+            stockPoint = __webpack_require__( /*! ./stock_point */ 476),
+            polarPoints = __webpack_require__( /*! ./polar_point */ 477),
+            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 448).normalizeEnum,
             _each = $.each,
             _extend = $.extend,
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
@@ -36471,6 +36568,12 @@
             BAR_POINT = "barPoint",
             POLAR_BAR_POINT = "polarBarPoint",
             PIE_POINT = "piePoint",
+            SELECTED_STATE = statesConsts.selectedMark,
+            HOVER_STATE = statesConsts.hoverMark,
+            NORMAL_STATE = statesConsts.normalMark,
+            HOVER = statesConsts.hover,
+            NORMAL = statesConsts.normal,
+            SELECTION = statesConsts.selection,
             pointTypes = {
                 chart: {
                     scatter: SYMBOL_POINT,
@@ -36511,10 +36614,18 @@
                 }
             };
 
+        function isNoneMode(mode) {
+            return "none" === _normalizeEnum(mode)
+        }
+
         function Point(series, dataItem, options) {
-            this.fullState = statesConsts.normalMark;
+            this.fullState = NORMAL_STATE;
             this.series = series;
             this.update(dataItem, options);
+            this._viewCounters = {
+                hover: 0,
+                selection: 0
+            };
             this._emptySettings = {
                 fill: null,
                 stroke: null,
@@ -36535,6 +36646,9 @@
         Point.prototype = {
             constructor: Point,
             getColor: function() {
+                if (!this.hasValue() && !this._styles.usePointCustomOptions) {
+                    this.series.customizePoint(this, this._dataItem)
+                }
                 return this._styles.normal.fill || this.series.getColor()
             },
             _getStyle: function() {
@@ -36549,6 +36663,7 @@
                 that.argument = that.initialArgument = that.originalArgument = dataItem.argument;
                 that.tag = dataItem.tag;
                 that.index = dataItem.index;
+                this._dataItem = dataItem;
                 that.lowError = dataItem.lowError;
                 that.highError = dataItem.highError;
                 that._updateData(dataItem);
@@ -36577,28 +36692,59 @@
                 if (!that._hasGraphic()) {
                     that._getMarkerVisibility() && that._drawMarker(renderer, groups.markers, animationEnabled, firstDrawing)
                 } else {
-                    that._updateMarker(animationEnabled, void 0, groups.markers)
+                    that._updateMarker(animationEnabled, this._getStyle(), groups.markers)
                 }
                 that._drawLabel();
                 that._drawErrorBar(renderer, groups.errorBars, animationEnabled);
                 return that
             },
-            applyStyle: function(style) {
+            applyStyle: function(style, callback) {
                 var that = this;
                 that._currentStyle = style;
                 if (that.graphic) {
                     if ("normal" === style) {
-                        if (that.isHovered()) {
-                            that.applyStyle("hover");
-                            return
-                        }
                         that.clearMarker()
                     } else {
                         that.graphic.toForeground()
                     }
-                    that._updateMarker(true, that._styles[style])
+                    that._updateMarker(true, that._styles[style], void 0, callback)
                 }
                 return that
+            },
+            _getViewStyle: function() {
+                var state = NORMAL_STATE,
+                    fullState = this.fullState,
+                    styles = [NORMAL, HOVER, SELECTION, SELECTION];
+                if (this._viewCounters.hover) {
+                    state |= HOVER_STATE
+                }
+                if (this._viewCounters.selection) {
+                    state |= SELECTED_STATE
+                }
+                if (isNoneMode(this.getOptions().selectionMode)) {
+                    fullState &= ~SELECTED_STATE
+                }
+                if (isNoneMode(this.getOptions().hoverMode)) {
+                    fullState &= ~HOVER_STATE
+                }
+                state |= fullState;
+                return styles[state]
+            },
+            applyView: function(legendCallback) {
+                var style = this._getViewStyle();
+                this.applyStyle(style, legendCallback)
+            },
+            setView: function(style) {
+                this._viewCounters[style]++;
+                this.applyView()
+            },
+            resetView: function(style) {
+                --this._viewCounters[style];
+                if (this._viewCounters[style] < 0) {
+                    var debug = __webpack_require__( /*! ../../../core/utils/console */ 10).debug;
+                    debug.assert(false, "incorrect view style couinter " + this._viewCounters[style] + " " + style)
+                }
+                this.applyView()
             },
             releaseHoverState: function() {
                 var that = this;
@@ -36611,6 +36757,12 @@
             },
             clearSelection: function() {
                 this.series.deselectPoint(this)
+            },
+            hover: function() {
+                this.series.hoverPoint(this)
+            },
+            clearHover: function() {
+                this.series.clearPointHover()
             },
             showTooltip: function() {
                 this.series.showPointTooltip(this)
@@ -36677,10 +36829,10 @@
                 return this.inVisibleArea
             },
             isSelected: function() {
-                return !!(this.fullState & statesConsts.selectedMark)
+                return !!(this.fullState & SELECTED_STATE)
             },
             isHovered: function() {
-                return !!(this.fullState & statesConsts.hoverMark)
+                return !!(this.fullState & HOVER_STATE)
             },
             getOptions: function() {
                 return this._options
@@ -36869,10 +37021,10 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
-            labelModule = __webpack_require__( /*! ./label */ 467),
+            labelModule = __webpack_require__( /*! ./label */ 468),
             _extend = $.extend,
             _isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 447).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 448).normalizeEnum,
             _math = Math,
             _round = _math.round,
             _floor = _math.floor,
@@ -37396,7 +37548,6 @@
                     visibility = !that.isVisible() ? {
                         visibility: "hidden"
                     } : {};
-                style = style || that._getStyle();
                 if (that._checkImage(image)) {
                     settings = _extend({}, {
                         visibility: style.visibility
@@ -37459,8 +37610,8 @@
       \***************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            _format = __webpack_require__( /*! ../../core/format */ 468),
-            vizUtils = __webpack_require__( /*! ../../core/utils */ 447),
+            _format = __webpack_require__( /*! ../../core/format */ 469),
+            vizUtils = __webpack_require__( /*! ../../core/utils */ 448),
             _degreesToRadians = vizUtils.degreesToRadians,
             _patchFontOptions = vizUtils.patchFontOptions,
             _round = Math.round,
@@ -37796,7 +37947,7 @@
             _floor = _math.floor,
             _abs = _math.abs,
             _min = _math.min,
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
             CANVAS_POSITION_DEFAULT = "canvas_position_default",
             DEFAULT_BAR_TRACKER_SIZE = 9,
             CORRECTING_BAR_TRACKER_VALUE = 4,
@@ -37806,12 +37957,15 @@
             BOTTOM = "bottom";
         module.exports = _extend({}, symbolPoint, {
             correctCoordinates: function(correctOptions) {
-                var correction = _floor(correctOptions.offset - correctOptions.width / 2),
-                    rotated = this._options.rotated,
-                    valueSelector = rotated ? "height" : "width",
-                    correctionSelector = (rotated ? "y" : "x") + "Correction";
-                this[valueSelector] = correctOptions.width;
-                this[correctionSelector] = correction
+                var that = this,
+                    correction = _floor(correctOptions.offset - correctOptions.width / 2);
+                if (that._options.rotated) {
+                    that.height = correctOptions.width;
+                    that.yCorrection = correction
+                } else {
+                    that.width = correctOptions.width;
+                    that.xCorrection = correction
+                }
             },
             _getGraphicBBox: function() {
                 var that = this,
@@ -38052,7 +38206,7 @@
                 }
             },
             _updateMarker: function(animationEnabled, style) {
-                this.graphic.attr(_extend({}, style || this._getStyle(), !animationEnabled ? this.getMarkerCoords() : {}))
+                this.graphic.smartAttr(_extend({}, style, !animationEnabled ? this.getMarkerCoords() : {}))
             },
             getMarkerCoords: function() {
                 return {
@@ -38073,7 +38227,7 @@
       \**********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
             _extend = $.extend,
             MIN_BUBBLE_HEIGHT = 20;
         module.exports = _extend({}, symbolPoint, {
@@ -38118,15 +38272,14 @@
             },
             _updateMarker: function(animationEnabled, style) {
                 var that = this;
-                style = style || that._getStyle();
                 if (!animationEnabled) {
-                    style = $.extend({
+                    style = _extend({
                         r: that.bubbleSize,
                         translateX: that.x,
                         translateY: that.y
                     }, style)
                 }
-                that.graphic.attr(style)
+                that.graphic.smartAttr(style)
             },
             _getFormatObject: function(tooltip) {
                 var formatObject = symbolPoint._getFormatObject.call(this, tooltip);
@@ -38153,20 +38306,20 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             CONNECTOR_LENGTH = 20,
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
             _extend = $.extend,
             _round = Math.round,
             _sqrt = Math.sqrt,
             _acos = Math.acos,
             DEG = 180 / Math.PI,
             _abs = Math.abs,
-            vizUtils = __webpack_require__( /*! ../../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../../core/utils */ 448),
             _normalizeAngle = vizUtils.normalizeAngle,
             _getCosAndSin = vizUtils.getCosAndSin,
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             getVerticallyShiftedAngularCoords = vizUtils.getVerticallyShiftedAngularCoords,
-            INDENT_FROM_PIE = __webpack_require__( /*! ../../components/consts */ 465).pieLabelIndent;
+            INDENT_FROM_PIE = __webpack_require__( /*! ../../components/consts */ 466).pieLabelIndent;
         module.exports = _extend({}, symbolPoint, {
             _updateData: function(data) {
                 var that = this;
@@ -38406,9 +38559,8 @@
             _getMarkerVisibility: function() {
                 return true
             },
-            _updateMarker: function(animationEnabled, style) {
+            _updateMarker: function(animationEnabled, style, _, callback) {
                 var that = this;
-                style = style || that._getStyle();
                 if (!animationEnabled) {
                     style = _extend({
                         x: that.centerX,
@@ -38419,7 +38571,8 @@
                         endAngle: that.fromAngle
                     }, style)
                 }
-                that.graphic.attr(style).sharp()
+                that.graphic.smartAttr(style).sharp();
+                callback && callback()
             },
             getLegendStyles: function() {
                 return this._styles.legendStyles
@@ -38486,8 +38639,8 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
-            labelModule = __webpack_require__( /*! ./label */ 467),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
+            labelModule = __webpack_require__( /*! ./label */ 468),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
             _extend = $.extend,
             _isDefined = commonUtils.isDefined,
             _math = Math,
@@ -38958,8 +39111,8 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            barPoint = __webpack_require__( /*! ./bar_point */ 469),
-            rangeSymbolPointMethods = __webpack_require__( /*! ./range_symbol_point */ 472),
+            barPoint = __webpack_require__( /*! ./bar_point */ 470),
+            rangeSymbolPointMethods = __webpack_require__( /*! ./range_symbol_point */ 473),
             _extend = $.extend;
         module.exports = _extend({}, barPoint, {
             deleteLabel: rangeSymbolPointMethods.deleteLabel,
@@ -39044,8 +39197,8 @@
       \***************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
-            barPoint = __webpack_require__( /*! ./bar_point */ 469),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            barPoint = __webpack_require__( /*! ./bar_point */ 470),
             _isNumeric = $.isNumeric,
             _extend = $.extend,
             _math = Math,
@@ -39303,7 +39456,7 @@
                     graphic = that.graphic;
                 graphic.attr({
                     points: that._getPoints()
-                }).attr(style || that._getStyle()).sharp();
+                }).smartAttr(style).sharp();
                 group && graphic.append(that._getMarkerGroup(group))
             },
             _getLabelFormatObject: function() {
@@ -39348,7 +39501,7 @@
       \*********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 474),
+            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 475),
             _extend = $.extend,
             _isNumeric = $.isNumeric;
         module.exports = _extend({}, candlestickPoint, {
@@ -39393,11 +39546,11 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             _extend = $.extend,
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 466),
-            barPoint = __webpack_require__( /*! ./bar_point */ 469),
-            piePoint = __webpack_require__( /*! ./pie_point */ 471),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            barPoint = __webpack_require__( /*! ./bar_point */ 470),
+            piePoint = __webpack_require__( /*! ./pie_point */ 472),
             isDefined = commonUtils.isDefined,
-            vizUtils = __webpack_require__( /*! ../../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../../core/utils */ 448),
             normalizeAngle = vizUtils.normalizeAngle,
             _math = Math,
             _max = _math.max,
@@ -39568,14 +39721,14 @@
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 478),
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
             _each = $.each,
             _extend = $.extend,
             _noop = $.noop,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isString = commonUtils.isString,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _map = vizUtils.map,
             _normalizeEnum = vizUtils.normalizeEnum,
             math = Math,
@@ -39650,10 +39803,10 @@
                 options.tagField = that.getTagField() + that.name
             },
             _applyElementsClipRect: function(settings) {
-                settings.clipId = this._paneClipRectID
+                settings["clip-path"] = this._paneClipRectID
             },
             _applyMarkerClipRect: function(settings) {
-                settings.clipId = this._forceClipping ? this._paneClipRectID : null
+                settings["clip-path"] = this._forceClipping ? this._paneClipRectID : null
             },
             _createGroup: function(groupName, parent, target, settings) {
                 var group = parent[groupName] = parent[groupName] || this._renderer.g();
@@ -39708,7 +39861,7 @@
                         opacity: animationEnabled ? .001 : errorBarOptions.opacity || 1,
                         "stroke-linecap": "square",
                         sharp: true,
-                        clipId: that._forceClipping ? that._paneClipRectID : that._widePaneClipRectID
+                        "clip-path": that._forceClipping ? that._paneClipRectID : that._widePaneClipRectID
                     };
                     that._createGroup("_errorBarGroup", that, that._group, settings)
                 }
@@ -40008,7 +40161,7 @@
                         stroke: "gray",
                         "class": "dxc-trackers"
                     })).attr({
-                        clipId: this._paneClipRectID || null
+                        "clip-path": this._paneClipRectID || null
                     }).append(that._group);
                     _each(segments, function(i, segment) {
                         if (!trackers[i]) {
@@ -40103,7 +40256,7 @@
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isFinite = isFinite,
-            unique = __webpack_require__( /*! ../../core/utils */ 447).unique,
+            unique = __webpack_require__( /*! ../../core/utils */ 448).unique,
             MIN_VISIBLE = "minVisible",
             MAX_VISIBLE = "maxVisible",
             DISCRETE = "discrete";
@@ -40387,11 +40540,11 @@
       \**************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            series = __webpack_require__( /*! ./scatter_series */ 477),
+            series = __webpack_require__( /*! ./scatter_series */ 478),
             chartScatterSeries = series.chart,
             polarScatterSeries = series.polar,
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             normalizeAngle = vizUtils.normalizeAngle,
             CANVAS_POSITION_START = "canvas_position_start",
             CANVAS_POSITION_TOP = "canvas_position_top",
@@ -40760,13 +40913,12 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 478),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477).chart,
-            lineSeries = __webpack_require__( /*! ./line_series */ 479),
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
+            lineSeries = __webpack_require__( /*! ./line_series */ 480),
             chartLineSeries = lineSeries.chart.line,
             polarLineSeries = lineSeries.polar.line,
-            _map = __webpack_require__( /*! ../core/utils */ 447).map,
+            _map = __webpack_require__( /*! ../core/utils */ 448).map,
             _extend = $.extend;
         exports.chart = {};
         exports.polar = {};
@@ -40818,21 +40970,13 @@
             },
             _applyStyle: function(style) {
                 var that = this;
-                that._elementsGroup && that._elementsGroup.attr(style.elements);
+                that._elementsGroup && that._elementsGroup.smartAttr(style.elements);
                 that._bordersGroup && that._bordersGroup.attr(style.border);
                 $.each(that._graphics || [], function(_, graphic) {
                     graphic.line && graphic.line.attr({
                         "stroke-width": style.border["stroke-width"]
                     }).sharp()
                 })
-            },
-            _createPattern: function(color, hatching) {
-                if (hatching && commonUtils.isObject(hatching)) {
-                    var pattern = this._renderer.pattern(color, hatching);
-                    this._patterns.push(pattern);
-                    return pattern.id
-                }
-                return color
             },
             _parseStyle: function(options, defaultColor, defaultBorderColor) {
                 var borderOptions = options.border || {},
@@ -40842,7 +40986,8 @@
                     border: borderStyle,
                     elements: {
                         stroke: "none",
-                        fill: this._createPattern(options.color || defaultColor, options.hatching),
+                        fill: options.color || defaultColor,
+                        hatching: options.hatching,
                         opacity: options.opacity
                     }
                 }
@@ -40945,8 +41090,8 @@
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477),
-            areaSeries = __webpack_require__( /*! ./area_series */ 480).chart.area,
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478),
+            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart.area,
             chartSeries = scatterSeries.chart,
             polarSeries = scatterSeries.polar,
             _extend = $.extend,
@@ -40955,20 +41100,20 @@
         exports.chart = {};
         exports.polar = {};
         var baseBarSeriesMethods = {
-            _createPattern: areaSeries._createPattern,
             _updateOptions: function(options) {
                 this._stackName = "axis_" + (options.axis || "default") + "_stack_" + (options.stack || "default")
             },
             _parsePointStyle: function(style, defaultColor, defaultBorderColor) {
-                var color = this._createPattern(style.color || defaultColor, style.hatching),
+                var color = style.color || defaultColor,
                     base = chartSeries._parsePointStyle.call(this, style, color, defaultBorderColor);
                 base.fill = color;
+                base.hatching = style.hatching;
                 base.dashStyle = style.border && style.border.dashStyle || "solid";
                 delete base.r;
                 return base
             },
             _applyMarkerClipRect: function(settings) {
-                settings.clipId = null
+                settings["clip-path"] = null
             },
             _clearingAnimation: function(translators, drawComplete) {
                 var that = this,
@@ -41051,10 +41196,6 @@
             },
             _getPointSize: function() {
                 return DEFAULT_BAR_POINT_SIZE
-            },
-            _beginUpdateData: function(data) {
-                chartSeries._beginUpdateData.call(this, data);
-                this._deletePatterns()
             }
         };
         exports.chart.bar = _extend({}, chartSeries, baseBarSeriesMethods, {
@@ -41121,12 +41262,12 @@
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _extend = $.extend,
             _isDefined = commonUtils.isDefined,
-            _map = __webpack_require__( /*! ../core/utils */ 447).map,
+            _map = __webpack_require__( /*! ../core/utils */ 448).map,
             _noop = $.noop,
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 478),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477).chart,
-            barSeries = __webpack_require__( /*! ./bar_series */ 481).chart.bar,
-            areaSeries = __webpack_require__( /*! ./area_series */ 480).chart.area;
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
+            barSeries = __webpack_require__( /*! ./bar_series */ 482).chart.bar,
+            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart.area;
         exports.chart = {};
         var baseRangeSeries = {
             _beginUpdateData: _noop,
@@ -41231,7 +41372,7 @@
                 var that = this,
                     elementsGroup = that._elementsGroup,
                     bordersGroup = that._bordersGroup;
-                elementsGroup && elementsGroup.attr(style.elements);
+                elementsGroup && elementsGroup.smartAttr(style.elements);
                 bordersGroup && bordersGroup.attr(style.border);
                 $.each(that._graphics || [], function(_, graphic) {
                     graphic.line && graphic.line.attr({
@@ -41259,10 +41400,10 @@
       \****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            lineSeries = __webpack_require__( /*! ./line_series */ 479).chart.line,
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477).chart,
-            areaSeries = __webpack_require__( /*! ./area_series */ 480).chart.area,
-            barSeries = __webpack_require__( /*! ./bar_series */ 481),
+            lineSeries = __webpack_require__( /*! ./line_series */ 480).chart.line,
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
+            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart.area,
+            barSeries = __webpack_require__( /*! ./bar_series */ 482),
             chartBarSeries = barSeries.chart.bar,
             polarBarSeries = barSeries.polar.bar,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
@@ -41277,7 +41418,6 @@
             _calculateErrorBars: _noop,
             _getMainColor: chartBarSeries._getMainColor,
             _createPointStyles: chartBarSeries._createPointStyles,
-            _createPattern: chartBarSeries._createPattern,
             _updatePointsVisibility: chartBarSeries._updatePointsVisibility,
             _getOptionsForPoint: chartBarSeries._getOptionsForPoint,
             _applyMarkerClipRect: lineSeries._applyElementsClipRect,
@@ -41353,8 +41493,7 @@
                         translateY: p.y
                     })
                 })
-            },
-            _beginUpdateData: chartBarSeries._beginUpdateData
+            }
         })
     },
     /*!*************************************!*\
@@ -41362,10 +41501,10 @@
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             chartScatterSeries = scatterSeries.chart,
-            barSeries = __webpack_require__( /*! ./bar_series */ 481).chart.bar,
+            barSeries = __webpack_require__( /*! ./bar_series */ 482).chart.bar,
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
@@ -41378,10 +41517,10 @@
             _createErrorBarGroup: _noop,
             _drawPoint: function(options) {
                 var point = options.point,
-                    legendCallback = options.legendCallback;
+                    legendCallback = this._legendCallback;
                 chartScatterSeries._drawPoint.call(this, options);
                 !point.isVisible() && point.setInvisibility();
-                legendCallback && point.isSelected() && legendCallback(point)("applySelected")
+                point.isSelected() && legendCallback()
             },
             adjustLabels: function() {
                 var maxLabelLength, that = this,
@@ -41529,6 +41668,11 @@
                     }
                 }
             },
+            _removePoint: function(point) {
+                var points = this.getPointsByArg(point.argument);
+                points.splice(points.indexOf(point), 1);
+                point.dispose()
+            },
             arrangePoints: function() {
                 var minShownValue, total, points, that = this,
                     originalPoints = that._originalPoints || [],
@@ -41542,7 +41686,7 @@
                 }
                 points = that._originalPoints = that._points = _map(originalPoints, function(point) {
                     if (null === point.value || !isAllPointsNegative && point.value < 0) {
-                        point.dispose();
+                        that._removePoint(point);
                         return null
                     } else {
                         return point
@@ -41619,8 +41763,9 @@
                     return p.isVisible() ? p : null
                 })
             },
-            _beginUpdateData: function() {
-                this._deletePatterns()
+            getPointsByKeys: function(arg, argumentIndex) {
+                var pointsByArg = this.getPointsByArg(arg);
+                return pointsByArg[argumentIndex] && [pointsByArg[argumentIndex]] || pointsByArg
             }
         });
         exports.doughnut = exports.donut = exports.pie
@@ -41630,12 +41775,12 @@
       \*******************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 477).chart,
-            barSeries = __webpack_require__( /*! ./bar_series */ 481).chart.bar,
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 478),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
+            barSeries = __webpack_require__( /*! ./bar_series */ 482).chart.bar,
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
@@ -41643,7 +41788,7 @@
         exports.stock = _extend({}, scatterSeries, {
             _animate: _noop,
             _applyMarkerClipRect: function(settings) {
-                settings.clipId = this._forceClipping ? this._paneClipRectID : this._widePaneClipRectID
+                settings["clip-path"] = this._forceClipping ? this._paneClipRectID : this._widePaneClipRectID
             },
             _updatePointsVisibility: barSeries._updatePointsVisibility,
             _getOptionsForPoint: barSeries._getOptionsForPoint,
@@ -41862,12 +42007,12 @@
             _beginUpdateData: _noop
         });
         exports.candlestick = _extend({}, exports.stock, {
-            _createPattern: barSeries._createPattern,
             _beginUpdateData: barSeries._beginUpdateData,
             _parsePointStyle: function(style, defaultColor, innerColor) {
-                var color = this._createPattern(style.color || innerColor, style.hatching),
+                var color = style.color || innerColor,
                     base = exports.stock._parsePointStyle.call(this, style, defaultColor, color);
                 base.fill = color;
+                base.hatching = style.hatching;
                 return base
             }
         })
@@ -41877,14 +42022,14 @@
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            areaSeries = __webpack_require__( /*! ./area_series */ 480).chart,
+            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart,
             chartAreaSeries = areaSeries.area,
-            barSeries = __webpack_require__( /*! ./bar_series */ 481),
+            barSeries = __webpack_require__( /*! ./bar_series */ 482),
             chartBarSeries = barSeries.chart.bar,
-            lineSeries = __webpack_require__( /*! ./line_series */ 479).chart,
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 478),
+            lineSeries = __webpack_require__( /*! ./line_series */ 480).chart,
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
             _extend = $.extend,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
             _noop = $.noop,
             baseStackedSeries = {
@@ -42075,10 +42220,10 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 488).BaseThemeManager,
+            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager,
             _isString = commonUtils.isString,
             _isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             FONT = "font",
             COMMON_AXIS_SETTINGS = "commonAxisSettings",
             PIE_FONT_FIELDS = ["legend." + FONT, "title." + FONT, "title.subtitle." + FONT, "tooltip." + FONT, "loadingIndicator." + FONT, "export." + FONT, "commonSeriesSettings.label." + FONT],
@@ -42264,19 +42409,19 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             Class = __webpack_require__( /*! ../../core/class */ 22),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            paletteModule = __webpack_require__( /*! ../palette */ 450),
+            paletteModule = __webpack_require__( /*! ../palette */ 451),
             _isString = commonUtils.isString,
-            _parseScalar = __webpack_require__( /*! ./utils */ 447).parseScalar,
-            themeModule = __webpack_require__( /*! ../themes */ 446),
+            _parseScalar = __webpack_require__( /*! ./utils */ 448).parseScalar,
+            themeModule = __webpack_require__( /*! ../themes */ 447),
             _findTheme = themeModule.findTheme,
             _addCacheItem = themeModule.addCacheItem,
             _removeCacheItem = themeModule.removeCacheItem,
             _extend = $.extend,
             _each = $.each;
-        __webpack_require__( /*! ./default */ 489);
-        __webpack_require__( /*! ./ios */ 490);
-        __webpack_require__( /*! ./android */ 491);
-        __webpack_require__( /*! ./win */ 492);
+        __webpack_require__( /*! ./default */ 490);
+        __webpack_require__( /*! ./ios */ 491);
+        __webpack_require__( /*! ./android */ 492);
+        __webpack_require__( /*! ./win */ 493);
 
         function getThemePart(theme, path) {
             var _theme = theme;
@@ -42376,7 +42521,7 @@
             CENTER = "center",
             INSIDE = "inside",
             OUTSIDE = "outside",
-            themeModule = __webpack_require__( /*! ../themes */ 446),
+            themeModule = __webpack_require__( /*! ../themes */ 447),
             registerTheme = themeModule.registerTheme,
             registerThemeAlias = themeModule.registerThemeAlias;
         registerTheme({
@@ -43063,6 +43208,7 @@
             },
             pie: {
                 innerRadius: .5,
+                minDiameter: .7,
                 type: "pie",
                 commonSeriesSettings: {
                     pie: {
@@ -44260,7 +44406,7 @@
       !*** ./js/viz/core/ios.js ***!
       \****************************/
     function(module, exports, __webpack_require__) {
-        var themeModule = __webpack_require__( /*! ../themes */ 446),
+        var themeModule = __webpack_require__( /*! ../themes */ 447),
             IOS7_DEFAULT = "ios7.default",
             SECONDARY_TEXT_COLOR = "#767676",
             BORDER_COLOR = "#d3d3d3",
@@ -44318,7 +44464,7 @@
       \********************************/
     function(module, exports, __webpack_require__) {
         var ANDROID5_LIGHT = "android5.light",
-            themeModule = __webpack_require__( /*! ../themes */ 446),
+            themeModule = __webpack_require__( /*! ../themes */ 447),
             registerThemeAlias = themeModule.registerThemeAlias,
             SECONDARY_TEXT_COLOR = "#767676",
             BORDER_COLOR = "#e8e8e8",
@@ -44364,7 +44510,7 @@
       !*** ./js/viz/core/win.js ***!
       \****************************/
     function(module, exports, __webpack_require__) {
-        var themeModule = __webpack_require__( /*! ../themes */ 446),
+        var themeModule = __webpack_require__( /*! ../themes */ 447),
             registerTheme = themeModule.registerTheme,
             registerThemeSchemeAlias = themeModule.registerThemeSchemeAlias,
             BLACK = "#000000",
@@ -44480,7 +44626,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 460),
+            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 461),
             _isNumber = commonUtils.isNumber,
             _min = Math.min,
             _max = Math.max,
@@ -44488,7 +44634,7 @@
             _sqrt = Math.sqrt,
             _each = $.each,
             _extend = $.extend,
-            consts = __webpack_require__( /*! ../components/consts */ 465),
+            consts = __webpack_require__( /*! ../components/consts */ 466),
             pieLabelIndent = consts.pieLabelIndent,
             pieLabelSpacing = consts.pieLabelSpacing;
 
@@ -44711,6 +44857,24 @@
                 height: canvas.height - canvas.top - canvas.bottom
             })
         }
+
+        function correctAvailableRadius(availableRadius, canvas, series, minPiePercentage, paneCenterX, paneCenterY) {
+            var averageWidthLabels, minR = minPiePercentage * availableRadius,
+                sizeLabels = getSizeLabels(series),
+                countSeriesWithOuterLabels = 0,
+                fullRadiusWithLabels = paneCenterX - sizeLabels.common + canvas.left;
+            if (fullRadiusWithLabels < minR) {
+                availableRadius = minR;
+                _each(sizeLabels.sizes, function(_, size) {
+                    0 !== size && countSeriesWithOuterLabels++
+                });
+                averageWidthLabels = (paneCenterX - availableRadius - canvas.left) / countSeriesWithOuterLabels
+            } else {
+                availableRadius = _min(getPieRadius(series, paneCenterX, paneCenterY, availableRadius, minR), fullRadiusWithLabels)
+            }
+            correctLabelRadius(sizeLabels.sizes, availableRadius, series, canvas, averageWidthLabels);
+            return availableRadius
+        }
         LayoutManager.prototype = {
             constructor: LayoutManager,
             setOptions: function(options) {
@@ -44809,34 +44973,24 @@
                 that.stopDrawAxes = applyFoundExceedings(panes, rotated)
             },
             applyPieChartSeriesLayout: function(canvas, series, hideLayoutLabels) {
-                var sizeLabels, averageWidthLabels, fullRadiusWithLabels, paneSpaceHeight = canvas.height - canvas.top - canvas.bottom,
+                var availableRadius, paneSpaceHeight = canvas.height - canvas.top - canvas.bottom,
                     paneSpaceWidth = canvas.width - canvas.left - canvas.right,
                     paneCenterX = paneSpaceWidth / 2 + canvas.left,
                     paneCenterY = paneSpaceHeight / 2 + canvas.top,
-                    piePercentage = this._options.piePercentage,
-                    accessibleRadius = _isNumber(piePercentage) ? piePercentage * _min(canvas.height, canvas.width) / 2 : _min(paneSpaceWidth, paneSpaceHeight) / 2,
-                    minR = .7 * accessibleRadius,
-                    countSeriesWithOuterLabels = 0,
-                    innerRadius = getInnerRadius(series[0]);
-                if (!hideLayoutLabels && !_isNumber(piePercentage)) {
-                    sizeLabels = getSizeLabels(series);
-                    fullRadiusWithLabels = paneCenterX - sizeLabels.common + canvas.left;
-                    if (fullRadiusWithLabels < minR) {
-                        accessibleRadius = minR;
-                        _each(sizeLabels.sizes, function(_, size) {
-                            0 !== size && countSeriesWithOuterLabels++
-                        });
-                        averageWidthLabels = (paneCenterX - accessibleRadius - canvas.left) / countSeriesWithOuterLabels
-                    } else {
-                        accessibleRadius = _min(getPieRadius(series, paneCenterX, paneCenterY, accessibleRadius, minR), fullRadiusWithLabels)
+                    piePercentage = this._options.piePercentage;
+                if (_isNumber(piePercentage)) {
+                    availableRadius = piePercentage * _min(canvas.height, canvas.width) / 2
+                } else {
+                    availableRadius = _min(paneSpaceWidth, paneSpaceHeight) / 2;
+                    if (!hideLayoutLabels) {
+                        availableRadius = correctAvailableRadius(availableRadius, canvas, series, this._options.minPiePercentage, paneCenterX, paneCenterY)
                     }
-                    correctLabelRadius(sizeLabels.sizes, accessibleRadius, series, canvas, averageWidthLabels)
                 }
                 return {
                     centerX: _floor(paneCenterX),
                     centerY: _floor(paneCenterY),
-                    radiusInner: _floor(accessibleRadius * innerRadius),
-                    radiusOuter: _floor(accessibleRadius),
+                    radiusInner: _floor(availableRadius * getInnerRadius(series[0])),
+                    radiusOuter: _floor(availableRadius),
                     canvas: canvas
                 }
             },
@@ -44979,40 +45133,38 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             clickEvent = __webpack_require__( /*! ../../events/click */ 71),
-            eventsConsts = __webpack_require__( /*! ../components/consts */ 465).events,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            consts = __webpack_require__( /*! ../components/consts */ 466),
+            eventsConsts = consts.events,
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             pointerEvents = __webpack_require__( /*! ../../events/pointer */ 72),
             wheelEvent = __webpack_require__( /*! ../../events/core/wheel */ 81),
             holdEvent = __webpack_require__( /*! ../../events/hold */ 159),
+            addNamespace = __webpack_require__( /*! ../../events/utils */ 67).addNamespace,
             devices = __webpack_require__( /*! ../../core/devices */ 48),
             isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             _floor = Math.floor,
             _each = $.each,
-            _inArray = $.inArray,
             _noop = $.noop,
-            MULTIPLE_MODE = "multiple",
-            ALL_ARGUMENTS_POINTS_MODE = "allargumentpoints",
-            ALL_SERIES_POINTS_MODE = "allseriespoints",
-            NONE_MODE = "none",
-            POINTER_ACTION = [pointerEvents.down, pointerEvents.move].join(" "),
-            POINT_SELECTION_CHANGED = "pointSelectionChanged",
+            HOVER_STATE = consts.states.hoverMark,
+            NORMAL_STATE = consts.states.normalMark,
+            EVENT_NS = "dxChartTracker",
+            DOT_EVENT_NS = "." + EVENT_NS,
+            POINTER_ACTION = addNamespace([pointerEvents.down, pointerEvents.move], EVENT_NS),
             LEGEND_CLICK = "legendClick",
             SERIES_CLICK = "seriesClick",
             POINT_CLICK = "pointClick",
-            RELEASE_POINT_SELECTED_STATE = "releasePointSelectedState",
-            SET_POINT_SELECTED_STATE = "setPointSelectedState",
-            SET_POINT_HOVER_STATE = "setPointHoverState",
-            SERIES_HOVER_CHANGED = "seriesHoverChanged",
-            POINT_HOVER_CHANGED = "pointHoverChanged",
-            RELEASE_POINT_HOVER_STATE = "releasePointHoverState",
-            SERIES_SELECTION_CHANGED = "seriesSelectionChanged",
             ZOOM_START = "zoomStart",
             POINT_DATA = "chart-data-point",
             SERIES_DATA = "chart-data-series",
             ARG_DATA = "chart-data-argument",
-            DELAY = 100;
+            DELAY = 100,
+            NONE_MODE = "none",
+            ALL_ARGUMENT_POINTS_MODE = "allargumentpoints",
+            INCLUDE_POINTS_MODE = "includepoints",
+            EXLUDE_POINTS_MODE = "excludepoints",
+            LEGEND_HOVER_MODES = [INCLUDE_POINTS_MODE, EXLUDE_POINTS_MODE, NONE_MODE];
 
         function getData(event, dataKey) {
             var target = event.target;
@@ -45027,23 +45179,17 @@
             return x >= canvas.left && x <= canvas.right && y >= canvas.top && y <= canvas.bottom
         }
 
-        function setPointsSpecState(points, targetPoint, func, eventName, eventTrigger) {
-            _each(points, function(_, currentPoint) {
-                var series = currentPoint.series;
-                if (currentPoint === targetPoint) {
-                    series[func]({
-                        point: currentPoint,
-                        setState: true
-                    });
-                    eventName && eventTrigger(eventName, {
-                        target: currentPoint
-                    })
-                } else {
-                    series[func]({
-                        point: currentPoint
-                    })
-                }
-            })
+        function correctLegendHoverMode(mode) {
+            if (LEGEND_HOVER_MODES.indexOf(mode) > -1) {
+                return mode
+            } else {
+                return INCLUDE_POINTS_MODE
+            }
+        }
+
+        function correctHoverMode(target) {
+            var mode = target.getOptions().hoverMode;
+            return mode === NONE_MODE ? mode : ALL_ARGUMENT_POINTS_MODE
         }
         var baseTrackerPrototype = {
             ctor: function(options) {
@@ -45055,32 +45201,14 @@
                 that._legend = options.legend;
                 that._tooltip = options.tooltip;
                 that._eventTrigger = options.eventTrigger;
-                options.seriesGroup.off().on(eventsConsts.selectSeries, data, that._selectSeries).on(eventsConsts.deselectSeries, data, that._deselectSeries).on(eventsConsts.selectPoint, data, that._selectPoint).on(eventsConsts.deselectPoint, data, that._deselectPoint).on(eventsConsts.showPointTooltip, data, that._showPointTooltip).on(eventsConsts.hidePointTooltip, data, that._hidePointTooltip);
-                that._renderer.root.off(POINTER_ACTION).off([clickEvent.name, holdEvent.name].join(" ")).on(POINTER_ACTION, data, that._pointerHandler).on(clickEvent.name, data, that._clickHandler).on(holdEvent.name, {
+                that._seriesGroup = options.seriesGroup;
+                options.seriesGroup.off(DOT_EVENT_NS).on(addNamespace(eventsConsts.showPointTooltip, EVENT_NS), data, that._showPointTooltip).on(addNamespace(eventsConsts.hidePointTooltip, EVENT_NS), data, that._hidePointTooltip);
+                that._renderer.root.off(DOT_EVENT_NS).on(POINTER_ACTION, data, that._pointerHandler).on(addNamespace(clickEvent.name, EVENT_NS), data, that._clickHandler).on(addNamespace(holdEvent.name, EVENT_NS), {
                     timeout: 300
                 }, _noop)
             },
-            _setSelectedPoint: _noop,
-            _releaseSelectedPoint: _noop,
-            _releaseSelectedSeries: _noop,
-            _setSelectedSeries: _noop,
             update: function(options) {
-                var that = this;
-                if (_normalizeEnum(options.pointSelectionMode) === MULTIPLE_MODE) {
-                    that._setSelectedPoint = that._selectPointMultipleMode;
-                    that._releaseSelectedPoint = that._releaseSelectedPointMultipleMode
-                } else {
-                    that._setSelectedPoint = that._selectPointSingleMode;
-                    that._releaseSelectedPoint = that._releaseSelectedPointSingleMode
-                }
-                if (_normalizeEnum(options.seriesSelectionMode) === MULTIPLE_MODE) {
-                    that._releaseSelectedSeries = that._releaseSelectedSeriesMultipleMode;
-                    that._setSelectedSeries = that._setSelectedSeriesMultipleMode
-                } else {
-                    that._releaseSelectedSeries = that._releaseSelectedSeriesSingleMode;
-                    that._setSelectedSeries = that._setSelectedSeriesSingleMode
-                }
-                that._prepare()
+                this._prepare()
             },
             updateSeries: function(series) {
                 var that = this;
@@ -45111,7 +45239,7 @@
             _toggleParentsScrollSubscription: function(subscribe) {
                 var that = this,
                     $parents = $(that._renderer.root.element).parents(),
-                    scrollEvents = "scroll.dxChartTracker";
+                    scrollEvents = addNamespace("scroll", EVENT_NS);
                 if ("generic" === devices.real().platform) {
                     $parents = $parents.add(window)
                 }
@@ -45123,176 +45251,51 @@
                     that._$prevRootParents = $parents
                 }
             },
-            _selectPointMultipleMode: function(point) {
-                var that = this;
-                that._selectedPoint = that._selectedPoint || [];
-                if (_inArray(point, that._selectedPoint) < 0) {
-                    that._selectedPoint.push(point);
-                    that._setPointState(point, SET_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point))
-                }
-            },
-            _releaseSelectedPointMultipleMode: function(point) {
-                var that = this,
-                    points = that._selectedPoint || [],
-                    pointIndex = _inArray(point, points);
-                if (pointIndex >= 0) {
-                    that._setPointState(point, RELEASE_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point));
-                    points.splice(pointIndex, 1)
-                } else {
-                    if (!point) {
-                        _each(points, function(_, point) {
-                            that._releaseSelectedPoint(point)
-                        })
-                    }
-                }
-            },
-            _selectPointSingleMode: function(point) {
-                var that = this;
-                if (that._selectedPoint !== point) {
-                    that._releaseSelectedPoint();
-                    that._selectedPoint = point;
-                    that._setPointState(point, SET_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point))
-                }
-            },
-            _releaseSelectedPointSingleMode: function() {
-                var that = this,
-                    point = that._selectedPoint;
-                if (point) {
-                    that._setPointState(point, RELEASE_POINT_SELECTED_STATE, _normalizeEnum(point.getOptions().selectionMode), POINT_SELECTION_CHANGED, that._legend.getActionCallback(point));
-                    that._selectedPoint = null
-                }
-            },
-            _setHoveredPoint: function(point, mode) {
-                var that = this;
-                var debug = __webpack_require__( /*! ../../core/utils/console */ 10).debug;
-                debug.assert(point.series, "series was not assigned to point or empty");
-                if (that.hoveredPoint === point || !point.series) {
+            _setHoveredPoint: function(point) {
+                if (point === this._hoveredPoint) {
                     return
                 }
-                that._releaseHoveredPoint();
-                if (point && point.getOptions() && mode !== NONE_MODE) {
-                    that.hoveredPoint = point;
-                    that._setPointState(point, SET_POINT_HOVER_STATE, mode || _normalizeEnum(point.getOptions().hoverMode), POINT_HOVER_CHANGED, that._legend.getActionCallback(point))
-                }
+                this._releaseHoveredPoint();
+                point.hover();
+                this._hoveredPoint = point
             },
             _releaseHoveredPoint: function() {
-                var that = this,
-                    point = that.hoveredPoint,
-                    eventTrigger = that._eventTrigger;
-                if (!point || !point.getOptions()) {
-                    return
-                }
-                that._releasePoint(point, eventTrigger);
-                if (that._tooltip.isEnabled()) {
-                    that._hideTooltip(point)
-                }
-                that.hoveredPoint = null
-            },
-            _setSelectedSeriesMultipleMode: function(series, mode) {
-                var that = this;
-                that._selectedSeries = that._selectedSeries || [];
-                if (_inArray(series, that._selectedSeries) < 0) {
-                    that._selectedSeries.push(series);
-                    series.setSelectedState(true, mode, that._legend.getActionCallback(series));
-                    that._eventTrigger(SERIES_SELECTION_CHANGED, {
-                        target: series
-                    })
-                }
-            },
-            _setSelectedSeriesSingleMode: function(series, mode) {
-                var that = this;
-                if (series !== that._selectedSeries || series.lastSelectionMode !== mode) {
-                    that._releaseSelectedSeries();
-                    that._selectedSeries = series;
-                    series.setSelectedState(true, mode, that._legend.getActionCallback(series));
-                    that._eventTrigger(SERIES_SELECTION_CHANGED, {
-                        target: series
-                    })
-                }
-            },
-            _releaseSelectedSeriesMultipleMode: function(series) {
-                var that = this,
-                    selectedSeries = that._selectedSeries || [],
-                    seriesIndex = _inArray(series, selectedSeries);
-                if (seriesIndex >= 0) {
-                    series.setSelectedState(false, void 0, that._legend.getActionCallback(series));
-                    that._eventTrigger(SERIES_SELECTION_CHANGED, {
-                        target: series
-                    });
-                    selectedSeries.splice(seriesIndex, 1)
-                } else {
-                    if (!series) {
-                        _each(selectedSeries, function(_, series) {
-                            that._releaseSelectedSeries(series)
-                        })
+                if (this._hoveredPoint && this._hoveredPoint.getOptions()) {
+                    this._hoveredPoint.clearHover();
+                    this._hoveredPoint = null;
+                    if (this._tooltip.isEnabled()) {
+                        this._hideTooltip(this._hoveredPoint)
                     }
-                }
-            },
-            _releaseSelectedSeriesSingleMode: function(series) {
-                var that = this,
-                    selectedSeries = that._selectedSeries;
-                if (selectedSeries && (!series || series === selectedSeries)) {
-                    selectedSeries.setSelectedState(false, void 0, that._legend.getActionCallback(selectedSeries));
-                    that._eventTrigger(SERIES_SELECTION_CHANGED, {
-                        target: selectedSeries
-                    });
-                    that._selectedSeries = null
                 }
             },
             _setHoveredSeries: function(series, mode) {
-                var that = this;
-                if (mode !== NONE_MODE && that.hoveredSeries !== series || that._isModeChanged(series, mode)) {
-                    that._clearHover();
-                    series.setHoverState(true, mode, that._legend.getActionCallback(series));
-                    that._eventTrigger(SERIES_HOVER_CHANGED, {
-                        target: series
-                    });
-                    that.hoveredSeries = series
-                }
+                this._releaseHoveredSeries();
+                this._releaseHoveredPoint();
+                series.hover(mode);
+                this.hoveredSeries = series
             },
             _releaseHoveredSeries: function(needSetHoverView, hoveredPoint) {
-                var that = this,
-                    hoveredSeries = that.hoveredSeries,
-                    seriesWithHoverView = that._seriesWithHoverView;
-                if (hoveredSeries) {
-                    hoveredSeries.setHoverState(false, void 0, that._legend.getActionCallback(hoveredSeries));
-                    if (needSetHoverView && hoveredPoint && hoveredPoint.series === hoveredSeries) {
-                        that._seriesWithHoverView = hoveredSeries.setHoverView()
-                    }
-                    that._eventTrigger(SERIES_HOVER_CHANGED, {
-                        target: hoveredSeries
-                    });
-                    that.hoveredSeries = null
-                } else {
-                    if (seriesWithHoverView && !needSetHoverView) {
-                        seriesWithHoverView.releaseHoverView();
-                        that._seriesWithHoverView = null
-                    }
+                if (this.hoveredSeries) {
+                    this.hoveredSeries.clearHover();
+                    this.hoveredSeries = null
                 }
             },
-            _selectSeries: function(event, mode) {
-                event.data.tracker._setSelectedSeries(event.target, mode)
-            },
-            _deselectSeries: function(event, mode) {
-                event.data.tracker._releaseSelectedSeries(event.target, mode)
-            },
-            _selectPoint: function(event, point) {
-                event.data.tracker._setSelectedPoint(point)
-            },
-            _deselectPoint: function(event, point) {
-                event.data.tracker._releaseSelectedPoint(point)
-            },
             clearSelection: function() {
-                this._releaseSelectedPoint();
-                this._releaseSelectedSeries()
+                this._storedSeries.forEach(function(series) {
+                    series.clearSelection();
+                    series.getPoints().forEach(function(point) {
+                        point.clearSelection()
+                    })
+                })
             },
             _clean: function() {
                 var that = this;
-                that._selectedPoint = that._selectedSeries = that.hoveredPoint = that.hoveredSeries = that._hoveredArgumentPoints = that._seriesWithHoverView = null;
+                that.hoveredPoint = that.hoveredSeries = that._hoveredArgumentPoints = null;
                 that._hideTooltip(that.pointAtShownTooltip)
             },
             _clearHover: function() {
-                this._releaseHoveredSeries(false);
+                this._resetHoveredArgument();
+                this._releaseHoveredSeries();
                 this._releaseHoveredPoint()
             },
             _hideTooltip: function(point, silent) {
@@ -45371,14 +45374,66 @@
             },
             _hoverLegendItem: function(x, y) {
                 var series, that = this,
-                    item = that._legend.getItemByCoord(x, y);
+                    item = that._legend.getItemByCoord(x, y),
+                    legendHoverMode = correctLegendHoverMode(that._legend.getOptions().hoverMode);
                 if (item) {
                     series = that._storedSeries[item.id];
-                    that._setHoveredSeries(series, that._legend._options.hoverMode);
+                    if (!series.isHovered() || series.lastHoverMode !== legendHoverMode) {
+                        that._setHoveredSeries(series, legendHoverMode)
+                    }
                     that._tooltip.isEnabled() && that._hideTooltip(that.pointAtShownTooltip)
                 } else {
                     that._clearHover()
                 }
+            },
+            _hoverArgument: function(argument, argumentIndex) {
+                var that = this,
+                    hoverMode = that._getArgumentHoverMode();
+                if (isDefined(argument)) {
+                    that._releaseHoveredPoint();
+                    that._hoveredArgument = argument;
+                    that._argumentIndex = argumentIndex;
+                    that._notifySeries({
+                        action: "pointHover",
+                        notifyLegend: that._notifyLegendOnHoverArgument,
+                        target: {
+                            argument: argument,
+                            fullState: HOVER_STATE,
+                            argumentIndex: argumentIndex,
+                            getOptions: function() {
+                                return {
+                                    hoverMode: hoverMode
+                                }
+                            }
+                        }
+                    })
+                }
+            },
+            _resetHoveredArgument: function() {
+                var hoverMode, that = this;
+                if (isDefined(that._hoveredArgument)) {
+                    hoverMode = that._getArgumentHoverMode();
+                    that._notifySeries({
+                        action: "clearPointHover",
+                        notifyLegend: that._notifyLegendOnHoverArgument,
+                        target: {
+                            fullState: NORMAL_STATE,
+                            argumentIndex: that._argumentIndex,
+                            argument: that._hoveredArgument,
+                            getOptions: function() {
+                                return {
+                                    hoverMode: hoverMode
+                                }
+                            }
+                        }
+                    });
+                    that._hoveredArgument = null
+                }
+            },
+            _notifySeries: function(data) {
+                this._storedSeries.forEach(function(series) {
+                    series.notify(data)
+                })
             },
             _pointerHandler: function(e) {
                 var that = e.data.tracker,
@@ -45412,7 +45467,7 @@
                     point = series.getNeighborPoint(x, y);
                     if (series !== that.hoveredSeries) {
                         that._setTimeout(function() {
-                            that._setHoveredSeries(series, series.getOptions().hoverMode);
+                            that._setHoveredSeries(series);
                             that._stuckSeries = series;
                             that._pointerComplete(point, x, y)
                         }, series);
@@ -45425,8 +45480,7 @@
                                 that._pointerOnPoint(point, x, y)
                             }, point)
                         } else {
-                            that._pointerOnPoint(point, x, y);
-                            that._setSeriesWithHoverView(point)
+                            that._pointerOnPoint(point, x, y)
                         }
                         return
                     } else {
@@ -45488,9 +45542,8 @@
                 var that = this;
                 that._disableOutHandler();
                 that._toggleParentsScrollSubscription();
-                _each(that, function(k) {
-                    that[k] = null
-                })
+                that._renderer.root.off(DOT_EVENT_NS);
+                that._seriesGroup.off(DOT_EVENT_NS)
             }
         };
         var ChartTracker = function(options) {
@@ -45518,7 +45571,7 @@
                 that._scrollingMode = _normalizeEnum(options.scrollingMode);
                 baseTrackerPrototype.update.call(this, options);
                 that._argumentAxis = options.argumentAxis || {};
-                that._axisHoverEnabled = that._argumentAxis && _normalizeEnum(that._argumentAxis.getOptions().hoverMode) === ALL_ARGUMENTS_POINTS_MODE;
+                that._axisHoverEnabled = that._argumentAxis && _normalizeEnum(that._argumentAxis.getOptions().hoverMode) === ALL_ARGUMENT_POINTS_MODE;
                 that._chart = options.chart;
                 that._rotated = options.rotated;
                 that._crosshair = options.crosshair
@@ -45534,26 +45587,8 @@
                 }
                 return null
             },
-            _getPointSeries: function(point) {
-                return point.series
-            },
-            _isModeChanged: function(series, mode) {
-                return series.lastHoverMode !== mode
-            },
             _isPointerOut: function(canvas) {
                 return !canvas && this._stuckSeries
-            },
-            _resetHoveredArgument: function() {
-                if (isDefined(this.hoveredArgument)) {
-                    this._toAllArgumentPoints(this.hoveredArgument, RELEASE_POINT_HOVER_STATE);
-                    this.hoveredArgument = null
-                }
-            },
-            _toAllArgumentPoints: function(argument, func, eventName, targetPoint) {
-                var that = this;
-                _each(that._storedSeries, function(_, series) {
-                    setPointsSpecState(series.getPointsByArg(argument), targetPoint, func, eventName, that._eventTrigger)
-                })
             },
             _hideCrosshair: function() {
                 this._crosshair && this._crosshair.hide()
@@ -45567,52 +45602,6 @@
                     })
                 }
             },
-            _releasePoint: function(point, eventTrigger) {
-                var that = this,
-                    mode = _normalizeEnum(point.getOptions().hoverMode);
-                if (mode === ALL_SERIES_POINTS_MODE) {
-                    setPointsSpecState(point.series.getPoints(), point, RELEASE_POINT_HOVER_STATE, POINT_HOVER_CHANGED, eventTrigger)
-                } else {
-                    if (mode === ALL_ARGUMENTS_POINTS_MODE) {
-                        that._toAllArgumentPoints(point.argument, RELEASE_POINT_HOVER_STATE, POINT_HOVER_CHANGED, point)
-                    } else {
-                        if ("none" !== mode) {
-                            that._getPointSeries(point).releasePointHoverState({
-                                point: point,
-                                setState: true,
-                                legendCallback: that._legend.getActionCallback(point)
-                            });
-                            eventTrigger(POINT_HOVER_CHANGED, {
-                                target: point
-                            })
-                        }
-                    }
-                }
-            },
-            _setPointState: function(point, action, mode, eventName, legendCallback) {
-                var series, that = this,
-                    eventTrigger = that._eventTrigger;
-                switch (mode) {
-                    case ALL_ARGUMENTS_POINTS_MODE:
-                        that._toAllArgumentPoints(point.argument, action, eventName, point);
-                        break;
-                    case ALL_SERIES_POINTS_MODE:
-                        setPointsSpecState(point.series.getPoints(), point, action, eventName, eventTrigger);
-                        break;
-                    case NONE_MODE:
-                        break;
-                    default:
-                        series = that._getPointSeries(point);
-                        series[action]({
-                            point: point,
-                            legendCallback: legendCallback,
-                            setState: true
-                        });
-                        eventTrigger(eventName, {
-                            target: point
-                        })
-                }
-            },
             _prepare: function() {
                 var that = this,
                     root = that._renderer.root,
@@ -45624,15 +45613,15 @@
                         "-ms-touch-action": cssValue
                     },
                     wheelZoomingEnabled = "all" === that._zoomingMode || "mouse" === that._zoomingMode;
-                root.off(wheelEvent.name + " dxc-scroll-start dxc-scroll-move");
+                root.off(addNamespace([wheelEvent.name, "dxc-scroll-start", "dxc-scroll-move"], EVENT_NS));
                 baseTrackerPrototype._prepare.call(that);
                 if (!that._gestureEndHandler) {
                     that._gestureEndHandler = function() {
                         that._gestureEnd && that._gestureEnd()
                     };
-                    $(document).on(pointerEvents.up, that._gestureEndHandler)
+                    $(document).on(addNamespace(pointerEvents.up, EVENT_NS), that._gestureEndHandler)
                 }
-                wheelZoomingEnabled && root.on(wheelEvent.name, function(e) {
+                wheelZoomingEnabled && root.on(addNamespace(wheelEvent.name, EVENT_NS), function(e) {
                     var rootOffset = that._renderer.getRootOffset(),
                         x = that._rotated ? e.pageY - rootOffset.top : e.pageX - rootOffset.left,
                         scale = that._argumentAxis.getTranslator().getMinScale(e.delta > 0),
@@ -45644,13 +45633,13 @@
                     e.preventDefault();
                     e.stopPropagation()
                 });
-                root.on("dxc-scroll-start", function(e) {
+                root.on(addNamespace("dxc-scroll-start", EVENT_NS), function(e) {
                     that._startScroll = true;
                     that._gestureStart(that._getGestureParams(e, {
                         left: 0,
                         top: 0
                     }))
-                }).on("dxc-scroll-move", function(e) {
+                }).on(addNamespace("dxc-scroll-move", EVENT_NS), function(e) {
                     that._gestureChange(that._getGestureParams(e, {
                         left: 0,
                         top: 0
@@ -45815,14 +45804,10 @@
                 this._stuckSeries = this._stuckSeries || this._getSeriesForShared(x, y);
                 return !!this._stuckSeries
             },
-            _setSeriesWithHoverView: function(point) {
-                this._seriesWithHoverView = point.series.setHoverView()
-            },
             _pointerOut: function() {
                 var that = this;
                 that._stuckSeries = null;
                 that._hideCrosshair();
-                that._resetHoveredArgument();
                 that._resetTimer();
                 baseTrackerPrototype._pointerOut.call(that)
             },
@@ -45830,12 +45815,7 @@
                 var that = this;
                 that._resetHoveredArgument();
                 if (that._axisHoverEnabled && that._argumentAxis.coordsIn(x, y)) {
-                    var argument = getData(e, ARG_DATA);
-                    if (isDefined(argument) && that.hoveredArgument !== argument) {
-                        that._clearHover();
-                        that._toAllArgumentPoints(argument, SET_POINT_HOVER_STATE);
-                        that.hoveredArgument = argument
-                    }
+                    that._hoverArgument(getData(e, ARG_DATA));
                     return true
                 }
             },
@@ -45860,14 +45840,17 @@
             },
             _pointerOnPoint: function(point, x, y) {
                 var that = this,
-                    seriesWithHoverView = that._seriesWithHoverView,
                     seriesFromPoint = point.series;
                 that._stuckSeries = seriesFromPoint;
-                that._releaseHoveredSeries(!seriesWithHoverView || seriesWithHoverView === seriesFromPoint, point);
+                that._releaseHoveredSeries();
                 baseTrackerPrototype._pointerOnPoint.call(that, point, x, y)
             },
+            _notifyLegendOnHoverArgument: false,
+            _getArgumentHoverMode: function() {
+                return correctHoverMode(this._argumentAxis)
+            },
             dispose: function() {
-                this._gestureEndHandler && $(document).off(pointerEvents.up, this._gestureEndHandler);
+                $(document).off(DOT_EVENT_NS);
                 this._resetTimer();
                 baseTrackerPrototype.dispose.call(this)
             }
@@ -45876,18 +45859,18 @@
             this.ctor(options)
         };
         $.extend(PieTracker.prototype, baseTrackerPrototype, {
-            _getPointSeries: function(point) {
-                return this._storedSeries[point.index]
-            },
-            _isModeChanged: function() {
-                return false
-            },
             _isPointerOut: function(_, point) {
                 return !point
             },
             _legendClick: function(item, e) {
-                this._eventTrigger(LEGEND_CLICK, {
+                var that = this,
+                    points = [];
+                that._storedSeries.forEach(function(s) {
+                    points.push.apply(points, s.getPointsByKeys(item.argument, item.id))
+                });
+                that._eventTrigger(LEGEND_CLICK, {
                     target: item.argument,
+                    points: points,
                     jQueryEvent: e
                 })
             },
@@ -45897,40 +45880,24 @@
                     jQueryEvent: e
                 })
             },
-            _releasePoint: function(point, eventTrigger) {
+            _hoverLegendItem: function(x, y) {
                 var that = this,
-                    mode = _normalizeEnum(point.getOptions().hoverMode);
-                if ("none" !== mode) {
-                    that._getPointSeries(point).releasePointHoverState({
-                        point: point,
-                        setState: true,
-                        legendCallback: that._legend.getActionCallback(point)
-                    });
-                    eventTrigger(POINT_HOVER_CHANGED, {
-                        target: point
-                    })
+                    item = that._legend.getItemByCoord(x, y);
+                that._resetHoveredArgument();
+                if (item) {
+                    that._hoverArgument(item.argument, item.argumentIndex)
+                } else {
+                    that._clearHover()
                 }
             },
-            _setPointState: function(point, action, mode, eventName, legendCallback) {
-                var series, that = this,
-                    eventTrigger = that._eventTrigger;
-                if ("none" !== mode) {
-                    series = that._getPointSeries(point);
-                    series[action]({
-                        point: point,
-                        legendCallback: legendCallback,
-                        setState: true
-                    });
-                    eventTrigger(eventName, {
-                        target: point
-                    })
-                }
+            _getArgumentHoverMode: function() {
+                return correctHoverMode(this._legend)
             },
             _hoverArgumentAxis: _noop,
             _setStuckSeries: _noop,
-            _setSeriesWithHoverView: _noop,
             _getCanvas: _noop,
-            _checkGestureEvents: _noop
+            _checkGestureEvents: _noop,
+            _notifyLegendOnHoverArgument: true
         });
         exports.ChartTracker = ChartTracker;
         exports.PieTracker = PieTracker
@@ -45940,7 +45907,7 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            LayoutElementModule = __webpack_require__( /*! ../core/layout_element */ 460),
+            LayoutElementModule = __webpack_require__( /*! ../core/layout_element */ 461),
             _extend = $.extend,
             _each = $.each;
 
@@ -46023,9 +45990,9 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             _Number = Number,
             _isString = __webpack_require__( /*! ../../core/utils/common */ 12).isString,
-            _patchFontOptions = __webpack_require__( /*! ./utils */ 447).patchFontOptions,
-            parseHorizontalAlignment = __webpack_require__( /*! ./utils */ 447).enumParser(["left", "center", "right"]),
-            parseVerticalAlignment = __webpack_require__( /*! ./utils */ 447).enumParser(["top", "bottom"]),
+            _patchFontOptions = __webpack_require__( /*! ./utils */ 448).patchFontOptions,
+            parseHorizontalAlignment = __webpack_require__( /*! ./utils */ 448).enumParser(["left", "center", "right"]),
+            parseVerticalAlignment = __webpack_require__( /*! ./utils */ 448).enumParser(["top", "bottom"]),
             DEFAULT_MARGIN = 10,
             DEFAULT_GAP = 3;
 
@@ -46076,7 +46043,7 @@
             });
             this._hasText = false
         }
-        __webpack_require__( /*! jquery */ 9).extend(Title.prototype, __webpack_require__( /*! ./layout_element */ 460).LayoutElement.prototype, {
+        __webpack_require__( /*! jquery */ 9).extend(Title.prototype, __webpack_require__( /*! ./layout_element */ 461).LayoutElement.prototype, {
             dispose: function() {
                 var that = this;
                 that._group.linkRemove();
@@ -46105,7 +46072,7 @@
                     that._subtitleElement = renderer.text().attr(alignObj);
                     that._clipRect = renderer.clipRect();
                     group.attr({
-                        clipId: that._clipRect.id
+                        "clip-path": that._clipRect.id
                     })
                 }
                 group.linkAppend();
@@ -46310,11 +46277,11 @@
         var doc = document,
             win = window,
             $ = __webpack_require__( /*! jquery */ 9),
-            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 456),
+            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 457),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             HALF_ARROW_WIDTH = 10,
-            vizUtils = __webpack_require__( /*! ./utils */ 447),
-            _format = __webpack_require__( /*! ./format */ 468),
+            vizUtils = __webpack_require__( /*! ./utils */ 448),
+            _format = __webpack_require__( /*! ./format */ 469),
             mathCeil = Math.ceil;
 
         function hideElement($element) {
@@ -46346,7 +46313,7 @@
         function Tooltip(params) {
             var renderer, root, that = this;
             that._eventTrigger = params.eventTrigger;
-            that._wrapper = $("<div></div>").css({
+            that._wrapper = $("<div>").css({
                 position: "absolute",
                 overflow: "visible",
                 width: "1px",
@@ -46367,14 +46334,14 @@
                 align: "center"
             }).append(root);
             that._text = renderer.text(void 0, 0, 0).append(that._textGroup);
-            that._textGroupHtml = $("<div></div>").css({
+            that._textGroupHtml = $("<div>").css({
                 position: "absolute",
                 width: 0,
                 padding: 0,
                 margin: 0,
                 border: "0px solid transparent"
             }).appendTo(that._wrapper);
-            that._textHtml = $("<div></div>").css({
+            that._textHtml = $("<div>").css({
                 position: "relative",
                 display: "inline-block",
                 padding: 0,
@@ -46389,18 +46356,20 @@
                 this._renderer.dispose();
                 this._options = null
             },
+            _getContainer: function() {
+                var container = $(this._options.container);
+                return (container.length ? container : $("body")).get(0)
+            },
             setOptions: function(options) {
                 options = options || {};
                 var that = this,
                     cloudSettings = that._cloudSettings = {
                         opacity: options.opacity,
-                        filter: that._shadow.ref,
+                        filter: that._shadow.id,
                         "stroke-width": null,
                         stroke: null
                     },
-                    borderOptions = options.border || {},
-                    container = $(options.container);
-                that._container = (container.length ? container : $("body")).get(0);
+                    borderOptions = options.border || {};
                 that._shadowSettings = $.extend({
                     x: "-50%",
                     y: "-50%",
@@ -46484,7 +46453,7 @@
                 }
                 that._state = state;
                 state.tc = {};
-                that._wrapper.appendTo(that._container);
+                that._wrapper.appendTo(that._getContainer());
                 that._cloud.attr({
                     fill: state.color,
                     stroke: state.borderColor
@@ -46800,7 +46769,7 @@
       !*** ./js/viz/core/loading_indicator.js ***!
       \******************************************/
     function(module, exports, __webpack_require__) {
-        var _patchFontOptions = __webpack_require__( /*! ./utils */ 447).patchFontOptions,
+        var _patchFontOptions = __webpack_require__( /*! ./utils */ 448).patchFontOptions,
             STATE_HIDDEN = 0,
             STATE_SHOWN = 1,
             ANIMATION_EASING = "linear",
@@ -47049,12 +47018,12 @@
       \********************************************/
     function(module, exports, __webpack_require__) {
         var _Translator2d, $ = __webpack_require__( /*! jquery */ 9),
-            numericTranslator = __webpack_require__( /*! ./numeric_translator */ 501),
-            categoryTranslator = __webpack_require__( /*! ./category_translator */ 502),
-            intervalTranslator = __webpack_require__( /*! ./interval_translator */ 503),
-            datetimeTranslator = __webpack_require__( /*! ./datetime_translator */ 504),
-            logarithmicTranslator = __webpack_require__( /*! ./logarithmic_translator */ 505),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            numericTranslator = __webpack_require__( /*! ./numeric_translator */ 502),
+            categoryTranslator = __webpack_require__( /*! ./category_translator */ 503),
+            intervalTranslator = __webpack_require__( /*! ./interval_translator */ 504),
+            datetimeTranslator = __webpack_require__( /*! ./datetime_translator */ 505),
+            logarithmicTranslator = __webpack_require__( /*! ./logarithmic_translator */ 506),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             getLog = vizUtils.getLog,
             getPower = vizUtils.getPower,
@@ -47072,12 +47041,10 @@
             return canvas
         };
         var makeCategoriesToPoints = function(categories) {
-            var categoriesToPoints = {},
-                length = categories.length,
-                i = 0;
-            for (; i < length; i++) {
-                categoriesToPoints[categories[i]] = i
-            }
+            var categoriesToPoints = {};
+            categories.forEach(function(item, i) {
+                categoriesToPoints[item.valueOf()] = i
+            });
             return categoriesToPoints
         };
         var validateBusinessRange = function(businessRange) {
@@ -47169,7 +47136,7 @@
                         canvasOptions.interval = that._getDiscreteInterval(range.addSpiderCategory ? categoriesLength + 1 : categoriesLength, canvasOptions);
                         that._categoriesToPoints = makeCategoriesToPoints(categories, canvasOptions.invert);
                         if (visibleCategories && categoriesLength) {
-                            canvasOptions.startPointIndex = that._categoriesToPoints[visibleCategories[0]];
+                            canvasOptions.startPointIndex = that._categoriesToPoints[visibleCategories[0].valueOf()];
                             that.visibleCategories = visibleCategories
                         }
                         break;
@@ -47411,7 +47378,7 @@
             translate: function(category, directionOffset) {
                 var stickDelta, that = this,
                     canvasOptions = that._canvasOptions,
-                    categoryIndex = that._categoriesToPoints[category],
+                    categoryIndex = that._categoriesToPoints[category.valueOf()],
                     specialValue = that.translateSpecialCase(category),
                     startPointIndex = canvasOptions.startPointIndex || 0,
                     stickInterval = that._businessRange.stick ? 0 : .5;
@@ -47499,18 +47466,18 @@
                     canvasOptions = that._canvasOptions,
                     visibleArea = that.getCanvasVisibleArea(),
                     stickOffset = !that._businessRange.stick && 1,
-                    minPoint = that.translate(min, -stickOffset),
-                    maxPoint = that.translate(max, +stickOffset);
-                if (!isDefined(minPoint)) {
+                    minPoint = isDefined(min) ? that.translate(min, -stickOffset) : null,
+                    maxPoint = isDefined(max) ? that.translate(max, +stickOffset) : null;
+                if (null === minPoint) {
                     minPoint = canvasOptions.invert ? visibleArea.max : visibleArea.min
                 }
-                if (!isDefined(maxPoint)) {
+                if (null === maxPoint) {
                     maxPoint = canvasOptions.invert ? visibleArea.min : visibleArea.max
                 }
                 return that.canvasLength / Math.abs(maxPoint - minPoint)
             },
             isValid: function(value) {
-                return this._categoriesToPoints[value] >= 0
+                return isDefined(value) ? this._categoriesToPoints[value.valueOf()] >= 0 : false
             },
             parse: function(value) {
                 return value
@@ -47518,7 +47485,7 @@
             to: function(value, direction) {
                 var canvasOptions = this._canvasOptions,
                     businessRange = this._businessRange,
-                    categoryIndex = this._categoriesToPoints[value],
+                    categoryIndex = this._categoriesToPoints[value.valueOf()],
                     startPointIndex = canvasOptions.startPointIndex || 0,
                     stickInterval = businessRange.stick ? 0 : .5,
                     stickDelta = categoryIndex + stickInterval - startPointIndex + (businessRange.invert ? -1 : 1) * direction * .5;
@@ -47553,7 +47520,7 @@
       !*** ./js/viz/translators/interval_translator.js ***!
       \***************************************************/
     function(module, exports, __webpack_require__) {
-        var adjustValue = __webpack_require__( /*! ../core/utils */ 447).adjustValue,
+        var adjustValue = __webpack_require__( /*! ../core/utils */ 448).adjustValue,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             isNumber = commonUtils.isNumber,
             isDefined = commonUtils.isDefined,
@@ -47688,7 +47655,7 @@
       !*** ./js/viz/translators/datetime_translator.js ***!
       \***************************************************/
     function(module, exports, __webpack_require__) {
-        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 501);
+        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 502);
         module.exports = {
             translate: numericTranslator.translate,
             untranslate: function() {
@@ -47718,8 +47685,8 @@
       !*** ./js/viz/translators/logarithmic_translator.js ***!
       \******************************************************/
     function(module, exports, __webpack_require__) {
-        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 501),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 502),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             raiseTo = vizUtils.raiseTo,
             getLog = vizUtils.getLog;
@@ -47773,7 +47740,7 @@
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isDate = commonUtils.isDate,
-            unique = __webpack_require__( /*! ../core/utils */ 447).unique,
+            unique = __webpack_require__( /*! ../core/utils */ 448).unique,
             minSelector = "min",
             maxSelector = "max",
             minVisibleSelector = "minVisible",
@@ -47892,10 +47859,13 @@
                 return that
             },
             sortCategories: function(arr) {
-                var cat = this.categories;
-                arr && cat && (this.categories = arr.filter(function(item) {
-                    return cat.indexOf(item) !== -1
-                }))
+                var cat = this.categories,
+                    callback = "datetime" === this.dataType ? function(item) {
+                        return cat.map(Number).indexOf(item.valueOf()) !== -1
+                    } : function(item) {
+                        return cat.indexOf(item) !== -1
+                    };
+                arr && cat && (this.categories = arr.filter(callback))
             },
             checkZeroStick: function() {
                 var that = this;
@@ -47916,9 +47886,9 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             debug = __webpack_require__( /*! ../../core/utils/console */ 10).debug,
-            Range = __webpack_require__( /*! ../translators/range */ 506).Range,
+            Range = __webpack_require__( /*! ../translators/range */ 507).Range,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _adjustValue = vizUtils.adjustValue,
             _applyPrecisionByMinDelta = vizUtils.applyPrecisionByMinDelta,
             _isDefined = commonUtils.isDefined,
@@ -47927,7 +47897,7 @@
             _max = _math.max,
             _abs = _math.abs,
             _each = $.each,
-            _map = __webpack_require__( /*! ../core/utils */ 447).map,
+            _map = __webpack_require__( /*! ../core/utils */ 448).map,
             MIN_RANGE_FOR_ADJUST_BOUNDS = .1;
         var getValueAxesPerPanes = function(valueAxes) {
             var result = {};
@@ -48259,18 +48229,18 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            rangeModule = __webpack_require__( /*! ../translators/range */ 506),
+            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             DEFAULT_AXIS_NAME = "defaultAxisName",
-            axisModule = __webpack_require__( /*! ../axes/base_axis */ 509),
-            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 518),
-            BaseChart = __webpack_require__( /*! ./base_chart */ 452).BaseChart,
+            axisModule = __webpack_require__( /*! ../axes/base_axis */ 510),
+            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 519),
+            BaseChart = __webpack_require__( /*! ./base_chart */ 453).BaseChart,
             _isArray = commonUtils.isArray,
             _isDefined = commonUtils.isDefined,
             _each = $.each,
             _noop = $.noop,
             _extend = $.extend,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _map = vizUtils.map,
             MIN = "min",
             MAX = "max";
@@ -48682,11 +48652,7 @@
                 return userOptions
             },
             _legendDataField: "series",
-            _getStoredSeries: function() {
-                return this.series
-            },
-            _adjustSeries: _noop,
-            _collectPointsByArg: _noop
+            _adjustSeries: _noop
         });
         exports.AdvancedChart = AdvancedChart
     },
@@ -48695,11 +48661,11 @@
       \**********************************/
     function(module, exports, __webpack_require__) {
         var Axis, $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            constants = __webpack_require__( /*! ./axes_constants */ 510),
-            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 462),
-            tickManagerModule = __webpack_require__( /*! ./base_tick_manager */ 511),
+            constants = __webpack_require__( /*! ./axes_constants */ 511),
+            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 463),
+            tickManagerModule = __webpack_require__( /*! ./base_tick_manager */ 512),
             formatLabel = constants.formatLabel,
             convertTicksToValues = constants.convertTicksToValues,
             convertValuesToTicks = constants.convertValuesToTicks,
@@ -49476,10 +49442,10 @@
                 var axisTypeMethods, that = this;
                 switch (axisType) {
                     case "xyAxes":
-                        axisTypeMethods = __webpack_require__( /*! ./xy_axes */ 516);
+                        axisTypeMethods = __webpack_require__( /*! ./xy_axes */ 517);
                         break;
                     case "polarAxes":
-                        axisTypeMethods = __webpack_require__( /*! ./polar_axes */ 517)
+                        axisTypeMethods = __webpack_require__( /*! ./polar_axes */ 518)
                 }
                 _each(axisTypeMethods[drawingType], function(methodName, method) {
                     that[methodName] = method
@@ -49712,10 +49678,10 @@
             },
             applyClipRects: function(elementsClipID, canvasClipID) {
                 this._axisGroup.attr({
-                    clipId: canvasClipID
+                    "clip-path": canvasClipID
                 });
                 this._axisStripGroup.attr({
-                    clipId: elementsClipID
+                    "clip-path": elementsClipID
                 })
             },
             validate: function(isArgumentAxis) {
@@ -49828,8 +49794,8 @@
       \***************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            _map = __webpack_require__( /*! ../core/utils */ 447).map,
-            _format = __webpack_require__( /*! ../core/format */ 468);
+            _map = __webpack_require__( /*! ../core/utils */ 448).map,
+            _format = __webpack_require__( /*! ../core/format */ 469);
 
         function getFormatObject(value, options, axisMinMax, point) {
             var formatObject = {
@@ -49893,17 +49859,17 @@
       \******************************************/
     function(module, exports, __webpack_require__) {
         var TickManager, $ = __webpack_require__( /*! jquery */ 9),
-            coreTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 512),
-            dateTimeManager = __webpack_require__( /*! ./datetime_tick_manager */ 513),
-            overlappingMethods = __webpack_require__( /*! ./tick_overlapping_manager */ 514),
-            logarithmicMethods = __webpack_require__( /*! ./logarithmic_tick_manager */ 515),
+            coreTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 513),
+            dateTimeManager = __webpack_require__( /*! ./datetime_tick_manager */ 514),
+            overlappingMethods = __webpack_require__( /*! ./tick_overlapping_manager */ 515),
+            logarithmicMethods = __webpack_require__( /*! ./logarithmic_tick_manager */ 516),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             formatHelper = __webpack_require__( /*! ../../format_helper */ 62),
             _isDefined = commonUtils.isDefined,
             _isNumber = commonUtils.isNumber,
             _addInterval = dateUtils.addInterval,
-            utils = __webpack_require__( /*! ../core/utils */ 447),
+            utils = __webpack_require__( /*! ../core/utils */ 448),
             _adjustValue = utils.adjustValue,
             _map = utils.map,
             _each = $.each,
@@ -50451,7 +50417,7 @@
       \*********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _adjustValue = vizUtils.adjustValue,
@@ -50570,7 +50536,7 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 512).continuous,
+            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 513).continuous,
             _isDefined = commonUtils.isDefined,
             _convertDateUnitToMilliseconds = dateUtils.convertDateUnitToMilliseconds,
             _correctDateWithUnitBeginning = dateUtils.correctDateWithUnitBeginning,
@@ -50716,7 +50682,7 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            numericTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 512),
+            numericTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 513),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _addInterval = __webpack_require__( /*! ../../core/utils/date */ 59).addInterval,
             _isDefined = commonUtils.isDefined,
@@ -51046,13 +51012,13 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _addInterval = dateUtils.addInterval,
             _adjustValue = vizUtils.adjustValue,
-            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 512).continuous,
+            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 513).continuous,
             _getLog = vizUtils.getLog,
             _raiseTo = vizUtils.raiseTo,
             _math = Math,
@@ -51138,9 +51104,9 @@
             getNextDateUnit = dateUtils.getNextDateUnit,
             correctDateWithUnitBeginning = dateUtils.correctDateWithUnitBeginning,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _isDefined = commonUtils.isDefined,
-            constants = __webpack_require__( /*! ./axes_constants */ 510),
+            constants = __webpack_require__( /*! ./axes_constants */ 511),
             _extend = $.extend,
             CANVAS_POSITION_PREFIX = constants.canvasPositionPrefix,
             TOP = constants.top,
@@ -51765,10 +51731,10 @@
       \***********************************/
     function(module, exports, __webpack_require__) {
         var circularAxes, polarAxes, $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            constants = __webpack_require__( /*! ./axes_constants */ 510),
-            xyAxesLinear = __webpack_require__( /*! ./xy_axes */ 516).linear,
+            constants = __webpack_require__( /*! ./axes_constants */ 511),
+            xyAxesLinear = __webpack_require__( /*! ./xy_axes */ 517).linear,
             _map = vizUtils.map,
             _math = Math,
             _abs = _math.abs,
@@ -52238,7 +52204,7 @@
             _pow = _math.pow,
             _each = $.each,
             _noop = $.noop,
-            vizUtils = __webpack_require__( /*! ./utils */ 447),
+            vizUtils = __webpack_require__( /*! ./utils */ 448),
             _normalizeEnum = vizUtils.normalizeEnum;
 
         function getStacksWithArgument(stackKeepers, argument) {
@@ -52656,7 +52622,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             MIN_SCROLL_BAR_SIZE = 2,
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 500),
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             pointerEvents = __webpack_require__( /*! ../../events/pointer */ 72),
             isDefined = commonUtils.isDefined,
@@ -52857,7 +52823,7 @@
             mathMin = math.min,
             mathMax = math.max,
             mathFloor = math.floor,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             HORIZONTAL = "horizontal",
             VERTICAL = "vertical",
             LABEL_BACKGROUND_PADDING_X = 8,
@@ -53133,7 +53099,7 @@
                         cx: x,
                         cy: y,
                         r: rad,
-                        clipId: that._getClipRectForPane(x, y).id
+                        "clip-path": that._getClipRectForPane(x, y).id
                     });
                     if (horizontal.lines) {
                         that._updateText(pointData.yValue, pointData.axis, horizontal.labels, point, getLabelCheckerPosition(x, y, true, canvas));
@@ -53156,110 +53122,190 @@
         };
         exports.Crosshair = Crosshair
     },
+    /*!*************************************************!*\
+      !*** ./js/viz/chart_components/shutter_zoom.js ***!
+      \*************************************************/
+    function(module, exports, __webpack_require__) {
+        var dragEvents = __webpack_require__( /*! ../../events/drag */ 105),
+            SHUTTER_EVENTS_NS = ".shutter-zoom",
+            DRAG_START_EVENT_NAME = dragEvents.start + SHUTTER_EVENTS_NS,
+            DRAG_UPDATE_EVENT_NAME = dragEvents.move + SHUTTER_EVENTS_NS,
+            DRAG_END_EVENT_NAME = dragEvents.end + SHUTTER_EVENTS_NS;
+
+        function getPointerCoord(rootOffset, canvas, rotated, e) {
+            var coord = Math.floor(rotated ? e.pageY - rootOffset.top : e.pageX - rootOffset.left),
+                min = rotated ? canvas.y1 : canvas.x1,
+                max = rotated ? canvas.y2 : canvas.x2;
+            if (coord < min) {
+                coord = min
+            } else {
+                if (coord > max) {
+                    coord = max
+                }
+            }
+            return coord
+        }
+
+        function checkCoords(rootOffset, canvas, e) {
+            var x = e.pageX - rootOffset.left,
+                y = e.pageY - rootOffset.top;
+            return x >= canvas.x1 && x <= canvas.x2 && y >= canvas.y1 && y <= canvas.y2
+        }
+
+        function dragStartHandler(ctx) {
+            return function(e) {
+                var offset = ctx.getRootOffset(),
+                    canvas = ctx.getCanvas();
+                if (!checkCoords(offset, canvas, e)) {
+                    e.cancel = true;
+                    return
+                }
+                ctx.rootOffset = offset;
+                ctx.canvas = canvas;
+                ctx.startCoord = getPointerCoord(offset, canvas, ctx.rotated, e);
+                ctx.triggerStart();
+                ctx.rect.attr({
+                    x: canvas.x1,
+                    y: canvas.y1,
+                    width: canvas.width,
+                    height: canvas.height
+                }).append(ctx.root)
+            }
+        }
+
+        function dragHandler(ctx) {
+            return function(e) {
+                var curCoord = getPointerCoord(ctx.rootOffset, ctx.canvas, ctx.rotated, e),
+                    attr = {};
+                ctx.curCoord = curCoord;
+                attr[ctx.rotated ? "y" : "x"] = Math.min(ctx.startCoord, curCoord);
+                attr[ctx.rotated ? "height" : "width"] = Math.abs(ctx.startCoord - curCoord);
+                ctx.rect.attr(attr)
+            }
+        }
+
+        function dragEndHandler(ctx) {
+            return function(e) {
+                ctx.triggerEnd();
+                ctx.rect.remove()
+            }
+        }
+
+        function shutterZoom(options) {
+            var chart = options.chart,
+                renderer = options.renderer,
+                rotated = options.rotated,
+                rect = renderer.rect(0, 0, 0, 0).attr(options.shutterOptions),
+                shutter = {
+                    rect: rect,
+                    root: renderer.root,
+                    rotated: rotated,
+                    triggerStart: function() {
+                        chart._eventTrigger("zoomStart")
+                    },
+                    triggerEnd: function() {
+                        var tr = chart._argumentAxes[0].getTranslator(),
+                            rangeStart = Math.min(this.startCoord, this.curCoord),
+                            rangeEnd = Math.max(this.startCoord, this.curCoord);
+                        chart._eventTrigger("zoomEnd", {
+                            rangeStart: tr.untranslate(rangeStart),
+                            rangeEnd: tr.untranslate(rangeEnd)
+                        })
+                    },
+                    dispose: function() {
+                        renderer.root.off(SHUTTER_EVENTS_NS);
+                        rect.dispose()
+                    },
+                    getRootOffset: function() {
+                        return renderer.getRootOffset()
+                    },
+                    getCanvas: function() {
+                        var canvas = chart._canvas,
+                            panes = chart.panes,
+                            firstPane = panes[0].canvas,
+                            lastPane = panes[panes.length - 1].canvas;
+                        return {
+                            x1: firstPane.left,
+                            y1: firstPane.top,
+                            x2: canvas.width - lastPane.right,
+                            y2: canvas.height - lastPane.bottom,
+                            width: canvas.width - firstPane.left - lastPane.right,
+                            height: canvas.height - firstPane.top - lastPane.bottom
+                        }
+                    }
+                };
+            renderer.root.off(SHUTTER_EVENTS_NS).on(DRAG_START_EVENT_NAME, {
+                direction: rotated ? "vertical" : "horizontal",
+                immediate: true
+            }, dragStartHandler(shutter)).on(DRAG_UPDATE_EVENT_NAME, dragHandler(shutter)).on(DRAG_END_EVENT_NAME, dragEndHandler(shutter));
+            return shutter
+        }
+        module.exports = {
+            name: "shutter_zoom",
+            init: function() {
+                var options = this.option("shutterZoom") || {};
+                if (!options.enabled) {
+                    return
+                }
+                this._shutterZoom = shutterZoom({
+                    chart: this,
+                    renderer: this._renderer,
+                    rotated: this.option("rotated"),
+                    shutterOptions: options
+                })
+            },
+            dispose: function() {
+                this._shutterZoom && this._shutterZoom.dispose()
+            }
+        }
+    },
     /*!*****************************!*\
       !*** ./js/viz/pie_chart.js ***!
       \*****************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             errors = __webpack_require__( /*! ../core/errors */ 7),
-            seriesConsts = __webpack_require__( /*! ./components/consts */ 465),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 447),
+            seriesConsts = __webpack_require__( /*! ./components/consts */ 466),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../core/utils/common */ 12),
-            rangeModule = __webpack_require__( /*! ./translators/range */ 506),
+            rangeModule = __webpack_require__( /*! ./translators/range */ 507),
             registerComponent = __webpack_require__( /*! ../core/component_registrator */ 52),
-            baseChartModule = __webpack_require__( /*! ./chart_components/base_chart */ 452),
+            baseChartModule = __webpack_require__( /*! ./chart_components/base_chart */ 453),
             BaseChart = baseChartModule.BaseChart,
             overlapping = baseChartModule.overlapping,
             seriesSpacing = seriesConsts.pieSeriesSpacing,
-            translator1DModule = __webpack_require__( /*! ./translators/translator1d */ 522),
+            translator1DModule = __webpack_require__( /*! ./translators/translator1d */ 524),
             OPTIONS_FOR_REFRESH_SERIES = ["startAngle", "innerRadius", "segmentsDirection", "type"],
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
-            _getVerticallyShiftedAngularCoords = __webpack_require__( /*! ./core/utils */ 447).getVerticallyShiftedAngularCoords,
+            _getVerticallyShiftedAngularCoords = __webpack_require__( /*! ./core/utils */ 448).getVerticallyShiftedAngularCoords,
             states = seriesConsts.states,
-            SELECTED_STATE = states.selectedMark,
-            HOVER_STATE = states.hoverMark,
-            HOVER = states.hover,
-            NORMAL = states.normal,
-            SELECTION = states.selection,
-            APPLY_HOVER = states.applyHover,
-            RESET_ITEM = states.resetItem;
+            NORMAL_STATE = states.normalMark,
+            LEGEND_ACTIONS = [states.resetItem, states.applyHover, states.applySelected, states.applySelected];
 
-        function AbstractSeries(index, points) {
-            var that = this;
-            that.index = index;
-            that.fullState = 0;
-            that._points = points;
-            that._selectedPointsCount = 0;
-            return that
+        function getLegendItemAction(points) {
+            var state = NORMAL_STATE;
+            points.forEach(function(point) {
+                state |= point.fullState
+            });
+            return LEGEND_ACTIONS[state]
         }
-        AbstractSeries.prototype = {
-            isHovered: function() {
-                return !!(1 & this.fullState)
-            },
-            setHoverState: function(state, _, legendCallback) {
-                var that = this;
-                if (state && !that.isHovered()) {
-                    that._changeStyle(legendCallback, APPLY_HOVER, HOVER);
-                    that.fullState |= HOVER_STATE
+
+        function correctPercentValue(value) {
+            if (commonUtils.isNumber(value)) {
+                if (value > 1) {
+                    value = 1
                 } else {
-                    if (!state && that.isHovered()) {
-                        that._changeStyle(legendCallback, RESET_ITEM, NORMAL);
-                        that.fullState &= ~HOVER_STATE
+                    if (value < 0) {
+                        value = 0
                     }
                 }
-            },
-            _changeStyle: function(legendCallback, legendAction, pointAction) {
-                var that = this;
-                !that._selectedPointsCount && legendCallback(legendAction);
-                _each(that._points || [], function(_, p) {
-                    !p.isSelected() && p.applyStyle(pointAction)
-                })
-            },
-            setPointHoverState: function(data) {
-                var point = data.point;
-                point.fullState |= HOVER_STATE;
-                if (!point.isSelected()) {
-                    point.applyStyle(HOVER);
-                    if (!this._selectedPointsCount) {
-                        data.legendCallback(APPLY_HOVER)
-                    }
-                }
-            },
-            releasePointHoverState: function(data) {
-                var point = data.point;
-                point.fullState &= ~HOVER_STATE;
-                if (!point.isSelected()) {
-                    point.applyStyle(NORMAL);
-                    if (!this._selectedPointsCount) {
-                        data.legendCallback(RESET_ITEM)
-                    }
-                }
-            },
-            setPointSelectedState: function(data) {
-                var that = this,
-                    point = data.point;
-                point.fullState |= SELECTED_STATE;
-                point.applyStyle(SELECTION);
-                !that._selectedPointsCount && data.legendCallback(states.applySelected);
-                that._selectedPointsCount++
-            },
-            releasePointSelectedState: function(data) {
-                var action, that = this,
-                    point = data.point;
-                point.fullState &= ~SELECTED_STATE;
-                if (point.isHovered() || that.isHovered()) {
-                    point.applyStyle(HOVER);
-                    action = APPLY_HOVER
-                } else {
-                    point.applyStyle(NORMAL);
-                    action = RESET_ITEM
-                }
-                that._selectedPointsCount--;
-                !that._selectedPointsCount && data.legendCallback(action)
+            } else {
+                value = void 0
             }
-        };
+            return value
+        }
         var dxPieChart = BaseChart.inherit({
             _setDeprecatedOptions: function() {
                 this.callBase.apply(this, arguments);
@@ -53284,24 +53330,14 @@
             },
             _chartType: "pie",
             _layoutManagerOptions: function() {
-                var diameter = this._themeManager.getOptions("diameter");
-                if (commonUtils.isNumber(diameter)) {
-                    if (diameter > 1) {
-                        diameter = 1
-                    } else {
-                        if (diameter < 0) {
-                            diameter = 0
-                        }
-                    }
-                } else {
-                    diameter = void 0
-                }
                 return _extend(true, {}, this.callBase(), {
-                    piePercentage: diameter
+                    piePercentage: correctPercentValue(this._themeManager.getOptions("diameter")),
+                    minPiePercentage: correctPercentValue(this._themeManager.getOptions("minDiameter"))
                 })
             },
             _optionChangesMap: {
-                diameter: "REINIT"
+                diameter: "REINIT",
+                minDiameter: "REINIT"
             },
             _groupSeries: function() {
                 var series = this.series;
@@ -53344,45 +53380,33 @@
             _processSingleSeries: function(singleSeries) {
                 singleSeries.arrangePoints()
             },
-            _collectPointsByArg: function() {
-                var itemIndex, that = this,
-                    points = {},
-                    args = {},
-                    index = 0;
-                _each(that.series, function(_, singleSeries) {
-                    var count, arrayArguments = {};
-                    _each(singleSeries.getPoints(), function(_, point) {
-                        var argument = point.argument;
-                        arrayArguments[argument] = ++arrayArguments[argument] || 0;
-                        count = arrayArguments[argument];
-                        itemIndex = args[argument + count];
-                        if (void 0 === itemIndex) {
-                            point.index = args[argument + count] = index;
-                            points[index] = [point];
-                            index++
-                        } else {
-                            point.index = itemIndex;
-                            points[itemIndex].push(point)
-                        }
-                    })
-                });
-                that._collectionPointsArg = points
-            },
             _getLegendTargets: function() {
                 var that = this,
-                    points = [];
-                _each(that._collectionPointsArg, function(_, id) {
-                    _each(id, function(i, point) {
-                        if (0 === i) {
-                            points.push(that._getLegendOptions(point))
+                    itemsByArgument = {},
+                    items = [];
+                that.series.forEach(function(series) {
+                    _each(series.pointsByArgument, function(argument, points) {
+                        points.forEach(function(point, index) {
+                            var key = argument.valueOf().toString() + index;
+                            itemsByArgument[key] = itemsByArgument[key] || [];
+                            var argumentCount = itemsByArgument[key].push(point);
+                            point.index = itemsByArgument[key][argumentCount - 2] ? itemsByArgument[key][argumentCount - 2].index : Object.keys(itemsByArgument).length - 1;
+                            point.argumentIndex = index
+                        })
+                    })
+                });
+                _each(itemsByArgument, function(_, points) {
+                    points.forEach(function(point, index) {
+                        if (0 === index) {
+                            items.push(that._getLegendOptions(point))
                         } else {
-                            if (!points[points.length - 1].visible) {
-                                points[points.length - 1].visible = point.isVisible()
+                            if (!items[items.length - 1].visible) {
+                                items[items.length - 1].visible = point.isVisible()
                             }
                         }
                     })
                 });
-                return points
+                return items
             },
             _getAxisDrawingMethods: _noop,
             _getLayoutTargets: function() {
@@ -53435,9 +53459,26 @@
                 return this._createTranslator(this.businessRanges[i])
             },
             _getLegendCallBack: function() {
-                var legend = this._legend;
-                return function(point) {
-                    return legend.getActionCallback(point)
+                var that = this,
+                    legend = this._legend,
+                    items = this._getLegendTargets().map(function(i) {
+                        return i.legendData
+                    });
+                return function(target) {
+                    items.forEach(function(data) {
+                        var points = [],
+                            callback = legend.getActionCallback({
+                                index: data.id
+                            });
+                        that.series.forEach(function(series) {
+                            var seriesPoints = series.getPointsByKeys(data.argument, data.argumentIndex);
+                            points.push.apply(points, seriesPoints)
+                        });
+                        if (target && target.argument === data.argument && target.argumentIndex === data.argumentIndex) {
+                            points.push(target)
+                        }
+                        callback(getLegendItemAction(points))
+                    })
                 }
             },
             _adjustSeries: function() {
@@ -53473,18 +53514,6 @@
             },
             _setCenter: function(center) {
                 this._center = center
-            },
-            _getStoredSeries: function() {
-                var abstractSeries = this._abstractSeries;
-                if (!abstractSeries) {
-                    abstractSeries = this._abstractSeries = []
-                } else {
-                    abstractSeries.splice(0, abstractSeries.length)
-                }
-                _each(this._collectionPointsArg, function(i, points) {
-                    abstractSeries.push(new AbstractSeries(i, points))
-                });
-                return abstractSeries
             },
             _disposeSeries: function() {
                 this.callBase.apply(this, arguments);
@@ -53604,10 +53633,10 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             registerComponent = __webpack_require__( /*! ../core/component_registrator */ 52),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 447),
-            polarTranslatorModule = __webpack_require__( /*! ./translators/polar_translator */ 524),
-            rangeModule = __webpack_require__( /*! ./translators/range */ 506),
-            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 508).AdvancedChart,
+            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
+            polarTranslatorModule = __webpack_require__( /*! ./translators/polar_translator */ 526),
+            rangeModule = __webpack_require__( /*! ./translators/range */ 507),
+            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 509).AdvancedChart,
             _noop = $.noop,
             DEFAULT_PANE_NAME = "default";
         var dxPolarChart = AdvancedChart.inherit({
@@ -53764,9 +53793,9 @@
       \************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            translator2DModule = __webpack_require__( /*! ./translator2d */ 500),
+            translator2DModule = __webpack_require__( /*! ./translator2d */ 501),
             SHIFT_ANGLE = 90,
             _round = Math.round;
 
@@ -53910,7 +53939,7 @@
       !*** ./js/viz/linear_gauge.js ***!
       \********************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./gauges/linear_gauge */ 526)
+        module.exports = __webpack_require__( /*! ./gauges/linear_gauge */ 528)
     },
     /*!***************************************!*\
       !*** ./js/viz/gauges/linear_gauge.js ***!
@@ -53923,14 +53952,14 @@
             _each = $.each,
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 527).dxBaseGauge,
-            dxGauge = __webpack_require__( /*! ./common */ 529).dxGauge,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 500),
-            linearIndicatorsModule = __webpack_require__( /*! ./linear_indicators */ 530),
-            createIndicatorCreator = __webpack_require__( /*! ./common */ 529).createIndicatorCreator,
-            LinearRangeContainer = __webpack_require__( /*! ./linear_range_container */ 532),
-            ThemeManager = __webpack_require__( /*! ./theme_manager */ 534);
+            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 529).dxBaseGauge,
+            dxGauge = __webpack_require__( /*! ./common */ 531).dxGauge,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
+            linearIndicatorsModule = __webpack_require__( /*! ./linear_indicators */ 532),
+            createIndicatorCreator = __webpack_require__( /*! ./common */ 531).createIndicatorCreator,
+            LinearRangeContainer = __webpack_require__( /*! ./linear_range_container */ 534),
+            ThemeManager = __webpack_require__( /*! ./theme_manager */ 536);
         var dxLinearGauge = dxGauge.inherit({
             _rootClass: "dxg-linear-gauge",
             _factoryMethods: {
@@ -54186,13 +54215,13 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             _Number = Number,
-            _getAppropriateFormat = __webpack_require__( /*! ../core/utils */ 447).getAppropriateFormat,
-            translator1DModule = __webpack_require__( /*! ../translators/translator1d */ 522),
+            _getAppropriateFormat = __webpack_require__( /*! ../core/utils */ 448).getAppropriateFormat,
+            translator1DModule = __webpack_require__( /*! ../translators/translator1d */ 524),
             _extend = $.extend,
-            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 453),
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 454),
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            Tracker = __webpack_require__( /*! ./tracker */ 528),
+            Tracker = __webpack_require__( /*! ./tracker */ 530),
             _isString = commonUtils.isString;
         var dxBaseGauge = BaseWidget.inherit({
             _rootClassPrefix: "dxg",
@@ -54322,10 +54351,7 @@
                     "tooltip-hide": function() {
                         return tooltip.hide()
                     }
-                });
-                that._resetTrackerCallbacks = function() {
-                    that._resetTrackerCallbacks = that = renderer = tooltip = null
-                }
+                })
             },
             _dispose: function() {
                 this._cleanCore();
@@ -54450,7 +54476,7 @@
             }
         });
         exports.dxBaseGauge = dxBaseGauge;
-        var _format = __webpack_require__( /*! ../core/format */ 468);
+        var _format = __webpack_require__( /*! ../core/format */ 469);
         var formatValue = function(value, options, extra) {
             options = options || {};
             var formatObject, text = _format(value, options);
@@ -54483,10 +54509,10 @@
             }
             return true
         }
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/export */ 449).plugin);
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/title */ 496).plugin);
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/tooltip */ 497).plugin);
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 498).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin);
         var _setTooltipOptions = dxBaseGauge.prototype._setTooltipOptions;
         dxBaseGauge.prototype._setTooltipOptions = function() {
             _setTooltipOptions.apply(this, arguments);
@@ -54726,16 +54752,16 @@
       \*********************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 527).dxBaseGauge,
+            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 529).dxBaseGauge,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isArray = commonUtils.isArray,
             _isNumber = commonUtils.isNumber,
-            rangeModule = __webpack_require__( /*! ../translators/range */ 506),
-            axisModule = __webpack_require__( /*! ../axes/base_axis */ 509),
-            _map = __webpack_require__( /*! ../core/utils */ 447).map,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
-            _compareArrays = __webpack_require__( /*! ./base_gauge */ 527).compareArrays,
+            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
+            axisModule = __webpack_require__( /*! ../axes/base_axis */ 510),
+            _map = __webpack_require__( /*! ../core/utils */ 448).map,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            _compareArrays = __webpack_require__( /*! ./base_gauge */ 529).compareArrays,
             _isFinite = isFinite,
             _Number = Number,
             _min = Math.min,
@@ -54798,7 +54824,7 @@
                 that._scaleGroup.linkOff();
                 that._rangeContainer.dispose();
                 that._disposeValueIndicators();
-                that._scale = that._scaleGroup = that._scaleTranslators = that._rangeContainer = null
+                that._scale = that._scaleGroup = that._scaleTranslator = that._rangeContainer = null
             },
             _disposeValueIndicators: function() {
                 var that = this;
@@ -55364,12 +55390,12 @@
       !*** ./js/viz/gauges/linear_indicators.js ***!
       \********************************************/
     function(module, exports, __webpack_require__) {
-        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 531),
+        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 533),
             BaseIndicator = baseIndicatorsModule.BaseIndicator,
             BaseTextCloudMarker = baseIndicatorsModule.BaseTextCloudMarker,
             BaseRangeBar = baseIndicatorsModule.BaseRangeBar,
             _Number = Number,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum;
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
         var SimpleIndicator = BaseIndicator.inherit({
             _move: function() {
                 var that = this,
@@ -55878,10 +55904,10 @@
             _isFinite = isFinite,
             _Number = Number,
             _round = Math.round,
-            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 527),
+            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 529),
             _formatValue = baseGaugeModule.formatValue,
             _getSampleText = baseGaugeModule.getSampleText,
-            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 447).patchFontOptions,
+            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions,
             Class = __webpack_require__( /*! ../../core/class */ 22);
         var BaseElement = Class.inherit({
             ctor: function(parameters) {
@@ -56295,10 +56321,10 @@
       !*** ./js/viz/gauges/linear_range_container.js ***!
       \*************************************************/
     function(module, exports, __webpack_require__) {
-        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 533),
+        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 535),
             _Number = Number,
             _max = Math.max,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum;
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
         var LinearRangeContainer = BaseRangeContainer.inherit({
             _processOptions: function() {
                 var that = this;
@@ -56366,7 +56392,7 @@
       \***********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            BaseElement = __webpack_require__( /*! ./base_indicators */ 531).BaseElement,
+            BaseElement = __webpack_require__( /*! ./base_indicators */ 533).BaseElement,
             _Number = Number,
             _abs = Math.abs,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
@@ -56598,7 +56624,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             _extend = $.extend,
-            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 488).BaseThemeManager;
+            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager;
         var ThemeManager = BaseThemeManager.inherit({
             _themeSection: "gauge",
             _fontFields: ["scale.label.font", "valueIndicators.rangebar.text.font", "valueIndicators.textcloud.text.font", "title.font", "title.subtitle.font", "tooltip.font", "indicator.text.font", "loadingIndicator.font", "export.font"],
@@ -56617,7 +56643,7 @@
       !*** ./js/viz/circular_gauge.js ***!
       \**********************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./gauges/circular_gauge */ 536)
+        module.exports = __webpack_require__( /*! ./gauges/circular_gauge */ 538)
     },
     /*!*****************************************!*\
       !*** ./js/viz/gauges/circular_gauge.js ***!
@@ -56627,16 +56653,16 @@
             _isFinite = isFinite,
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 527).dxBaseGauge,
-            dxGauge = __webpack_require__( /*! ./common */ 529).dxGauge,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 529).dxBaseGauge,
+            dxGauge = __webpack_require__( /*! ./common */ 531).dxGauge,
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _normalizeAngle = vizUtils.normalizeAngle,
             _getCosAndSin = vizUtils.getCosAndSin,
-            polarTranslatorModule = __webpack_require__( /*! ../translators/polar_translator */ 524),
-            circularIndicatorsModule = __webpack_require__( /*! ./circular_indicators */ 537),
-            createIndicatorCreator = __webpack_require__( /*! ./common */ 529).createIndicatorCreator,
-            CircularRangeContainer = __webpack_require__( /*! ./circular_range_container */ 538),
-            ThemeManager = __webpack_require__( /*! ./theme_manager */ 534),
+            polarTranslatorModule = __webpack_require__( /*! ../translators/polar_translator */ 526),
+            circularIndicatorsModule = __webpack_require__( /*! ./circular_indicators */ 539),
+            createIndicatorCreator = __webpack_require__( /*! ./common */ 531).createIndicatorCreator,
+            CircularRangeContainer = __webpack_require__( /*! ./circular_range_container */ 540),
+            ThemeManager = __webpack_require__( /*! ./theme_manager */ 536),
             _abs = Math.abs,
             _max = Math.max,
             _min = Math.min,
@@ -56909,11 +56935,11 @@
       !*** ./js/viz/gauges/circular_indicators.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
-        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 531),
+        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 533),
             BaseIndicator = baseIndicatorsModule.BaseIndicator,
             BaseTextCloudMarker = baseIndicatorsModule.BaseTextCloudMarker,
             BaseRangeBar = baseIndicatorsModule.BaseRangeBar,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _Number = Number,
             _getCosAndSin = vizUtils.getCosAndSin,
             _convertAngleToRendererSpace = vizUtils.convertAngleToRendererSpace;
@@ -57304,10 +57330,10 @@
       !*** ./js/viz/gauges/circular_range_container.js ***!
       \***************************************************/
     function(module, exports, __webpack_require__) {
-        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 533),
+        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 535),
             _Number = Number,
             _max = Math.max,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum;
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
         var CircularRangeContainer = BaseRangeContainer.inherit({
             _processOptions: function() {
                 var that = this;
@@ -57350,7 +57376,7 @@
       !*** ./js/viz/bar_gauge.js ***!
       \*****************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./gauges/bar_gauge */ 540).dxBarGauge
+        module.exports = __webpack_require__( /*! ./gauges/bar_gauge */ 542).dxBarGauge
     },
     /*!************************************!*\
       !*** ./js/viz/gauges/bar_gauge.js ***!
@@ -57366,15 +57392,15 @@
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 527),
+            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 529),
             dxBaseGauge = baseGaugeModule.dxBaseGauge,
             _getSampleText = baseGaugeModule.getSampleText,
             _formatValue = baseGaugeModule.formatValue,
             _compareArrays = baseGaugeModule.compareArrays,
-            dxCircularGauge = __webpack_require__( /*! ./circular_gauge */ 536),
-            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 488).BaseThemeManager,
+            dxCircularGauge = __webpack_require__( /*! ./circular_gauge */ 538),
+            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager,
             _isArray = commonUtils.isArray,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _convertAngleToRendererSpace = vizUtils.convertAngleToRendererSpace,
             _getCosAndSin = vizUtils.getCosAndSin,
             _patchFontOptions = vizUtils.patchFontOptions,
@@ -57845,7 +57871,7 @@
       !*** ./js/viz/range_selector.js ***!
       \**********************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./range_selector/range_selector */ 542)
+        module.exports = __webpack_require__( /*! ./range_selector/range_selector */ 544)
     },
     /*!*************************************************!*\
       !*** ./js/viz/range_selector/range_selector.js ***!
@@ -57854,26 +57880,26 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             adjustValue = vizUtils.adjustValue,
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             addInterval = dateUtils.addInterval,
             dateToMilliseconds = dateUtils.dateToMilliseconds,
             getSequenceByInterval = dateUtils.getSequenceByInterval,
-            rangeModule = __webpack_require__( /*! ../translators/range */ 506),
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 500),
-            axisModule = __webpack_require__( /*! ../axes/base_axis */ 509),
+            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
+            axisModule = __webpack_require__( /*! ../axes/base_axis */ 510),
             patchFontOptions = vizUtils.patchFontOptions,
-            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 462),
+            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 463),
             _normalizeEnum = vizUtils.normalizeEnum,
             formatHelper = __webpack_require__( /*! ../../format_helper */ 62),
-            commonModule = __webpack_require__( /*! ./common */ 543),
-            slidersControllerModule = __webpack_require__( /*! ./sliders_controller */ 544),
-            trackerModule = __webpack_require__( /*! ./tracker */ 547),
-            rangeViewModule = __webpack_require__( /*! ./range_view */ 548),
-            seriesDataSourceModule = __webpack_require__( /*! ./series_data_source */ 549),
-            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 550),
-            tickManagerModule = __webpack_require__( /*! ../axes/base_tick_manager */ 511),
+            commonModule = __webpack_require__( /*! ./common */ 545),
+            slidersControllerModule = __webpack_require__( /*! ./sliders_controller */ 546),
+            trackerModule = __webpack_require__( /*! ./tracker */ 549),
+            rangeViewModule = __webpack_require__( /*! ./range_view */ 550),
+            seriesDataSourceModule = __webpack_require__( /*! ./series_data_source */ 551),
+            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 552),
+            tickManagerModule = __webpack_require__( /*! ../axes/base_tick_manager */ 512),
             log = __webpack_require__( /*! ../../core/errors */ 7).log,
             _isDefined = commonUtils.isDefined,
             _isNumber = commonUtils.isNumber,
@@ -58352,7 +58378,7 @@
             }
             return res
         }
-        var dxRangeSelector = __webpack_require__( /*! ../core/base_widget */ 453).inherit({
+        var dxRangeSelector = __webpack_require__( /*! ../core/base_widget */ 454).inherit({
             _eventsMap: {
                 onSelectedRangeChanged: {
                     name: SELECTED_RANGE_CHANGED
@@ -58415,11 +58441,11 @@
                 }).append(root);
                 slidersGroup = renderer.g().attr({
                     "class": "dxrs-slidersContainer",
-                    clipId: that._clipRect.id
+                    "clip-path": that._clipRect.id
                 }).append(root);
                 scaleGroup = renderer.g().attr({
                     "class": "dxrs-scale",
-                    clipId: that._clipRect.id
+                    "clip-path": that._clipRect.id
                 }).append(root);
                 trackersGroup = renderer.g().attr({
                     "class": "dxrs-trackers"
@@ -58536,7 +58562,7 @@
                 if (this.option("disabled")) {
                     root.attr({
                         "pointer-events": "none",
-                        filter: renderer.getGrayScaleFilter().ref
+                        filter: renderer.getGrayScaleFilter().id
                     })
                 } else {
                     root.attr({
@@ -58818,16 +58844,16 @@
         };
         registerComponent("dxRangeSelector", dxRangeSelector);
         module.exports = dxRangeSelector;
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/export */ 449).plugin);
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/title */ 496).plugin);
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 498).plugin);
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/data_source */ 499).plugin)
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin);
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin)
     },
     /*!*****************************************!*\
       !*** ./js/viz/range_selector/common.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var _format = __webpack_require__( /*! ../core/format */ 468),
+        var _format = __webpack_require__( /*! ../core/format */ 469),
             isFunction = __webpack_require__( /*! ../../core/utils/common */ 12).isFunction,
             HEIGHT_COMPACT_MODE = 24,
             POINTER_SIZE = 4,
@@ -58863,11 +58889,11 @@
       \*****************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            commonModule = __webpack_require__( /*! ./common */ 543),
+            commonModule = __webpack_require__( /*! ./common */ 545),
             animationSettings = commonModule.utils.animationSettings,
             emptySliderMarkerText = commonModule.consts.emptySliderMarkerText,
-            Slider = __webpack_require__( /*! ./slider */ 545),
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum;
+            Slider = __webpack_require__( /*! ./slider */ 547),
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
 
         function buildRectPoints(left, top, right, bottom) {
             return [left, top, right, top, right, bottom, left, bottom]
@@ -59288,10 +59314,10 @@
       !*** ./js/viz/range_selector/slider.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var commonModule = __webpack_require__( /*! ./common */ 543),
+        var commonModule = __webpack_require__( /*! ./common */ 545),
             animationSettings = commonModule.utils.animationSettings,
             formatValue = commonModule.formatValue,
-            SliderMarker = __webpack_require__( /*! ./slider_marker */ 546),
+            SliderMarker = __webpack_require__( /*! ./slider_marker */ 548),
             support = __webpack_require__( /*! ../../core/utils/support */ 56),
             SPLITTER_WIDTH = 8,
             TOUCH_SPLITTER_WIDTH = 20;
@@ -59411,9 +59437,9 @@
       !*** ./js/viz/range_selector/slider_marker.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var patchFontOptions = __webpack_require__( /*! ../core/utils */ 447).patchFontOptions,
+        var patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions,
             SLIDER_MARKER_UPDATE_DELAY = 75,
-            POINTER_SIZE = __webpack_require__( /*! ./common */ 543).consts.pointerSize;
+            POINTER_SIZE = __webpack_require__( /*! ./common */ 545).consts.pointerSize;
 
         function SliderMarker(renderer, root, isLeftPointer) {
             var that = this;
@@ -59852,7 +59878,7 @@
       !*** ./js/viz/range_selector/range_view.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
-        var translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 500);
+        var translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501);
 
         function createTranslator(valueRange, screenRange) {
             return new translator2DModule.Translator2D(valueRange, {
@@ -59884,7 +59910,7 @@
             this._params = params;
             this._clipRect = params.renderer.clipRect();
             params.root.attr({
-                clipId: this._clipRect.id
+                "clip-path": this._clipRect.id
             })
         }
         RangeView.prototype = {
@@ -59928,13 +59954,13 @@
       \*****************************************************/
     function(module, exports, __webpack_require__) {
         var SeriesDataSource, $ = __webpack_require__( /*! jquery */ 9),
-            seriesModule = __webpack_require__( /*! ../series/base_series */ 463),
-            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 518),
+            seriesModule = __webpack_require__( /*! ../series/base_series */ 464),
+            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 519),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
-            rangeModule = __webpack_require__( /*! ../translators/range */ 506),
-            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 461),
-            ChartThemeManager = __webpack_require__( /*! ../components/chart_theme_manager */ 487).ThemeManager;
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
+            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 462),
+            ChartThemeManager = __webpack_require__( /*! ../components/chart_theme_manager */ 488).ThemeManager;
         var createThemeManager = function(chartOptions) {
             return new ChartThemeManager(chartOptions, "rangeSelector.chart")
         };
@@ -60151,7 +60177,7 @@
       !*** ./js/viz/range_selector/theme_manager.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 488).BaseThemeManager;
+        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager;
         exports.ThemeManager = BaseThemeManager.inherit({
             _themeSection: "rangeSelector",
             _fontFields: ["scale.label.font", "sliderMarker.font", "loadingIndicator.font", "export.font", "title.font", "title.subtitle.font"]
@@ -60161,24 +60187,24 @@
       !*** ./js/viz/vector_map.js ***!
       \******************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./vector_map/vector_map */ 552)
+        module.exports = __webpack_require__( /*! ./vector_map/vector_map */ 554)
     },
     /*!*****************************************!*\
       !*** ./js/viz/vector_map/vector_map.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 447).parseScalar,
-            projectionModule = __webpack_require__( /*! ./projection.main */ 553),
-            controlBarModule = __webpack_require__( /*! ./control_bar */ 555),
-            gestureHandlerModule = __webpack_require__( /*! ./gesture_handler */ 556),
-            trackerModule = __webpack_require__( /*! ./tracker */ 557),
-            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 558),
-            dataExchangerModule = __webpack_require__( /*! ./data_exchanger */ 559),
-            legendModule = __webpack_require__( /*! ./legend */ 560),
-            layoutModule = __webpack_require__( /*! ./layout */ 561),
-            mapLayerModule = __webpack_require__( /*! ./map_layer */ 562),
-            tooltipViewerModule = __webpack_require__( /*! ./tooltip_viewer */ 563),
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
+            projectionModule = __webpack_require__( /*! ./projection.main */ 555),
+            controlBarModule = __webpack_require__( /*! ./control_bar */ 557),
+            gestureHandlerModule = __webpack_require__( /*! ./gesture_handler */ 558),
+            trackerModule = __webpack_require__( /*! ./tracker */ 559),
+            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 560),
+            dataExchangerModule = __webpack_require__( /*! ./data_exchanger */ 561),
+            legendModule = __webpack_require__( /*! ./legend */ 562),
+            layoutModule = __webpack_require__( /*! ./layout */ 563),
+            mapLayerModule = __webpack_require__( /*! ./map_layer */ 564),
+            tooltipViewerModule = __webpack_require__( /*! ./tooltip_viewer */ 565),
             _noop = $.noop,
             _extend = $.extend,
             DEFAULT_WIDTH = 800,
@@ -60186,12 +60212,12 @@
             nextDataKey = 1,
             RE_STARTS_LAYERS = /^layers/,
             RE_ENDS_DATA_SOURCE = /\.(dataSource|data)$/;
-        __webpack_require__( /*! ./projection */ 564);
+        __webpack_require__( /*! ./projection */ 566);
 
         function generateDataKey() {
             return "vectormap-data-" + nextDataKey++
         }
-        var dxVectorMap = __webpack_require__( /*! ../core/base_widget */ 453).inherit({
+        var dxVectorMap = __webpack_require__( /*! ../core/base_widget */ 454).inherit({
             _eventsMap: {
                 onClick: {
                     name: "click"
@@ -60726,17 +60752,17 @@
         module.exports._TESTS_resetDataKey = function() {
             nextDataKey = 1
         };
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/export */ 449).plugin);
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/title */ 496).plugin);
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/tooltip */ 497).plugin);
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 498).plugin)
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin)
     },
     /*!**********************************************!*\
       !*** ./js/viz/vector_map/projection.main.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 554);
+            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 556);
         var _Number = Number,
             _min = Math.min,
             _max = Math.max,
@@ -61202,7 +61228,7 @@
             _round = _math.round,
             _floor = _math.floor,
             _sqrt = _math.sqrt,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _parseScalar = vizUtils.parseScalar,
             parseHorizontalAlignment = vizUtils.enumParser(["left", "center", "right"]),
             parseVerticalAlignment = vizUtils.enumParser(["top", "bottom"]),
@@ -61741,11 +61767,11 @@
             _abs = _math.abs,
             _sqrt = _math.sqrt,
             _round = _math.round,
-            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 554),
+            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 556),
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
             wheelEventName = __webpack_require__( /*! ../../events/core/wheel */ 81).name,
             _addNamespace = eventUtils.addNamespace,
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 447).parseScalar,
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
             _now = $.now,
             _NAME = "dxVectorMap",
             EVENTS = {};
@@ -62341,7 +62367,7 @@
       !*** ./js/viz/vector_map/theme_manager.js ***!
       \********************************************/
     function(module, exports, __webpack_require__) {
-        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 488).BaseThemeManager;
+        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager;
         exports.ThemeManager = BaseThemeManager.inherit({
             _themeSection: "map",
             _fontFields: ["layer:area.label.font", "layer:marker:dot.label.font", "layer:marker:bubble.label.font", "layer:marker:pie.label.font", "layer:marker:image.label.font", "tooltip.font", "legend.font", "title.font", "title.subtitle.font", "loadingIndicator.font", "export.font"]
@@ -62395,7 +62421,7 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             _extend = $.extend,
             _each = $.each,
-            legendModule = __webpack_require__( /*! ../components/legend */ 459),
+            legendModule = __webpack_require__( /*! ../components/legend */ 460),
             _BaseLegend = legendModule.Legend;
         var sourceMap = {
             areacolorgroups: {
@@ -62837,7 +62863,7 @@
             DataHelperMixin = __webpack_require__( /*! ../../data_helper */ 148),
             _isFunction = _utils.isFunction,
             _isArray = _utils.isArray,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _parseScalar = vizUtils.parseScalar,
             _patchFontOptions = vizUtils.patchFontOptions,
             _normalizeEnum = vizUtils.normalizeEnum,
@@ -63212,7 +63238,7 @@
                 },
                 refresh: function(ctx, figure, data, proxy, settings) {
                     figure.dot.attr({
-                        filter: settings.shadow ? ctx.filter.ref : null
+                        filter: settings.shadow ? ctx.filter.id : null
                     })
                 },
                 _getStyles: function(styles, style) {
@@ -64277,7 +64303,7 @@
             }).append(renderer.root);
             that._container = renderer.g().attr({
                 "class": "dxm-layers",
-                clipId: that._clip.id
+                "clip-path": that._clip.id
             }).append(renderer.root).enableLinks();
             that._subscribeToTracker(params.tracker, renderer, params.eventTrigger)
         }
@@ -64467,7 +64493,7 @@
       !*** ./js/viz/vector_map/projection.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var projectionModule = __webpack_require__( /*! ./projection.main */ 553),
+        var projectionModule = __webpack_require__( /*! ./projection.main */ 555),
             projection = projectionModule.projection,
             _min = Math.min,
             _max = Math.max,
@@ -64530,16 +64556,16 @@
       !*** ./js/viz/sparkline.js ***!
       \*****************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./sparklines/sparkline */ 566)
+        module.exports = __webpack_require__( /*! ./sparklines/sparkline */ 568)
     },
     /*!****************************************!*\
       !*** ./js/viz/sparklines/sparkline.js ***!
       \****************************************/
     function(module, exports, __webpack_require__) {
-        var BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 567),
+        var BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 569),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 461),
-            seriesModule = __webpack_require__( /*! ../series/base_series */ 463),
+            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 462),
+            seriesModule = __webpack_require__( /*! ../series/base_series */ 464),
             MIN_BAR_WIDTH = 1,
             MAX_BAR_WIDTH = 50,
             DEFAULT_BAR_INTERVAL = 4,
@@ -64563,7 +64589,7 @@
             _max = _math.max,
             _min = _math.min,
             _isFinite = isFinite,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 447),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
             _map = vizUtils.map,
             _normalizeEnum = vizUtils.normalizeEnum,
             _isDefined = commonUtils.isDefined,
@@ -64997,21 +65023,21 @@
         });
         __webpack_require__( /*! ../../core/component_registrator */ 52)("dxSparkline", dxSparkline);
         module.exports = dxSparkline;
-        dxSparkline.addPlugin(__webpack_require__( /*! ../core/data_source */ 499).plugin)
+        dxSparkline.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin)
     },
     /*!*********************************************!*\
       !*** ./js/viz/sparklines/base_sparkline.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 453),
+            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 454),
             DEFAULT_LINE_SPACING = 2,
             DEFAULT_EVENTS_DELAY = 200,
             TOUCH_EVENTS_DELAY = 1e3,
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
             wheelEvent = __webpack_require__( /*! ../../events/core/wheel */ 81),
-            baseThemeManagerModule = __webpack_require__( /*! ../core/base_theme_manager */ 488),
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 500),
+            baseThemeManagerModule = __webpack_require__( /*! ../core/base_theme_manager */ 489),
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
             _abs = Math.abs,
             _extend = $.extend,
             _noop = $.noop;
@@ -65279,7 +65305,7 @@
         module.exports._DEBUG_reset = function() {
             active_touch_tooltip_widget = null
         };
-        BaseSparkline.addPlugin(__webpack_require__( /*! ../core/tooltip */ 497).plugin);
+        BaseSparkline.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
         var _initTooltip = BaseSparkline.prototype._initTooltip;
         BaseSparkline.prototype._initTooltip = _noop;
         var _disposeTooltip = BaseSparkline.prototype._disposeTooltip;
@@ -65326,7 +65352,7 @@
                 that._hideTooltipCallback()
             }
         };
-        var exportPlugin = $.extend(true, {}, __webpack_require__( /*! ../core/export */ 449).plugin, {
+        var exportPlugin = $.extend(true, {}, __webpack_require__( /*! ../core/export */ 450).plugin, {
             init: _noop,
             dispose: _noop,
             customize: null,
@@ -65340,14 +65366,14 @@
       !*** ./js/viz/bullet.js ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./sparklines/bullet */ 569)
+        module.exports = __webpack_require__( /*! ./sparklines/bullet */ 571)
     },
     /*!*************************************!*\
       !*** ./js/viz/sparklines/bullet.js ***!
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 567),
+            BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 569),
             TARGET_MIN_Y = .02,
             TARGET_MAX_Y = .98,
             BAR_VALUE_MIN_Y = .1,
@@ -65566,39 +65592,39 @@
       !*** ./js/viz/tree_map.js ***!
       \****************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./tree_map/tree_map */ 571)
+        module.exports = __webpack_require__( /*! ./tree_map/tree_map */ 573)
     },
     /*!*************************************!*\
       !*** ./js/viz/tree_map/tree_map.js ***!
       \*************************************/
     function(module, exports, __webpack_require__) {
-        var dxTreeMap = module.exports = __webpack_require__( /*! ./tree_map.base */ 572);
-        __webpack_require__( /*! ./tiling.squarified */ 577);
-        __webpack_require__( /*! ./tiling.strip */ 580);
-        __webpack_require__( /*! ./tiling.slice_and_dice */ 581);
-        __webpack_require__( /*! ./colorizing.discrete */ 579);
-        __webpack_require__( /*! ./colorizing.gradient */ 582);
-        __webpack_require__( /*! ./colorizing.range */ 583);
-        __webpack_require__( /*! ./api */ 584);
-        __webpack_require__( /*! ./hover */ 585);
-        __webpack_require__( /*! ./selection */ 587);
-        __webpack_require__( /*! ./tooltip */ 588);
-        __webpack_require__( /*! ./tracker */ 589);
-        __webpack_require__( /*! ./drilldown */ 590);
-        __webpack_require__( /*! ./plain_data_source */ 591);
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/export */ 449).plugin);
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/title */ 496).plugin);
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 498).plugin)
+        var dxTreeMap = module.exports = __webpack_require__( /*! ./tree_map.base */ 574);
+        __webpack_require__( /*! ./tiling.squarified */ 579);
+        __webpack_require__( /*! ./tiling.strip */ 582);
+        __webpack_require__( /*! ./tiling.slice_and_dice */ 583);
+        __webpack_require__( /*! ./colorizing.discrete */ 581);
+        __webpack_require__( /*! ./colorizing.gradient */ 584);
+        __webpack_require__( /*! ./colorizing.range */ 585);
+        __webpack_require__( /*! ./api */ 586);
+        __webpack_require__( /*! ./hover */ 587);
+        __webpack_require__( /*! ./selection */ 589);
+        __webpack_require__( /*! ./tooltip */ 590);
+        __webpack_require__( /*! ./tracker */ 591);
+        __webpack_require__( /*! ./drilldown */ 592);
+        __webpack_require__( /*! ./plain_data_source */ 593);
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin)
     },
     /*!******************************************!*\
       !*** ./js/viz/tree_map/tree_map.base.js ***!
       \******************************************/
     function(module, exports, __webpack_require__) {
-        var common = __webpack_require__( /*! ./common */ 573),
-            Node = __webpack_require__( /*! ./node */ 574),
-            _getTilingAlgorithm = __webpack_require__( /*! ./tiling */ 575).getAlgorithm,
-            _getColorizer = __webpack_require__( /*! ./colorizing */ 576).getColorizer,
-            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 447).patchFontOptions,
+        var common = __webpack_require__( /*! ./common */ 575),
+            Node = __webpack_require__( /*! ./node */ 576),
+            _getTilingAlgorithm = __webpack_require__( /*! ./tiling */ 577).getAlgorithm,
+            _getColorizer = __webpack_require__( /*! ./colorizing */ 578).getColorizer,
+            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions,
             _buildRectAppearance = common.buildRectAppearance,
             _buildTextAppearance = common.buildTextAppearance,
             _noop = __webpack_require__( /*! jquery */ 9).noop,
@@ -65609,15 +65635,15 @@
                 righttopleftbottom: [-1, 1],
                 rightbottomlefttop: [-1, -1]
             };
-        __webpack_require__( /*! ./tiling.squarified */ 577);
-        __webpack_require__( /*! ./tiling */ 575).setDefaultAlgorithm("squarified");
-        __webpack_require__( /*! ./colorizing.discrete */ 579);
-        __webpack_require__( /*! ./colorizing */ 576).setDefaultColorizer("discrete");
+        __webpack_require__( /*! ./tiling.squarified */ 579);
+        __webpack_require__( /*! ./tiling */ 577).setDefaultAlgorithm("squarified");
+        __webpack_require__( /*! ./colorizing.discrete */ 581);
+        __webpack_require__( /*! ./colorizing */ 578).setDefaultColorizer("discrete");
 
         function pickPositiveInteger(val) {
             return val > 0 ? Math.round(val) : 0
         }
-        var dxTreeMap = __webpack_require__( /*! ../core/base_widget */ 453).inherit({
+        var dxTreeMap = __webpack_require__( /*! ../core/base_widget */ 454).inherit({
             _handlers: {
                 beginBuildNodes: _noop,
                 buildNode: _noop,
@@ -65809,7 +65835,7 @@
                 settings.state = that._handlers.calculateState(options);
                 that._filter = that._filter || that._renderer.shadowFilter("-50%", "-50%", "200%", "200%");
                 that._filter.attr(labelOptions.shadow);
-                that._calculateLabelSettings(settings, labelOptions, that._filter.ref);
+                that._calculateLabelSettings(settings, labelOptions, that._filter.id);
                 if (offsets.tileEdge !== edgeOffset || offsets.tileInner !== innerOffset) {
                     offsets.tileEdge = edgeOffset;
                     offsets.tileInner = innerOffset;
@@ -66110,19 +66136,19 @@
                 visibility: fitByHeight && fitByWidth ? "visible" : "hidden"
             })
         }
-        var ThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 488).BaseThemeManager.inherit({
+        var ThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager.inherit({
             _themeSection: "treeMap",
             _fontFields: ["tile.label.font", "group.label.font", "loadingIndicator.font", "title.font", "title.subtitle.font", "tooltip.font"]
         });
         __webpack_require__( /*! ../../core/component_registrator */ 52)("dxTreeMap", dxTreeMap);
         module.exports = dxTreeMap;
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/data_source */ 499).plugin)
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin)
     },
     /*!***********************************!*\
       !*** ./js/viz/tree_map/common.js ***!
       \***********************************/
     function(module, exports, __webpack_require__) {
-        var _patchFontOptions = __webpack_require__( /*! ../core/utils */ 447).patchFontOptions;
+        var _patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions;
 
         function empty() {}
         exports.empty = empty;
@@ -66243,7 +66269,7 @@
       \***********************************/
     function(module, exports, __webpack_require__) {
         var defaultAlgorithm, _isFunction = __webpack_require__( /*! ../../core/utils/common */ 12).isFunction,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             _round = Math.round,
             algorithms = {};
         exports.getAlgorithm = function(value) {
@@ -66307,7 +66333,7 @@
       !*** ./js/viz/tree_map/colorizing.js ***!
       \***************************************/
     function(module, exports, __webpack_require__) {
-        var defaultColorizerName, _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+        var defaultColorizerName, _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             _noop = __webpack_require__( /*! jquery */ 9).noop,
             colorizers = {};
 
@@ -66353,7 +66379,7 @@
       \**********************************************/
     function(module, exports, __webpack_require__) {
         var _max = Math.max,
-            _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 578);
+            _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 580);
 
         function accumulate(total, current) {
             return _max(total, current)
@@ -66362,7 +66388,7 @@
         function squarified(data) {
             return _squarify(data, accumulate, false)
         }
-        __webpack_require__( /*! ./tiling */ 575).addAlgorithm("squarified", squarified);
+        __webpack_require__( /*! ./tiling */ 577).addAlgorithm("squarified", squarified);
         module.exports = squarified
     },
     /*!***************************************************!*\
@@ -66371,7 +66397,7 @@
     function(module, exports, __webpack_require__) {
         var _max = Math.max,
             _round = Math.round,
-            tiling = __webpack_require__( /*! ./tiling */ 575);
+            tiling = __webpack_require__( /*! ./tiling */ 577);
 
         function compare(a, b) {
             return b.value - a.value
@@ -66499,14 +66525,14 @@
                 return colors[node._id]
             }
         }
-        __webpack_require__( /*! ./colorizing */ 576).addColorizer("discrete", discreteColorizer);
+        __webpack_require__( /*! ./colorizing */ 578).addColorizer("discrete", discreteColorizer);
         module.exports = discreteColorizer
     },
     /*!*****************************************!*\
       !*** ./js/viz/tree_map/tiling.strip.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 578);
+        var _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 580);
 
         function accumulate(total, current, count) {
             return ((count - 1) * total + current) / count
@@ -66515,14 +66541,14 @@
         function strip(data) {
             return _squarify(data, accumulate, true)
         }
-        __webpack_require__( /*! ./tiling */ 575).addAlgorithm("strip", strip);
+        __webpack_require__( /*! ./tiling */ 577).addAlgorithm("strip", strip);
         module.exports = strip
     },
     /*!**************************************************!*\
       !*** ./js/viz/tree_map/tiling.slice_and_dice.js ***!
       \**************************************************/
     function(module, exports, __webpack_require__) {
-        var tiling = __webpack_require__( /*! ./tiling */ 575);
+        var tiling = __webpack_require__( /*! ./tiling */ 577);
 
         function sliceAndDice(data) {
             var items = data.items,
@@ -66540,7 +66566,7 @@
       !*** ./js/viz/tree_map/colorizing.gradient.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 576).createColorCodeGetter,
+        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 578).createColorCodeGetter,
             _min = Math.min,
             _max = Math.max;
 
@@ -66583,14 +66609,14 @@
                 return palette.getColor((getValue(node) - arg[0]) / arg[1])
             }
         }
-        __webpack_require__( /*! ./colorizing */ 576).addColorizer("gradient", gradientColorizer);
+        __webpack_require__( /*! ./colorizing */ 578).addColorizer("gradient", gradientColorizer);
         module.exports = gradientColorizer
     },
     /*!*********************************************!*\
       !*** ./js/viz/tree_map/colorizing.range.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
-        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 576).createColorCodeGetter;
+        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 578).createColorCodeGetter;
 
         function getPaletteIndex(value, items) {
             var middle, start = 0,
@@ -66622,15 +66648,15 @@
                 return palette.getColor(getPaletteIndex(getValue(node), range))
             }
         }
-        __webpack_require__( /*! ./colorizing */ 576).addColorizer("range", rangeColorizer);
+        __webpack_require__( /*! ./colorizing */ 578).addColorizer("range", rangeColorizer);
         module.exports = rangeColorizer
     },
     /*!********************************!*\
       !*** ./js/viz/tree_map/api.js ***!
       \********************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 574).prototype,
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
             _extend = __webpack_require__( /*! jquery */ 9).extend;
         proto._eventsMap.onNodesInitialized = {
             name: "nodesInitialized"
@@ -66759,7 +66785,7 @@
                 node = node.parent
             }
         }
-        proto._extendProxyType = __webpack_require__( /*! ./common */ 573).empty;
+        proto._extendProxyType = __webpack_require__( /*! ./common */ 575).empty;
         var _resetNodes = proto._resetNodes;
         proto._resetNodes = function() {
             _resetNodes.call(this);
@@ -66809,21 +66835,21 @@
       !*** ./js/viz/tree_map/hover.js ***!
       \**********************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 574).prototype,
-            common = __webpack_require__( /*! ./common */ 573),
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 447).parseScalar,
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
+            common = __webpack_require__( /*! ./common */ 575),
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
             _buildRectAppearance = common.buildRectAppearance,
             STATE_CODE = 1;
-        __webpack_require__( /*! ./api */ 584);
-        __webpack_require__( /*! ./states */ 586);
+        __webpack_require__( /*! ./api */ 586);
+        __webpack_require__( /*! ./states */ 588);
         proto._eventsMap.onHoverChanged = {
             name: "hoverChanged"
         };
         common.expand(proto._handlers, "calculateAdditionalStates", function(states, options) {
             states[1] = options.hoverStyle ? _buildRectAppearance(options.hoverStyle) : {}
         });
-        __webpack_require__( /*! ./tree_map.base */ 572).addChange({
+        __webpack_require__( /*! ./tree_map.base */ 574).addChange({
             code: "HOVER_ENABLED",
             handler: function() {
                 var hoverEnabled = _parseScalar(this._getOption("hoverEnabled", true), true);
@@ -66850,6 +66876,13 @@
         common.expand(proto, "_onNodesCreated", function() {
             this._hoverIndex = -1
         });
+        common.expand(proto, "_changeGroupSettings", function() {
+            var that = this;
+            that._groupHoverEnabled = _parseScalar(that._getOption("group").hoverEnabled, true);
+            if (!that._groupHoverEnabled) {
+                that.clearHover()
+            }
+        });
         proto._applyHoverState = function(index, state) {
             setNodeStateRecursive(this._nodes[index], STATE_CODE, state);
             this._eventTrigger("hoverChanged", {
@@ -66869,6 +66902,10 @@
             var that = this,
                 currentIndex = that._hoverIndex;
             if (that._hoverEnabled && currentIndex !== index) {
+                if (!that._groupHoverEnabled && index >= 0 && that._nodes[index].isNode()) {
+                    that.clearHover();
+                    return
+                }
                 that._context.suspend();
                 that._hoverIndex = -1;
                 if (currentIndex >= 0) {
@@ -66889,8 +66926,8 @@
       !*** ./js/viz/tree_map/states.js ***!
       \***********************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 574).prototype,
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
             handlers = proto._handlers,
             _calculateState = handlers.calculateState,
             _buildState = nodeProto._buildState,
@@ -66902,7 +66939,7 @@
             handlers.calculateAdditionalStates(states, options);
             return states
         };
-        handlers.calculateAdditionalStates = __webpack_require__( /*! ./common */ 573).empty;
+        handlers.calculateAdditionalStates = __webpack_require__( /*! ./common */ 575).empty;
         nodeProto.code = 0;
         nodeProto.statesMap = {
             0: 0
@@ -66940,18 +66977,18 @@
       !*** ./js/viz/tree_map/selection.js ***!
       \**************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 574).prototype,
-            common = __webpack_require__( /*! ./common */ 573),
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
+            common = __webpack_require__( /*! ./common */ 575),
             _buildRectAppearance = common.buildRectAppearance,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 447).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
             _inArray = __webpack_require__( /*! jquery */ 9).inArray,
             MODE_NONE = 0,
             MODE_SINGLE = 1,
             MODE_MULTIPLE = 2,
             STATE_CODE = 2;
-        __webpack_require__( /*! ./api */ 584);
-        __webpack_require__( /*! ./states */ 586);
+        __webpack_require__( /*! ./api */ 586);
+        __webpack_require__( /*! ./states */ 588);
         proto._eventsMap.onSelectionChanged = {
             name: "selectionChanged"
         };
@@ -66973,7 +67010,7 @@
             };
             that._selectionList = []
         });
-        __webpack_require__( /*! ./tree_map.base */ 572).addChange({
+        __webpack_require__( /*! ./tree_map.base */ 574).addChange({
             code: "SELECTION_MODE",
             handler: function() {
                 var mode, tmp, that = this,
@@ -67067,9 +67104,9 @@
       !*** ./js/viz/tree_map/tooltip.js ***!
       \************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            common = __webpack_require__( /*! ./common */ 573);
-        __webpack_require__( /*! ./api */ 584);
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            common = __webpack_require__( /*! ./common */ 575);
+        __webpack_require__( /*! ./api */ 586);
         common.expand(proto, "_extendProxyType", function(proto) {
             var that = this;
             proto.showTooltip = function(coords) {
@@ -67126,16 +67163,16 @@
                 this._tooltip.hide()
             }
         };
-        __webpack_require__( /*! ./tree_map.base */ 572).addPlugin(__webpack_require__( /*! ../core/tooltip */ 497).plugin)
+        __webpack_require__( /*! ./tree_map.base */ 574).addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin)
     },
     /*!************************************!*\
       !*** ./js/viz/tree_map/tracker.js ***!
       \************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            common = __webpack_require__( /*! ./common */ 573),
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            common = __webpack_require__( /*! ./common */ 575),
             _eventData = __webpack_require__( /*! ../../events/utils */ 67).eventData,
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 447).parseScalar,
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
             clickEventName = __webpack_require__( /*! ../../events/click */ 71).name,
             downPointerEventName = __webpack_require__( /*! ../../events/pointer */ 72).down,
             movePointerEventName = __webpack_require__( /*! ../../events/pointer */ 72).move,
@@ -67143,9 +67180,9 @@
             $doc = $(document),
             DATA_KEY_BASE = "__treemap_data_",
             dataKeyModifier = 0;
-        __webpack_require__( /*! ./api */ 584);
-        __webpack_require__( /*! ./hover */ 585);
-        __webpack_require__( /*! ./tooltip */ 588);
+        __webpack_require__( /*! ./api */ 586);
+        __webpack_require__( /*! ./hover */ 587);
+        __webpack_require__( /*! ./tooltip */ 590);
         proto._eventsMap.onClick = {
             name: "click"
         };
@@ -67177,7 +67214,7 @@
         common.expand(proto, "_disposeCore", function() {
             this._tracker.dispose()
         });
-        __webpack_require__( /*! ./tree_map.base */ 572).addChange({
+        __webpack_require__( /*! ./tree_map.base */ 574).addChange({
             code: "INTERACT_WITH_GROUP",
             handler: function() {
                 this._tracker.setOptions({
@@ -67275,9 +67312,9 @@
       !*** ./js/viz/tree_map/drilldown.js ***!
       \**************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype,
-            _expand = __webpack_require__( /*! ./common */ 573).expand;
-        __webpack_require__( /*! ./api */ 584);
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
+            _expand = __webpack_require__( /*! ./common */ 575).expand;
+        __webpack_require__( /*! ./api */ 586);
         proto._eventsMap.onDrill = {
             name: "drill"
         };
@@ -67322,7 +67359,7 @@
       !*** ./js/viz/tree_map/plain_data_source.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 572).prototype;
+        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype;
         proto._optionChangesMap.idField = proto._optionChangesMap.parentField = "NODES_CREATE";
         proto._processDataSourceItems = function(items) {
             var i, currentItem, parentId, tmpItems, item, struct = {},
@@ -67373,11 +67410,17 @@
                 }
             }
         }
+    },
+    /*!*************************!*\
+      !*** ./js/viz/utils.js ***!
+      \*************************/
+    function(module, exports, __webpack_require__) {
+        exports.refreshPaths = __webpack_require__( /*! ./core/renderers/renderer */ 457).refreshPaths
     }, , , ,
     /*!******************************!*\
       !*** ./js/bundles/dx.viz.js ***!
       \******************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./modules/parts/viz */ 444)
+        __webpack_require__( /*! ./modules/parts/viz */ 445)
     }
 ]);
