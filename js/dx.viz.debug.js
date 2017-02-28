@@ -1,7 +1,7 @@
 /*! 
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.1.10
- * Build date: Thu Jan 26 2017
+ * Version: 16.1.11
+ * Build date: Mon Feb 27 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -381,11 +381,13 @@
             E1038: "Your browser does not support local storage for local web pages",
             E1039: "The cell position can not be calculated",
             E1040: "The key value should be unique within the data array",
+            E1041: "The jszip script should be included before DevExtreme scripts",
             W1001: "Key option can not be modified after initialization",
             W1002: "Item '{0}' you are trying to select does not exist",
             W1003: "Group with key '{0}' in which you are trying to select items does not exist",
             W1004: "Item '{0}' you are trying to select in group '{1}' does not exist",
-            W1005: "Due to column data types being unspecified, data has been loaded twice in order to apply initial filter settings. To resolve this issue, specify data types for all grid columns."
+            W1005: "Due to column data types being unspecified, data has been loaded twice in order to apply initial filter settings. To resolve this issue, specify data types for all grid columns.",
+            W1006: "The map service returned the '{0}' error"
         })
     },
     /*!*************************************!*\
@@ -829,7 +831,7 @@
       !*** ./Scripts/core/version.js ***!
       \*********************************/
     function(module, exports) {
-        module.exports = "16.1.10"
+        module.exports = "16.1.11"
     },
     /*!********************************!*\
       !*** ./Scripts/core/errors.js ***!
@@ -889,11 +891,12 @@
             ieRegExp = /(msie) (\d{1,2}\.\d)/,
             ie11RegExp = /(trident).*rv:(\d{1,2}\.\d)/,
             msEdge = /(edge)\/((\d+)?[\w\.]+)/,
+            safari = /(safari)\/([0-9.]+)/,
             mozillaRegExp = /(mozilla)(?:.*? rv:([\w.]+))/;
         var browserFromUA = function(ua) {
             ua = ua.toLowerCase();
             var result = {},
-                matches = ieRegExp.exec(ua) || ie11RegExp.exec(ua) || msEdge.exec(ua) || ua.indexOf("compatible") < 0 && mozillaRegExp.exec(ua) || webkitRegExp.exec(ua) || [],
+                matches = ieRegExp.exec(ua) || ie11RegExp.exec(ua) || msEdge.exec(ua) || ua.indexOf("compatible") < 0 && mozillaRegExp.exec(ua) || ua.indexOf("chrome") < 0 && safari.exec(ua) || webkitRegExp.exec(ua) || [],
                 browserName = matches[1],
                 browserVersion = matches[2];
             if ("trident" === browserName || "edge" === browserName) {
@@ -917,6 +920,7 @@
             Class = __webpack_require__( /*! ../core/class */ 20),
             commonUtils = __webpack_require__( /*! ../core/utils/common */ 14),
             stringUtils = __webpack_require__( /*! ../core/utils/string */ 13),
+            errors = __webpack_require__( /*! ../ui/widget/ui.errors */ 10),
             JSZip = __webpack_require__( /*! jszip */ 21),
             fileSaver = __webpack_require__( /*! ./file_saver */ 8),
             excelFormatConverter = __webpack_require__( /*! ./excel_format_converter */ 22),
@@ -1450,7 +1454,16 @@
                 this._styleFormat = [];
                 this._needSheetPr = false;
                 this._dataProvider = dataProvider;
-                this._zip = new JSZip
+                if (commonUtils.isDefined(JSZip)) {
+                    this._zip = new JSZip
+                } else {
+                    this._zip = null
+                }
+            },
+            _checkZipState: function() {
+                if (!this._zip) {
+                    throw errors.Error("E1041")
+                }
             },
             ready: function() {
                 return this._dataProvider.ready()
@@ -1461,12 +1474,14 @@
                     compression: "DEFLATE",
                     mimeType: fileSaver.MIME_TYPES.EXCEL
                 };
+                this._checkZipState();
                 this._generateContent();
                 return this._zip.generateAsync ? this._zip.generateAsync(options) : this._zip.generate(options)
             }
         });
         exports.getData = function(data, options, callback) {
             var excelCreator = new exports.ExcelCreator(data, options);
+            excelCreator._checkZipState();
             excelCreator.ready().done(function() {
                 if (excelCreator._zip.generateAsync) {
                     excelCreator.getData(commonUtils.isFunction(window.Blob)).then(callback)
@@ -1830,7 +1845,7 @@
                     if ("date" === type) {
                         return excelFormatConverter._convertDateFormat(format)
                     } else {
-                        if (DEFINED_NUMBER_FORMTATS[format.toLowerCase()]) {
+                        if (commonUtils.isString(format) && DEFINED_NUMBER_FORMTATS[format.toLowerCase()]) {
                             return excelFormatConverter._convertNumberFormat(format, precision, currency)
                         }
                     }
@@ -26275,7 +26290,8 @@
         var LocalStoreBackend = Class.inherit({
             ctor: function(store, storeOptions) {
                 this._store = store;
-                this._dirty = false;
+                this._dirty = !!storeOptions.data;
+                this.save();
                 var immediate = this._immediate = storeOptions.immediate;
                 var flushInterval = Math.max(100, storeOptions.flushInterval || 1e4);
                 if (!immediate) {
@@ -26309,12 +26325,12 @@
         });
         var DomLocalStoreBackend = LocalStoreBackend.inherit({
             ctor: function(store, storeOptions) {
-                this.callBase(store, storeOptions);
                 var name = storeOptions.name;
                 if (!name) {
                     throw errors.Error("E4013")
                 }
-                this._key = "dx-data-localStore-" + name
+                this._key = "dx-data-localStore-" + name;
+                this.callBase(store, storeOptions)
             },
             _loadImpl: function() {
                 var raw = localStorage.getItem(this._key);
@@ -26546,7 +26562,7 @@
                 } else {
                     url = this._url
                 }
-                if ("customQueryParams" in loadOptions) {
+                if (loadOptions.customQueryParams) {
                     var params = mixins.escapeServiceOperationParams(loadOptions.customQueryParams, this.version());
                     if (4 === this.version()) {
                         url = mixins.formatFunctionInvocationUrl(url, params)
@@ -26828,7 +26844,7 @@
                     response = $.parseJSON(obj.responseText)
                 } catch (x) {}
             }
-            var errorObj = response && (response.error || response["odata.error"] || response["@odata.error"]);
+            var errorObj = response && (response.then && response || response.error || response["odata.error"] || response["@odata.error"]);
             if (errorObj) {
                 message = formatDotNetError(errorObj) || message;
                 if (200 === httpStatus) {
@@ -30431,10 +30447,7 @@
                 disposeObject("_headerBlock");
                 disposeObject("_tracker");
                 disposeObject("_crosshair");
-                that.layoutManager = null;
-                that.paneAxis = null;
-                that._userOptions = null;
-                that._canvas = null;
+                that.layoutManager = that.paneAxis = that._userOptions = that._canvas = that._groupsData = null;
                 unlinkGroup("_stripsGroup");
                 unlinkGroup("_gridGroup");
                 unlinkGroup("_axesGroup");
@@ -30448,6 +30461,7 @@
                 unlinkGroup("_scrollBarGroup");
                 disposeObject("_canvasClipRect");
                 disposeObject("_panesBackgroundGroup");
+                disposeObject("_backgroundRect");
                 disposeObject("_stripsGroup");
                 disposeObject("_gridGroup");
                 disposeObject("_axesGroup");
@@ -45638,6 +45652,7 @@
             wheelEvent = __webpack_require__( /*! ../../events/core/wheel */ 85),
             holdEvent = __webpack_require__( /*! ../../events/hold */ 167),
             devices = __webpack_require__( /*! ../../core/devices */ 51),
+            addNamespace = __webpack_require__( /*! ../../events/utils */ 70).addNamespace,
             isDefined = commonUtils.isDefined,
             _normalizeEnum = __webpack_require__( /*! ../core/utils */ 445).normalizeEnum,
             _floor = Math.floor,
@@ -45646,9 +45661,11 @@
             _noop = $.noop,
             MULTIPLE_MODE = "multiple",
             ALL_ARGUMENTS_POINTS_MODE = "allargumentpoints",
+            EVENT_NS = "dxChartTracker",
+            DOT_EVENT_NS = "." + EVENT_NS,
             ALL_SERIES_POINTS_MODE = "allseriespoints",
             NONE_MODE = "none",
-            POINTER_ACTION = [pointerEvents.down, pointerEvents.move].join(" "),
+            POINTER_ACTION = addNamespace([pointerEvents.down, pointerEvents.move], EVENT_NS),
             POINT_SELECTION_CHANGED = "pointSelectionChanged",
             LEGEND_CLICK = "legendClick",
             SERIES_CLICK = "seriesClick",
@@ -45707,8 +45724,9 @@
                 that._legend = options.legend;
                 that._tooltip = options.tooltip;
                 that._eventTrigger = options.eventTrigger;
-                options.seriesGroup.off().on(eventsConsts.selectSeries, data, that._selectSeries).on(eventsConsts.deselectSeries, data, that._deselectSeries).on(eventsConsts.selectPoint, data, that._selectPoint).on(eventsConsts.deselectPoint, data, that._deselectPoint).on(eventsConsts.showPointTooltip, data, that._showPointTooltip).on(eventsConsts.hidePointTooltip, data, that._hidePointTooltip);
-                that._renderer.root.off(POINTER_ACTION).off([clickEvent.name, holdEvent.name].join(" ")).on(POINTER_ACTION, data, that._pointerHandler).on(clickEvent.name, data, that._clickHandler).on(holdEvent.name, {
+                that._seriesGroup = options.seriesGroup;
+                options.seriesGroup.off(DOT_EVENT_NS).on(addNamespace(eventsConsts.selectSeries, EVENT_NS), data, that._selectSeries).on(addNamespace(eventsConsts.deselectSeries, EVENT_NS), data, that._deselectSeries).on(addNamespace(eventsConsts.selectPoint, EVENT_NS), data, that._selectPoint).on(addNamespace(eventsConsts.deselectPoint, EVENT_NS), data, that._deselectPoint).on(addNamespace(eventsConsts.showPointTooltip, EVENT_NS), data, that._showPointTooltip).on(addNamespace(eventsConsts.hidePointTooltip, EVENT_NS), data, that._hidePointTooltip);
+                that._renderer.root.off(DOT_EVENT_NS).on(POINTER_ACTION, data, that._pointerHandler).on(addNamespace(clickEvent.name, EVENT_NS), data, that._clickHandler).on(addNamespace(holdEvent.name, EVENT_NS), {
                     timeout: 300
                 }, _noop)
             },
@@ -45763,7 +45781,7 @@
             _toggleParentsScrollSubscription: function(subscribe) {
                 var that = this,
                     $parents = $(that._renderer.root.element).parents(),
-                    scrollEvents = "scroll.dxChartTracker";
+                    scrollEvents = addNamespace("scroll", EVENT_NS);
                 if ("generic" === devices.real().platform) {
                     $parents = $parents.add(window)
                 }
@@ -46140,9 +46158,8 @@
                 var that = this;
                 that._disableOutHandler();
                 that._toggleParentsScrollSubscription();
-                _each(that, function(k) {
-                    that[k] = null
-                })
+                that._renderer.root.off(DOT_EVENT_NS);
+                that._seriesGroup.off(DOT_EVENT_NS)
             }
         };
         var ChartTracker = function(options) {
@@ -46275,16 +46292,16 @@
                         "touch-action": cssValue,
                         "-ms-touch-action": cssValue
                     },
-                    wheelzoomingEnabled = "all" === that._zoomingMode || "mouse" === that._zoomingMode;
-                root.off(wheelEvent.name + " dxc-scroll-start dxc-scroll-move");
+                    wheelZoomingEnabled = "all" === that._zoomingMode || "mouse" === that._zoomingMode;
+                root.off(addNamespace([wheelEvent.name, "dxc-scroll-start", "dxc-scroll-move"], EVENT_NS));
                 baseTrackerPrototype._prepare.call(that);
                 if (!that._gestureEndHandler) {
                     that._gestureEndHandler = function() {
                         that._gestureEnd && that._gestureEnd()
                     };
-                    $(document).on(pointerEvents.up, that._gestureEndHandler)
+                    $(document).on(addNamespace(pointerEvents.up, EVENT_NS), that._gestureEndHandler)
                 }
-                wheelzoomingEnabled && root.on(wheelEvent.name, function(e) {
+                wheelZoomingEnabled && root.on(addNamespace(wheelEvent.name, EVENT_NS), function(e) {
                     var rootOffset = that._renderer.getRootOffset(),
                         x = that._rotated ? e.pageY - rootOffset.top : e.pageX - rootOffset.left,
                         scale = that._argumentAxis.getTranslator().getMinScale(e.delta > 0),
@@ -46296,13 +46313,13 @@
                     e.preventDefault();
                     e.stopPropagation()
                 });
-                root.on("dxc-scroll-start", function(e) {
+                root.on(addNamespace("dxc-scroll-start", EVENT_NS), function(e) {
                     that._startScroll = true;
                     that._gestureStart(that._getGestureParams(e, {
                         left: 0,
                         top: 0
                     }))
-                }).on("dxc-scroll-move", function(e) {
+                }).on(addNamespace("dxc-scroll-move", EVENT_NS), function(e) {
                     that._gestureChange(that._getGestureParams(e, {
                         left: 0,
                         top: 0
@@ -46518,7 +46535,7 @@
                 baseTrackerPrototype._pointerOnPoint.call(that, point, x, y)
             },
             dispose: function() {
-                this._gestureEndHandler && $(document).off(pointerEvents.up, this._gestureEndHandler);
+                $(document).off(DOT_EVENT_NS);
                 this._resetTimer();
                 baseTrackerPrototype.dispose.call(this)
             }
@@ -55023,10 +55040,7 @@
                     "tooltip-hide": function() {
                         return tooltip.hide()
                     }
-                });
-                that._resetTrackerCallbacks = function() {
-                    that._resetTrackerCallbacks = that = renderer = tooltip = null
-                }
+                })
             },
             _dispose: function() {
                 this._cleanCore();
@@ -55499,7 +55513,7 @@
                 that._scaleGroup.linkOff();
                 that._rangeContainer.dispose();
                 that._disposeValueIndicators();
-                that._scale = that._scaleGroup = that._scaleTranslators = that._rangeContainer = null
+                that._scale = that._scaleGroup = that._scaleTranslator = that._rangeContainer = null
             },
             _disposeValueIndicators: function() {
                 var that = this;
