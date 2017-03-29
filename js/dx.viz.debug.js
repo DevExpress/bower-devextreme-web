@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.5
- * Build date: Mon Feb 27 2017
+ * Version: 16.2.6
+ * Build date: Tue Mar 28 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -32,7 +32,7 @@
       !*** multi dx.viz.debug ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\BuildLabel\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 598)
+        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\BuildLabel\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 600)
     }, , , , ,
     /*!******************************************!*\
       !*** ./js/bundles/modules/parts/core.js ***!
@@ -42,20 +42,20 @@
         DevExpress.framework = __webpack_require__( /*! ../../../bundles/modules/framework */ 87);
         __webpack_require__( /*! ../../../integration/angular */ 140);
         __webpack_require__( /*! ../../../integration/knockout */ 88);
-        __webpack_require__( /*! ../../../localization/globalize/core */ 171);
-        __webpack_require__( /*! ../../../localization/globalize/message */ 173);
-        __webpack_require__( /*! ../../../localization/globalize/number */ 174);
-        __webpack_require__( /*! ../../../localization/globalize/date */ 175);
-        __webpack_require__( /*! ../../../localization/globalize/currency */ 176);
+        __webpack_require__( /*! ../../../localization/globalize/core */ 172);
+        __webpack_require__( /*! ../../../localization/globalize/message */ 174);
+        __webpack_require__( /*! ../../../localization/globalize/number */ 175);
+        __webpack_require__( /*! ../../../localization/globalize/date */ 176);
+        __webpack_require__( /*! ../../../localization/globalize/currency */ 177);
         __webpack_require__( /*! ../../../events/click */ 71);
-        __webpack_require__( /*! ../../../events/contextmenu */ 160);
-        __webpack_require__( /*! ../../../events/double_click */ 177);
+        __webpack_require__( /*! ../../../events/contextmenu */ 161);
+        __webpack_require__( /*! ../../../events/double_click */ 178);
         __webpack_require__( /*! ../../../events/drag */ 105);
-        __webpack_require__( /*! ../../../events/hold */ 159);
+        __webpack_require__( /*! ../../../events/hold */ 160);
         __webpack_require__( /*! ../../../events/hover */ 99);
         __webpack_require__( /*! ../../../events/pointer */ 72);
-        __webpack_require__( /*! ../../../events/swipe */ 178);
-        __webpack_require__( /*! ../../../events/transform */ 179);
+        __webpack_require__( /*! ../../../events/swipe */ 179);
+        __webpack_require__( /*! ../../../events/transform */ 180);
         module.exports = DevExpress
     },
     /*!************************************!*\
@@ -716,7 +716,8 @@
                 rtlEnabled: false,
                 defaultCurrency: "USD",
                 designMode: false,
-                serverDecimalSeparator: "."
+                serverDecimalSeparator: ".",
+                forceIsoDateParsing: false
             };
         module.exports = function() {
             if (!arguments.length) {
@@ -793,7 +794,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.5"
+        module.exports = "16.2.6"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
@@ -1016,6 +1017,7 @@
             E1040: "The '{0}' key value should be unique within the data array",
             E1041: "The jszip script should be included before DevExtreme scripts",
             E1042: 'Deferred selection cannot be performed if the "key" field is not set for the Store.',
+            E1043: "Changes cannot be processed due to the incorrectly set key.",
             W1001: "Key option can not be modified after initialization",
             W1002: "The item with the key '{0}' does not exist",
             W1003: "Group with key '{0}' in which you are trying to select items does not exist",
@@ -1033,14 +1035,20 @@
             ieRegExp = /(msie) (\d{1,2}\.\d)/,
             ie11RegExp = /(trident).*rv:(\d{1,2}\.\d)/,
             msEdge = /(edge)\/((\d+)?[\w\.]+)/,
-            safari = /(safari)\/([0-9.]+)/,
+            safari = /(safari)/i,
             mozillaRegExp = /(mozilla)(?:.*? rv:([\w.]+))/;
         var browserFromUA = function(ua) {
             ua = ua.toLowerCase();
             var result = {},
-                matches = ieRegExp.exec(ua) || ie11RegExp.exec(ua) || msEdge.exec(ua) || ua.indexOf("compatible") < 0 && mozillaRegExp.exec(ua) || ua.indexOf("chrome") < 0 && safari.exec(ua) || webkitRegExp.exec(ua) || [],
+                matches = ieRegExp.exec(ua) || ie11RegExp.exec(ua) || msEdge.exec(ua) || ua.indexOf("compatible") < 0 && mozillaRegExp.exec(ua) || webkitRegExp.exec(ua) || [],
                 browserName = matches[1],
                 browserVersion = matches[2];
+            if ("webkit" === browserName && ua.indexOf("chrome") < 0 && safari.exec(ua)) {
+                browserName = "safari";
+                result.webkit = true;
+                browserVersion = /Version\/([0-9.]+)/i.exec(ua);
+                browserVersion = browserVersion && browserVersion[1]
+            }
             if ("trident" === browserName || "edge" === browserName) {
                 browserName = "msie"
             }
@@ -1731,7 +1739,7 @@
                 minute: "longTime",
                 millisecond: "longTime"
             },
-            FORMAT_SEPARATORS = " .,:;/\\<>()",
+            FORMAT_SEPARATORS = " .,:;/\\<>()-",
             ARABIC_ZERO_CODE = 1632,
             DEFINED_NUMBER_FORMTATS = {
                 thousands: "#,##0{0},&quot;K&quot;",
@@ -2207,7 +2215,8 @@
             hour: "HH",
             minute: "mm",
             second: "ss",
-            millisecond: "SSS"
+            millisecond: "SSS",
+            "datetime-local": "yyyy-MM-ddTHH':'mm':'ss"
         };
         var parseTime = function(text) {
             var now = new Date,
@@ -2256,6 +2265,12 @@
             minute: function(date) {
                 return formatNumber(date.getMinutes(), 2)
             },
+            h: function(date) {
+                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 1)
+            },
+            hh: function(date) {
+                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 2)
+            },
             hour: function(date) {
                 return formatNumber(date.getHours(), 2)
             },
@@ -2264,6 +2279,12 @@
             },
             dayofweek: function(date) {
                 return days[date.getDay()]
+            },
+            M: function(date) {
+                return date.getMonth() + 1
+            },
+            MM: function(date) {
+                return formatNumber(date.getMonth() + 1, 2)
             },
             month: function(date) {
                 return months[date.getMonth()]
@@ -2301,6 +2322,86 @@
             longdatelongtime: function(date) {
                 return [FORMATTERS.longdate(date), FORMATTERS.longtime(date)].join(", ")
             },
+            d: function(date) {
+                return formatNumber(FORMATTERS.day(date), 1)
+            },
+            dd: function(date) {
+                return formatNumber(FORMATTERS.day(date), 2)
+            },
+            "d MMMM": function(date) {
+                return FORMATTERS.day(date) + " " + FORMATTERS.month(date)
+            },
+            "yyyy/M/d": function(date) {
+                return [FORMATTERS.year(date), FORMATTERS.M(date), FORMATTERS.day(date)].join("/")
+            },
+            "yyyy/MM/dd": function(date) {
+                return [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date)].join("/")
+            },
+            "dd.MM.yyyy": function(date) {
+                return [FORMATTERS.dd(date), FORMATTERS.MM(date), FORMATTERS.year(date)].join(".")
+            },
+            "HH:mm": function(date) {
+                return [FORMATTERS.hour(date), FORMATTERS.minute(date)].join(":")
+            },
+            "HH:mm:ss": function(date) {
+                return [FORMATTERS["HH:mm"](date), FORMATTERS.second(date)].join(":")
+            },
+            "h:mm:ss": function(date) {
+                return [FORMATTERS.h(date), FORMATTERS.minute(date), FORMATTERS.second(date)].join(":")
+            },
+            "h:mm:ss:SSS": function(date) {
+                return [FORMATTERS.h(date), FORMATTERS.minute(date), FORMATTERS.second(date), FORMATTERS.SSS(date)].join(":")
+            },
+            "yyyy/MM/dd HH:mm:ss": function(date) {
+                return [FORMATTERS["yyyy/MM/dd"](date), FORMATTERS["HH:mm:ss"](date)].join(" ")
+            },
+            "yyyy-MM-dd hh:mm:ss.SSS a": function(date) {
+                return [
+                    [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date)].join("-"), [FORMATTERS.hh(date), FORMATTERS.minute(date), FORMATTERS.second(date)].join(":") + "." + FORMATTERS.SSS(date), amPm(date)
+                ].join(" ")
+            },
+            "yyyy-MM-dd": function(date) {
+                return [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date)].join("-")
+            },
+            yyyyMMddTHHmmss: function(date) {
+                return [FORMATTERS.year(date), FORMATTERS.MM(date), FORMATTERS.dd(date), "T", FORMATTERS.hour(date), FORMATTERS.minute(date), FORMATTERS.second(date)].join("")
+            },
+            "datetime-local": function(date) {
+                return FORMATTERS["yyyy-MM-dd"](date) + "T" + FORMATTERS["HH:mm:ss"](date)
+            },
+            "yyyy-MM-ddTHH:mm:ssZ": function(date) {
+                return FORMATTERS["datetime-local"](date) + "Z"
+            },
+            "yyyy-MM-ddTHH:mmZ": function(date) {
+                return FORMATTERS["yyyy-MM-dd"](date) + "T" + FORMATTERS.hour(date) + ":" + FORMATTERS.minute(date) + "Z"
+            },
+            "dd/MM/yyyy": function(date) {
+                return [FORMATTERS.dd(date), FORMATTERS.MM(date), FORMATTERS.year(date)].join("/")
+            },
+            "yyyy MMMM d": function(date) {
+                return [FORMATTERS.year(date), FORMATTERS.month(date), FORMATTERS.day(date)].join(" ")
+            },
+            "EEEE, d": function(date) {
+                return [FORMATTERS.dayofweek(date), FORMATTERS.d(date)].join(", ")
+            },
+            "EEEE MM yy": function(date) {
+                return [FORMATTERS.dayofweek(date), FORMATTERS.MM(date), FORMATTERS.shortyear(date)].join(" ")
+            },
+            "d MMMM yyyy": function(date) {
+                return [FORMATTERS.day(date), FORMATTERS.month(date), FORMATTERS.year(date)].join(" ")
+            },
+            E: function(date) {
+                return cutCaptions([FORMATTERS.dayofweek(date)], "abbreviated")[0]
+            },
+            EEE: function(date) {
+                return FORMATTERS.E(date)
+            },
+            "EEE hh": function(date) {
+                return [FORMATTERS.EEE(date), FORMATTERS.hh(date)].join(" ")
+            },
+            "ss SSS": function(date) {
+                return [FORMATTERS.second(date), FORMATTERS.SSS(date)].join(" ")
+            },
             quarter: function(date) {
                 var month = date.getMonth();
                 if (month >= 0 && month < 3) {
@@ -2316,28 +2417,13 @@
             },
             quarterandyear: function(date) {
                 return FORMATTERS.quarter(date) + " " + FORMATTERS.year(date)
-            },
-            h: function(date) {
-                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 1)
-            },
-            hh: function(date) {
-                return formatNumber(getTwelveHourTimeFormat(date.getHours()), 2)
-            },
-            M: function(date) {
-                return date.getMonth() + 1
-            },
-            MM: function(date) {
-                return formatNumber(date.getMonth() + 1, 2)
-            },
-            dd: function(date) {
-                return formatNumber(FORMATTERS.day(date), 2)
-            },
-            E: function(date) {
-                return cutCaptions([FORMATTERS.dayofweek(date)], "abbreviated")[0]
-            },
-            EEE: function(date) {
-                return FORMATTERS.E(date)
             }
+        };
+        var parseWithoutTimezone = function(text) {
+            if ("Z" !== text.slice(-1)) {
+                text += "Z"
+            }
+            return removeTimezoneOffset(new Date(text))
         };
         var PARSERS = {
             day: function(text) {
@@ -2402,6 +2488,20 @@
             millisecond: function(text) {
                 return new Date(Number(text))
             },
+            "yyyy MMMM d": function(text) {
+                var parts = text.split(" ");
+                if (3 !== parts.length) {
+                    return
+                }
+                return new Date(Number(parts[0]), $.inArray(parts[1], months), Number(parts[2]))
+            },
+            "HH:mm": function(text) {
+                var parts = text.split(":");
+                return new Date(0, 0, 0, Number(parts[0]), Number(parts[1]), 0, 0)
+            },
+            "yyyy-MM-ddTHH:mm:ssZ": parseWithoutTimezone,
+            "yyyy-MM-ddTHH:mmZ": parseWithoutTimezone,
+            "datetime-local": parseWithoutTimezone,
             mediumdatemediumtime: function(text) {
                 var parts = text.split(", "),
                     dateParts = parts[0].split(" "),
@@ -3114,7 +3214,8 @@
         }
 
         function parseUrl(urlString) {
-            return urlString.match(/\w+/g).pop()
+            var matches = urlString && urlString.match(/url\(.*\#(.*?)["']?\)/i);
+            return matches && matches[1]
         }
 
         function setFontStyle(context, options) {
@@ -3247,9 +3348,9 @@
         }
 
         function applyFilter(context, options) {
-            var filterOptions, matches = options.filter && options.filter.match(/url\(\#(.*)\)/);
-            if (matches && matches[1]) {
-                filterOptions = filters && filters[matches[1]];
+            var filterOptions, id = parseUrl(options.filter);
+            if (id) {
+                filterOptions = filters && filters[id];
                 if (!filterOptions) {
                     filterOptions = {
                         offsetX: 0,
@@ -5421,7 +5522,7 @@
                 target[property] = value
             }
         };
-        var deepExtendArraySafe = function(target, changes) {
+        var deepExtendArraySafe = function(target, changes, extendComplexObject) {
             var prevValue, newValue;
             for (var name in changes) {
                 prevValue = target[name];
@@ -5430,11 +5531,11 @@
                     continue
                 }
                 if ($.isPlainObject(newValue) && !(newValue instanceof $.Event)) {
-                    assignValueToProperty(target, name, deepExtendArraySafe($.isPlainObject(prevValue) ? prevValue : {}, newValue))
-                } else {
-                    if (void 0 !== newValue) {
-                        assignValueToProperty(target, name, newValue)
-                    }
+                    var goDeeper = extendComplexObject ? commonUtils.isObject(prevValue) : $.isPlainObject(prevValue);
+                    newValue = deepExtendArraySafe(goDeeper ? prevValue : {}, newValue, extendComplexObject)
+                }
+                if (void 0 !== newValue) {
+                    assignValueToProperty(target, name, newValue)
                 }
             }
             return target
@@ -5581,7 +5682,7 @@
             androidTablet: "Android",
             win8: "MSAppHost",
             win8Phone: "Windows Phone 8.0",
-            msSurface: "Windows Tablet PC",
+            msSurface: "Windows ARM Tablet PC",
             desktop: "desktop",
             win10Phone: "Windows Phone 10.0",
             win10: "MSAppHost/3.0"
@@ -5602,7 +5703,7 @@
         var uaParsers = {
             win: function(userAgent) {
                 var isPhone = /windows phone/i.test(userAgent) || userAgent.match(/WPDesktop/),
-                    isTablet = !isPhone && /Windows(.*)Tablet PC/i.test(userAgent),
+                    isTablet = !isPhone && /Windows(.*)arm(.*)Tablet PC/i.test(userAgent),
                     isDesktop = !isPhone && !isTablet && /msapphost/i.test(userAgent);
                 if (!(isPhone || isTablet || isDesktop)) {
                     return
@@ -6002,7 +6103,7 @@
                     $element = normalizeTemplateElement($element.html())
                 } else {
                     if ($element.is("table")) {
-                        $element = $element.contents()
+                        $element = $element.children("tbody").contents()
                     }
                 }
             }
@@ -10305,10 +10406,20 @@
             return value / Math.abs(value)
         };
         var fitIntoRange = function(value, minValue, maxValue) {
+            if (!minValue && 0 !== minValue) {
+                minValue = value
+            }
+            if (!maxValue && 0 !== maxValue) {
+                maxValue = value
+            }
             return Math.min(Math.max(value, minValue), maxValue)
         };
+        var inRange = function(value, minValue, maxValue) {
+            return value >= minValue && value <= maxValue
+        };
         exports.sign = sign;
-        exports.fitIntoRange = fitIntoRange
+        exports.fitIntoRange = fitIntoRange;
+        exports.inRange = inRange
     },
     /*!****************************!*\
       !*** ./js/localization.js ***!
@@ -19644,7 +19755,8 @@
             devices = __webpack_require__( /*! ../core/devices */ 48),
             viewPortUtils = __webpack_require__( /*! ../core/utils/view_port */ 50),
             viewPort = viewPortUtils.value,
-            viewPortChanged = viewPortUtils.changeCallback;
+            viewPortChanged = viewPortUtils.changeCallback,
+            holdReady = $.holdReady || $.fn.holdReady;
         var DX_LINK_SELECTOR = "link[rel=dx-theme]",
             THEME_ATTR = "data-theme",
             ACTIVE_ATTR = "data-active",
@@ -19864,11 +19976,11 @@
         function detachCssClasses(element) {
             $(element).removeClass(themeClasses)
         }
-        $.holdReady(true);
+        holdReady(true);
         init({
             _autoInit: true,
             loadCallback: function() {
-                $.holdReady(false)
+                holdReady(false)
             }
         });
         domUtils.ready(function() {
@@ -19904,9 +20016,9 @@
         var angular = __webpack_require__( /*! angular */ 141);
         if (angular) {
             __webpack_require__( /*! ./angular/component_registrator */ 142);
-            __webpack_require__( /*! ./angular/event_registrator */ 168);
-            __webpack_require__( /*! ./angular/components */ 169);
-            __webpack_require__( /*! ./angular/action_executors */ 170)
+            __webpack_require__( /*! ./angular/event_registrator */ 169);
+            __webpack_require__( /*! ./angular/components */ 170);
+            __webpack_require__( /*! ./angular/action_executors */ 171)
         }
     },
     /*!*********************************!*\
@@ -20400,10 +20512,10 @@
             BaseCollectionWidget = __webpack_require__( /*! ./ui.collection_widget.base */ 146),
             errors = __webpack_require__( /*! ../widget/ui.errors */ 19),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            PlainEditStrategy = __webpack_require__( /*! ./ui.collection_widget.edit.strategy.plain */ 162),
+            PlainEditStrategy = __webpack_require__( /*! ./ui.collection_widget.edit.strategy.plain */ 163),
             compileGetter = __webpack_require__( /*! ../../core/utils/data */ 43).compileGetter,
             DataSource = __webpack_require__( /*! ../../data/data_source/data_source */ 149).DataSource,
-            Selection = __webpack_require__( /*! ../selection/selection */ 164),
+            Selection = __webpack_require__( /*! ../selection/selection */ 165),
             when = __webpack_require__( /*! ../../integration/jquery/deferred */ 14).when;
         var ITEM_DELETING_DATA_KEY = "dxItemDeleting";
         var CollectionWidget = BaseCollectionWidget.inherit({
@@ -20993,13 +21105,13 @@
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
             pointerEvents = __webpack_require__( /*! ../../events/pointer */ 72),
             DataHelperMixin = __webpack_require__( /*! ../../data_helper */ 148),
-            CollectionWidgetItem = __webpack_require__( /*! ./item */ 158),
+            CollectionWidgetItem = __webpack_require__( /*! ./item */ 159),
             selectors = __webpack_require__( /*! ../widget/jquery.selectors */ 98),
             messageLocalization = __webpack_require__( /*! ../../localization/message */ 85),
-            holdEvent = __webpack_require__( /*! ../../events/hold */ 159),
+            holdEvent = __webpack_require__( /*! ../../events/hold */ 160),
             clickEvent = __webpack_require__( /*! ../../events/click */ 71),
-            contextMenuEvent = __webpack_require__( /*! ../../events/contextmenu */ 160),
-            BindableTemplate = __webpack_require__( /*! ../widget/bindable_template */ 161);
+            contextMenuEvent = __webpack_require__( /*! ../../events/contextmenu */ 161),
+            BindableTemplate = __webpack_require__( /*! ../widget/bindable_template */ 162);
         var COLLECTION_CLASS = "dx-collection",
             ITEM_CLASS = "dx-item",
             CONTENT_CLASS_POSTFIX = "-content",
@@ -21872,8 +21984,8 @@
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             dataUtils = __webpack_require__( /*! ../utils */ 133),
             Store = __webpack_require__( /*! ../abstract_store */ 150),
-            ArrayStore = __webpack_require__( /*! ../array_store */ 156),
-            CustomStore = __webpack_require__( /*! ../custom_store */ 157),
+            ArrayStore = __webpack_require__( /*! ../array_store */ 154),
+            CustomStore = __webpack_require__( /*! ../custom_store */ 158),
             EventsMixin = __webpack_require__( /*! ../../core/events_mixin */ 46),
             errors = __webpack_require__( /*! ../errors */ 151).errors,
             array = __webpack_require__( /*! ../../core/utils/array */ 106),
@@ -21916,7 +22028,7 @@
 
             function createCustomStoreFromLoadFunc() {
                 var storeConfig = {};
-                $.each(["useDefaultSearch", "key", "load", "byKey", "lookup", "totalCount", "insert", "update", "remove"], function() {
+                $.each(["useDefaultSearch", "key", "load", "loadMode", "cacheRawData", "byKey", "lookup", "totalCount", "insert", "update", "remove"], function() {
                     storeConfig[this] = options[this];
                     delete options[this]
                 });
@@ -22210,8 +22322,11 @@
                 delete options.refresh;
                 delete options.pageIndex;
                 delete options.searchString;
-                (function() {
-                    if (propName === key || store instanceof CustomStore) {
+
+                function shouldForceByKey() {
+                    return store instanceof CustomStore && !store._byKeyViaLoad()
+                }(function() {
+                    if (propName === key || shouldForceByKey()) {
                         return store.byKey(propValue, options)
                     }
                     options.take = 1;
@@ -22329,7 +22444,6 @@
                             data = data.data
                         }
                         if (!$.isArray(data)) {
-                            errors.log("W4000");
                             data = $.makeArray(data)
                         }
                         loadResult = $.extend({
@@ -22416,35 +22530,10 @@
             EventsMixin = __webpack_require__( /*! ../core/events_mixin */ 46),
             errorsModule = __webpack_require__( /*! ./errors */ 151),
             dataUtils = __webpack_require__( /*! ./utils */ 133),
-            normalizeSortingInfo = dataUtils.normalizeSortingInfo,
             compileGetter = __webpack_require__( /*! ../core/utils/data */ 43).compileGetter,
-            Query = __webpack_require__( /*! ./query */ 152),
+            storeHelper = __webpack_require__( /*! ./store_helper */ 152),
+            queryByOptions = storeHelper.queryByOptions,
             storeImpl = {};
-
-        function multiLevelGroup(query, groupInfo) {
-            query = query.groupBy(groupInfo[0].selector);
-            if (groupInfo.length > 1) {
-                query = query.select(function(g) {
-                    return $.extend({}, g, {
-                        items: multiLevelGroup(Query(g.items), groupInfo.slice(1)).toArray()
-                    })
-                })
-            }
-            return query
-        }
-
-        function arrangeSortingInfo(groupInfo, sortInfo) {
-            var filteredGroup = [];
-            $.each(groupInfo, function(_, group) {
-                var collision = $.grep(sortInfo, function(sort) {
-                    return group.selector === sort.selector
-                });
-                if (collision.length < 1) {
-                    filteredGroup.push(group)
-                }
-            });
-            return filteredGroup.concat(sortInfo)
-        }
         var Store = Class.inherit({
             ctor: function(options) {
                 var that = this;
@@ -22484,38 +22573,7 @@
                 })
             },
             _loadImpl: function(options) {
-                var filter = options.filter,
-                    sort = options.sort,
-                    select = options.select,
-                    group = options.group,
-                    skip = options.skip,
-                    take = options.take,
-                    q = this.createQuery(options);
-                if (filter) {
-                    q = q.filter(filter)
-                }
-                if (group) {
-                    group = normalizeSortingInfo(group)
-                }
-                if (sort || group) {
-                    sort = normalizeSortingInfo(sort || []);
-                    if (group) {
-                        sort = arrangeSortingInfo(group, sort)
-                    }
-                    $.each(sort, function(index) {
-                        q = q[index ? "thenBy" : "sortBy"](this.selector, this.desc)
-                    })
-                }
-                if (select) {
-                    q = q.select(select)
-                }
-                if (group) {
-                    q = multiLevelGroup(q, group)
-                }
-                if (take || skip) {
-                    q = q.slice(skip || 0, take)
-                }
-                return q.enumerate()
+                return queryByOptions(this.createQuery(options), options).enumerate()
             },
             _withLock: function(task) {
                 var result = $.Deferred();
@@ -22535,18 +22593,7 @@
                 return this._totalCountImpl(options)
             },
             _totalCountImpl: function(options) {
-                options = options || {};
-                var q = this.createQuery(options),
-                    group = options.group,
-                    filter = options.filter;
-                if (filter) {
-                    q = q.filter(filter)
-                }
-                if (group) {
-                    group = normalizeSortingInfo(group);
-                    q = multiLevelGroup(q, group)
-                }
-                return q.count()
+                return queryByOptions(this.createQuery(options), options, true).count()
             },
             byKey: function(key, extraOptions) {
                 return this._addFailHandlers(this._withLock(this._byKeyImpl(key, extraOptions)))
@@ -22601,9 +22648,7 @@
                 return type
             }
         }(Store.inherit);
-        module.exports = Store;
-        module.exports.multiLevelGroup = multiLevelGroup;
-        module.exports.arrangeSortingInfo = arrangeSortingInfo
+        module.exports = Store
     },
     /*!***************************!*\
       !*** ./js/data/errors.js ***!
@@ -22659,23 +22704,82 @@
         };
         module.exports = handlers
     },
-    /*!**************************!*\
-      !*** ./js/data/query.js ***!
-      \**************************/
+    /*!*********************************!*\
+      !*** ./js/data/store_helper.js ***!
+      \*********************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            arrayQueryImpl = __webpack_require__( /*! ./array_query */ 153),
-            remoteQueryImpl = __webpack_require__( /*! ./remote_query */ 154);
-        var queryImpl = {
-            array: arrayQueryImpl,
-            remote: remoteQueryImpl
-        };
-        var query = function() {
-            var impl = $.isArray(arguments[0]) ? "array" : "remote";
-            return queryImpl[impl].apply(this, arguments)
-        };
-        module.exports = query;
-        module.exports.queryImpl = queryImpl
+            arrayQuery = __webpack_require__( /*! ./array_query */ 153),
+            normalizeSortingInfo = __webpack_require__( /*! ./utils */ 133).normalizeSortingInfo;
+
+        function multiLevelGroup(query, groupInfo) {
+            query = query.groupBy(groupInfo[0].selector);
+            if (groupInfo.length > 1) {
+                query = query.select(function(g) {
+                    return $.extend({}, g, {
+                        items: multiLevelGroup(arrayQuery(g.items), groupInfo.slice(1)).toArray()
+                    })
+                })
+            }
+            return query
+        }
+
+        function arrangeSortingInfo(groupInfo, sortInfo) {
+            var filteredGroup = [];
+            $.each(groupInfo, function(_, group) {
+                var collision = $.grep(sortInfo, function(sort) {
+                    return group.selector === sort.selector
+                });
+                if (collision.length < 1) {
+                    filteredGroup.push(group)
+                }
+            });
+            return filteredGroup.concat(sortInfo)
+        }
+
+        function queryByOptions(query, options, isCountQuery) {
+            options = options || {};
+            var filter = options.filter,
+                sort = options.sort,
+                select = options.select,
+                group = options.group,
+                skip = options.skip,
+                take = options.take;
+            if (filter) {
+                query = query.filter(filter)
+            }
+            if (group) {
+                group = normalizeSortingInfo(group)
+            }
+            if (!isCountQuery) {
+                if (sort || group) {
+                    sort = normalizeSortingInfo(sort || []);
+                    if (group) {
+                        sort = arrangeSortingInfo(group, sort)
+                    }
+                    $.each(sort, function(index) {
+                        query = query[index ? "thenBy" : "sortBy"](this.selector, this.desc)
+                    })
+                }
+                if (select) {
+                    query = query.select(select)
+                }
+            }
+            if (group) {
+                query = multiLevelGroup(query, group)
+            }
+            if (!isCountQuery) {
+                if (take || skip) {
+                    query = query.slice(skip || 0, take)
+                }
+            }
+            return query
+        }
+        module.exports = {
+            multiLevelGroup: multiLevelGroup,
+            arrangeSortingInfo: arrangeSortingInfo,
+            queryByOptions: queryByOptions
+        }
     },
     /*!********************************!*\
       !*** ./js/data/array_query.js ***!
@@ -23213,12 +23317,153 @@
         };
         module.exports = arrayQueryImpl
     },
+    /*!********************************!*\
+      !*** ./js/data/array_store.js ***!
+      \********************************/
+    function(module, exports, __webpack_require__) {
+        var $ = __webpack_require__( /*! jquery */ 9),
+            Guid = __webpack_require__( /*! ../core/guid */ 147),
+            objectUtils = __webpack_require__( /*! ../core/utils/object */ 44),
+            keysEqual = __webpack_require__( /*! ./utils */ 133).keysEqual,
+            Query = __webpack_require__( /*! ./query */ 155),
+            errors = __webpack_require__( /*! ./errors */ 151).errors,
+            Store = __webpack_require__( /*! ./abstract_store */ 150);
+        var hasKey = function(target, keyOrKeys) {
+            var key, keys = $.makeArray(keyOrKeys);
+            while (keys.length) {
+                key = keys.shift();
+                if (key in target) {
+                    return true
+                }
+            }
+            return false
+        };
+        var trivialPromise = function() {
+            var d = $.Deferred();
+            return d.resolve.apply(d, arguments).promise()
+        };
+        var rejectedPromise = function() {
+            var d = $.Deferred();
+            return d.reject.apply(d, arguments).promise()
+        };
+        var ArrayStore = Store.inherit({
+            ctor: function(options) {
+                if ($.isArray(options)) {
+                    options = {
+                        data: options
+                    }
+                } else {
+                    options = options || {}
+                }
+                this.callBase(options);
+                var initialArray = options.data;
+                if (initialArray && !$.isArray(initialArray)) {
+                    throw errors.Error("E4006")
+                }
+                this._array = initialArray || []
+            },
+            createQuery: function() {
+                return Query(this._array, {
+                    errorHandler: this._errorHandler
+                })
+            },
+            _byKeyImpl: function(key) {
+                var index = this._indexByKey(key);
+                if (index === -1) {
+                    return rejectedPromise(errors.Error("E4009"))
+                }
+                return trivialPromise(this._array[index])
+            },
+            _insertImpl: function(values) {
+                var keyValue, obj, keyExpr = this.key();
+                if ($.isPlainObject(values)) {
+                    obj = $.extend({}, values)
+                } else {
+                    obj = values
+                }
+                if (keyExpr) {
+                    keyValue = this.keyOf(obj);
+                    if (void 0 === keyValue || "object" === typeof keyValue && $.isEmptyObject(keyValue)) {
+                        if ($.isArray(keyExpr)) {
+                            throw errors.Error("E4007")
+                        }
+                        keyValue = obj[keyExpr] = String(new Guid)
+                    } else {
+                        if (void 0 !== this._array[this._indexByKey(keyValue)]) {
+                            return rejectedPromise(errors.Error("E4008"))
+                        }
+                    }
+                } else {
+                    keyValue = obj
+                }
+                this._array.push(obj);
+                return trivialPromise(values, keyValue)
+            },
+            _updateImpl: function(key, values) {
+                var index, target, keyExpr = this.key(),
+                    extendComplexObject = true;
+                if (keyExpr) {
+                    if (hasKey(values, keyExpr) && !keysEqual(keyExpr, key, this.keyOf(values))) {
+                        return rejectedPromise(errors.Error("E4017"))
+                    }
+                    index = this._indexByKey(key);
+                    if (index < 0) {
+                        return rejectedPromise(errors.Error("E4009"))
+                    }
+                    target = this._array[index]
+                } else {
+                    target = key
+                }
+                objectUtils.deepExtendArraySafe(target, values, extendComplexObject);
+                return trivialPromise(key, values)
+            },
+            _removeImpl: function(key) {
+                var index = this._indexByKey(key);
+                if (index > -1) {
+                    this._array.splice(index, 1)
+                }
+                return trivialPromise(key)
+            },
+            _indexByKey: function(key) {
+                for (var i = 0, arrayLength = this._array.length; i < arrayLength; i++) {
+                    if (keysEqual(this.key(), this.keyOf(this._array[i]), key)) {
+                        return i
+                    }
+                }
+                return -1
+            },
+            clear: function() {
+                this.fireEvent("modifying");
+                this._array = [];
+                this.fireEvent("modified")
+            }
+        }, "array");
+        module.exports = ArrayStore
+    },
+    /*!**************************!*\
+      !*** ./js/data/query.js ***!
+      \**************************/
+    function(module, exports, __webpack_require__) {
+        var $ = __webpack_require__( /*! jquery */ 9),
+            arrayQueryImpl = __webpack_require__( /*! ./array_query */ 153),
+            remoteQueryImpl = __webpack_require__( /*! ./remote_query */ 156);
+        var queryImpl = {
+            array: arrayQueryImpl,
+            remote: remoteQueryImpl
+        };
+        var query = function() {
+            var impl = $.isArray(arguments[0]) ? "array" : "remote";
+            return queryImpl[impl].apply(this, arguments)
+        };
+        module.exports = query;
+        module.exports.queryImpl = queryImpl
+    },
     /*!*********************************!*\
       !*** ./js/data/remote_query.js ***!
       \*********************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            queryAdapters = __webpack_require__( /*! ./query_adapters */ 155),
+            queryAdapters = __webpack_require__( /*! ./query_adapters */ 157),
             errorsModule = __webpack_require__( /*! ./errors */ 151),
             arrayQueryImpl = __webpack_require__( /*! ./array_query */ 153);
         var remoteQueryImpl = function(url, queryOptions, tasks) {
@@ -23332,128 +23577,6 @@
     function(module, exports) {
         module.exports = {}
     },
-    /*!********************************!*\
-      !*** ./js/data/array_store.js ***!
-      \********************************/
-    function(module, exports, __webpack_require__) {
-        var $ = __webpack_require__( /*! jquery */ 9),
-            Guid = __webpack_require__( /*! ../core/guid */ 147),
-            objectUtils = __webpack_require__( /*! ../core/utils/object */ 44),
-            keysEqual = __webpack_require__( /*! ./utils */ 133).keysEqual,
-            Query = __webpack_require__( /*! ./query */ 152),
-            errors = __webpack_require__( /*! ./errors */ 151).errors,
-            Store = __webpack_require__( /*! ./abstract_store */ 150);
-        var hasKey = function(target, keyOrKeys) {
-            var key, keys = $.makeArray(keyOrKeys);
-            while (keys.length) {
-                key = keys.shift();
-                if (key in target) {
-                    return true
-                }
-            }
-            return false
-        };
-        var trivialPromise = function() {
-            var d = $.Deferred();
-            return d.resolve.apply(d, arguments).promise()
-        };
-        var rejectedPromise = function() {
-            var d = $.Deferred();
-            return d.reject.apply(d, arguments).promise()
-        };
-        var ArrayStore = Store.inherit({
-            ctor: function(options) {
-                if ($.isArray(options)) {
-                    options = {
-                        data: options
-                    }
-                } else {
-                    options = options || {}
-                }
-                this.callBase(options);
-                var initialArray = options.data;
-                if (initialArray && !$.isArray(initialArray)) {
-                    throw errors.Error("E4006")
-                }
-                this._array = initialArray || []
-            },
-            createQuery: function() {
-                return Query(this._array, {
-                    errorHandler: this._errorHandler
-                })
-            },
-            _byKeyImpl: function(key) {
-                var index = this._indexByKey(key);
-                if (index === -1) {
-                    return rejectedPromise(errors.Error("E4009"))
-                }
-                return trivialPromise(this._array[index])
-            },
-            _insertImpl: function(values) {
-                var keyValue, obj, keyExpr = this.key();
-                if ($.isPlainObject(values)) {
-                    obj = $.extend({}, values)
-                } else {
-                    obj = values
-                }
-                if (keyExpr) {
-                    keyValue = this.keyOf(obj);
-                    if (void 0 === keyValue || "object" === typeof keyValue && $.isEmptyObject(keyValue)) {
-                        if ($.isArray(keyExpr)) {
-                            throw errors.Error("E4007")
-                        }
-                        keyValue = obj[keyExpr] = String(new Guid)
-                    } else {
-                        if (void 0 !== this._array[this._indexByKey(keyValue)]) {
-                            return rejectedPromise(errors.Error("E4008"))
-                        }
-                    }
-                } else {
-                    keyValue = obj
-                }
-                this._array.push(obj);
-                return trivialPromise(values, keyValue)
-            },
-            _updateImpl: function(key, values) {
-                var index, target, keyExpr = this.key();
-                if (keyExpr) {
-                    if (hasKey(values, keyExpr) && !keysEqual(keyExpr, key, this.keyOf(values))) {
-                        return rejectedPromise(errors.Error("E4017"))
-                    }
-                    index = this._indexByKey(key);
-                    if (index < 0) {
-                        return rejectedPromise(errors.Error("E4009"))
-                    }
-                    target = this._array[index]
-                } else {
-                    target = key
-                }
-                objectUtils.deepExtendArraySafe(target, values);
-                return trivialPromise(key, values)
-            },
-            _removeImpl: function(key) {
-                var index = this._indexByKey(key);
-                if (index > -1) {
-                    this._array.splice(index, 1)
-                }
-                return trivialPromise(key)
-            },
-            _indexByKey: function(key) {
-                for (var i = 0, arrayLength = this._array.length; i < arrayLength; i++) {
-                    if (keysEqual(this.key(), this.keyOf(this._array[i]), key)) {
-                        return i
-                    }
-                }
-                return -1
-            },
-            clear: function() {
-                this.fireEvent("modifying");
-                this._array = [];
-                this.fireEvent("modified")
-            }
-        }, "array");
-        module.exports = ArrayStore
-    },
     /*!*********************************!*\
       !*** ./js/data/custom_store.js ***!
       \*********************************/
@@ -23462,7 +23585,9 @@
             deferredUtils = __webpack_require__( /*! ../integration/jquery/deferred */ 14),
             dataUtils = __webpack_require__( /*! ./utils */ 133),
             errors = __webpack_require__( /*! ./errors */ 151).errors,
-            Store = __webpack_require__( /*! ./abstract_store */ 150);
+            Store = __webpack_require__( /*! ./abstract_store */ 150),
+            arrayQuery = __webpack_require__( /*! ./array_query */ 153),
+            queryByOptions = __webpack_require__( /*! ./store_helper */ 152).queryByOptions;
         var TOTAL_COUNT = "totalCount",
             LOAD = "load",
             BY_KEY = "byKey",
@@ -23507,11 +23632,134 @@
                 pendingDeferred.reject(error)
             }
         }
+
+        function invokeUserLoad(store, options) {
+            var userResult, userFunc = store._loadFunc;
+            ensureRequiredFuncOption(LOAD, userFunc);
+            userResult = userFunc.apply(store, [options]);
+            if ($.isArray(userResult)) {
+                userResult = trivialPromise(userResult)
+            } else {
+                if (null === userResult || void 0 === userResult) {
+                    userResult = trivialPromise([])
+                } else {
+                    if (!isPromise(userResult)) {
+                        throwInvalidUserFuncResult(LOAD)
+                    }
+                }
+            }
+            return deferredUtils.fromPromise(userResult)
+        }
+
+        function invokeUserTotalCountFunc(store, options) {
+            var userResult, userFunc = store._totalCountFunc;
+            if (!$.isFunction(userFunc)) {
+                throw errors.Error("E4021")
+            }
+            userResult = userFunc.apply(store, [options]);
+            if (!isPromise(userResult)) {
+                userResult = Number(userResult);
+                if (!isFinite(userResult)) {
+                    throwInvalidUserFuncResult(TOTAL_COUNT)
+                }
+                userResult = trivialPromise(userResult)
+            }
+            return deferredUtils.fromPromise(userResult)
+        }
+
+        function invokeUserByKeyFunc(store, key, extraOptions) {
+            var userResult, userFunc = store._byKeyFunc;
+            ensureRequiredFuncOption(BY_KEY, userFunc);
+            userResult = userFunc.apply(store, [key, extraOptions]);
+            if (!isPromise(userResult)) {
+                userResult = trivialPromise(userResult)
+            }
+            return deferredUtils.fromPromise(userResult)
+        }
+
+        function runRawLoad(pendingDeferred, store, userFuncOptions, continuation) {
+            if (store.__rawData) {
+                continuation(store.__rawData)
+            } else {
+                invokeUserLoad(store, userFuncOptions).done(function(rawData) {
+                    if (store._cacheRawData) {
+                        store.__rawData = rawData
+                    }
+                    continuation(rawData)
+                }).fail(createUserFuncFailureHandler(pendingDeferred))
+            }
+        }
+
+        function runRawLoadWithQuery(pendingDeferred, store, options, countOnly) {
+            options = options || {};
+            var userFuncOptions = {};
+            if ("userData" in options) {
+                userFuncOptions.userData = options.userData
+            }
+            runRawLoad(pendingDeferred, store, userFuncOptions, function(rawData) {
+                var itemsQuery, totalCountQuery, rawDataQuery = arrayQuery(rawData, {
+                        errorHandler: store._errorHandler
+                    }),
+                    waitList = [];
+                var items, totalCount;
+                if (!countOnly) {
+                    itemsQuery = queryByOptions(rawDataQuery, options);
+                    if (itemsQuery === rawDataQuery) {
+                        items = rawData.slice(0)
+                    } else {
+                        waitList.push(itemsQuery.enumerate().done(function(asyncResult) {
+                            items = asyncResult
+                        }))
+                    }
+                }
+                if (options.requireTotalCount || countOnly) {
+                    totalCountQuery = queryByOptions(rawDataQuery, options, true);
+                    if (totalCountQuery === rawDataQuery) {
+                        totalCount = rawData.length
+                    } else {
+                        waitList.push(totalCountQuery.count().done(function(asyncResult) {
+                            totalCount = asyncResult
+                        }))
+                    }
+                }
+                $.when.apply($, waitList).done(function() {
+                    if (countOnly) {
+                        pendingDeferred.resolve(totalCount)
+                    } else {
+                        if (options.requireTotalCount) {
+                            pendingDeferred.resolve(items, {
+                                totalCount: totalCount
+                            })
+                        } else {
+                            pendingDeferred.resolve(items)
+                        }
+                    }
+                }).fail(function(x) {
+                    pendingDeferred.reject(x)
+                })
+            })
+        }
+
+        function runRawLoadWithKey(pendingDeferred, store, key) {
+            runRawLoad(pendingDeferred, store, {}, function(rawData) {
+                var item, keyExpr = store.key();
+                for (var i = 0, len = rawData.length; i < len; i++) {
+                    item = rawData[i];
+                    if (dataUtils.keysEqual(keyExpr, store.keyOf(rawData[i]), key)) {
+                        pendingDeferred.resolve(item);
+                        return
+                    }
+                }
+                pendingDeferred.reject(errors.Error("E4009"))
+            })
+        }
         var CustomStore = Store.inherit({
             ctor: function(options) {
                 options = options || {};
                 this.callBase(options);
-                this._useDefaultSearch = !!options.useDefaultSearch;
+                this._useDefaultSearch = !!options.useDefaultSearch || "raw" === options.loadMode;
+                this._loadMode = options.loadMode;
+                this._cacheRawData = false !== options.cacheRawData;
                 this._loadFunc = options[LOAD];
                 this._totalCountFunc = options[TOTAL_COUNT];
                 this._byKeyFunc = options[BY_KEY];
@@ -23523,57 +23771,43 @@
                 throw errors.Error("E4010")
             },
             _totalCountImpl: function(options) {
-                var userResult, userFunc = this._totalCountFunc,
-                    d = $.Deferred();
-                if (!$.isFunction(userFunc)) {
-                    throw errors.Error("E4021")
+                var d = $.Deferred();
+                if ("raw" === this._loadMode && !this._totalCountFunc) {
+                    runRawLoadWithQuery(d, this, options, true)
+                } else {
+                    invokeUserTotalCountFunc(this, options).done(function(count) {
+                        d.resolve(Number(count))
+                    }).fail(createUserFuncFailureHandler(d));
+                    d = this._addFailHandlers(d)
                 }
-                userResult = userFunc.apply(this, [options]);
-                if (!isPromise(userResult)) {
-                    userResult = Number(userResult);
-                    if (!isFinite(userResult)) {
-                        throwInvalidUserFuncResult(TOTAL_COUNT)
-                    }
-                    userResult = trivialPromise(userResult)
-                }
-                deferredUtils.fromPromise(userResult).done(function(count) {
-                    d.resolve(Number(count))
-                }).fail(createUserFuncFailureHandler(d));
-                return this._addFailHandlers(d.promise())
+                return d.promise()
             },
             _loadImpl: function(options) {
-                var userResult, userFunc = this._loadFunc,
-                    d = $.Deferred();
-                ensureRequiredFuncOption(LOAD, userFunc);
-                userResult = userFunc.apply(this, [options]);
-                if ($.isArray(userResult)) {
-                    userResult = trivialPromise(userResult)
+                var d = $.Deferred();
+                if ("raw" === this._loadMode) {
+                    runRawLoadWithQuery(d, this, options, false)
                 } else {
-                    if (null === userResult || void 0 === userResult) {
-                        userResult = trivialPromise([])
-                    } else {
-                        if (!isPromise(userResult)) {
-                            throwInvalidUserFuncResult(LOAD)
-                        }
-                    }
+                    invokeUserLoad(this, options).done(function(data, extra) {
+                        d.resolve(data, extra)
+                    }).fail(createUserFuncFailureHandler(d));
+                    d = this._addFailHandlers(d)
                 }
-                deferredUtils.fromPromise(userResult).done(function(data, extra) {
-                    d.resolve(data, extra)
-                }).fail(createUserFuncFailureHandler(d));
-                return this._addFailHandlers(d.promise())
+                return d.promise()
             },
             _byKeyImpl: function(key, extraOptions) {
-                var userResult, userFunc = this._byKeyFunc,
-                    d = $.Deferred();
-                ensureRequiredFuncOption(BY_KEY, userFunc);
-                userResult = userFunc.apply(this, [key, extraOptions]);
-                if (!isPromise(userResult)) {
-                    userResult = trivialPromise(userResult)
+                var d = $.Deferred();
+                if (this._byKeyViaLoad()) {
+                    this._requireKey();
+                    runRawLoadWithKey(d, this, key)
+                } else {
+                    invokeUserByKeyFunc(this, key, extraOptions).done(function(obj) {
+                        d.resolve(obj)
+                    }).fail(createUserFuncFailureHandler(d))
                 }
-                deferredUtils.fromPromise(userResult).done(function(obj) {
-                    d.resolve(obj)
-                }).fail(createUserFuncFailureHandler(d));
                 return d.promise()
+            },
+            _byKeyViaLoad: function() {
+                return "raw" === this._loadMode && !this._byKeyFunc
             },
             _insertImpl: function(values) {
                 var userResult, userFunc = this._insertFunc,
@@ -23764,7 +23998,7 @@
             Class = __webpack_require__( /*! ../core/class */ 22),
             registerEvent = __webpack_require__( /*! ./core/event_registrator */ 69),
             eventUtils = __webpack_require__( /*! ./utils */ 67),
-            holdEvent = __webpack_require__( /*! ./hold */ 159);
+            holdEvent = __webpack_require__( /*! ./hold */ 160);
         var CONTEXTMENU_NAMESPACE = "dxContexMenu",
             CONTEXTMENU_NAMESPACED_EVENT_NAME = eventUtils.addNamespace("contextmenu", CONTEXTMENU_NAMESPACE),
             HOLD_NAMESPACED_EVENT_NAME = eventUtils.addNamespace(holdEvent.name, CONTEXTMENU_NAMESPACE),
@@ -23883,7 +24117,7 @@
       \**********************************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            EditStrategy = __webpack_require__( /*! ./ui.collection_widget.edit.strategy */ 163);
+            EditStrategy = __webpack_require__( /*! ./ui.collection_widget.edit.strategy */ 164);
         var PlainEditStrategy = EditStrategy.inherit({
             _getPlainItems: function() {
                 return this._collectionWidget.option("items") || []
@@ -24052,8 +24286,8 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             Class = __webpack_require__( /*! ../../core/class */ 22),
-            deferredStrategy = __webpack_require__( /*! ./selection.strategy.deferred */ 165),
-            standardStrategy = __webpack_require__( /*! ./selection.strategy.standard */ 167),
+            deferredStrategy = __webpack_require__( /*! ./selection.strategy.deferred */ 166),
+            standardStrategy = __webpack_require__( /*! ./selection.strategy.standard */ 168),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12);
         module.exports = Class.inherit({
             ctor: function(options) {
@@ -24280,9 +24514,9 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            SelectionStrategy = __webpack_require__( /*! ./selection.strategy */ 166),
+            SelectionStrategy = __webpack_require__( /*! ./selection.strategy */ 167),
             errors = __webpack_require__( /*! ../widget/ui.errors */ 19),
-            dataQuery = __webpack_require__( /*! ../../data/query */ 152);
+            dataQuery = __webpack_require__( /*! ../../data/query */ 155);
         module.exports = SelectionStrategy.inherit({
             getSelectedItems: function() {
                 return this._loadFilteredData(this.options.selectionFilter)
@@ -24478,7 +24712,7 @@
       \***********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            dataQuery = __webpack_require__( /*! ../../data/query */ 152),
+            dataQuery = __webpack_require__( /*! ../../data/query */ 155),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             getKeyHash = commonUtils.getKeyHash,
             Class = __webpack_require__( /*! ../../core/class */ 22);
@@ -24541,7 +24775,7 @@
                     deferred.resolve([])
                 } else {
                     this.options.load(loadOptions).done(function(items) {
-                        var filteredItems = items;
+                        var filteredItems = $.isPlainObject(items) ? items.data : items;
                         if (needLoadAllData) {
                             filteredItems = dataQuery(filteredItems).filter(remoteFilter).toArray()
                         }
@@ -24618,10 +24852,10 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             getKeyHash = commonUtils.getKeyHash,
-            dataQuery = __webpack_require__( /*! ../../data/query */ 152),
+            dataQuery = __webpack_require__( /*! ../../data/query */ 155),
             when = __webpack_require__( /*! ../../integration/jquery/deferred */ 14).when,
             errors = __webpack_require__( /*! ../widget/ui.errors */ 19),
-            SelectionStrategy = __webpack_require__( /*! ./selection.strategy */ 166);
+            SelectionStrategy = __webpack_require__( /*! ./selection.strategy */ 167);
 
         function SelectionFilterCreator(keyExpr, selectedItemKeys, isSelectAll, equalKeys) {
             this.getFilter = function() {
@@ -25055,7 +25289,7 @@
       !*** ./js/localization/globalize/core.js ***!
       \*******************************************/
     function(module, exports, __webpack_require__) {
-        var Globalize = __webpack_require__( /*! globalize */ 172),
+        var Globalize = __webpack_require__( /*! globalize */ 173),
             coreLocalization = __webpack_require__( /*! ../core */ 28);
         if (Globalize && Globalize.load) {
             var likelySubtags = {
@@ -25097,11 +25331,11 @@
       !*** ./js/localization/globalize/message.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./core */ 171);
-        var Globalize = __webpack_require__( /*! globalize */ 172),
+        __webpack_require__( /*! ./core */ 172);
+        var Globalize = __webpack_require__( /*! globalize */ 173),
             messageLocalization = __webpack_require__( /*! ../message */ 85),
             coreLocalization = __webpack_require__( /*! ../core */ 28);
-        __webpack_require__( /*! globalize/message */ 172);
+        __webpack_require__( /*! globalize/message */ 173);
         if (Globalize && Globalize.formatMessage) {
             var DEFAULT_LOCALE = "en";
             var originalLoadMessages = Globalize.loadMessages;
@@ -25156,11 +25390,11 @@
       !*** ./js/localization/globalize/number.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./core */ 171);
-        var Globalize = __webpack_require__( /*! globalize */ 172),
+        __webpack_require__( /*! ./core */ 172);
+        var Globalize = __webpack_require__( /*! globalize */ 173),
             numberLocalization = __webpack_require__( /*! ../number */ 25),
             errors = __webpack_require__( /*! ../../core/errors */ 7);
-        __webpack_require__( /*! globalize/number */ 172);
+        __webpack_require__( /*! globalize/number */ 173);
         if (Globalize && Globalize.formatNumber) {
             var enNumbers = {
                 main: {
@@ -25398,9 +25632,9 @@
       !*** ./js/localization/globalize/date.js ***!
       \*******************************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./core */ 171);
-        __webpack_require__( /*! ./number */ 174);
-        __webpack_require__( /*! globalize/date */ 172);
+        __webpack_require__( /*! ./core */ 172);
+        __webpack_require__( /*! ./number */ 175);
+        __webpack_require__( /*! globalize/date */ 173);
         var timeData = {
             supplemental: {
                 version: {
@@ -25957,7 +26191,7 @@
         };
         var ACCEPTABLE_JSON_FORMAT_PROPERTIES = ["skeleton", "date", "time", "datetime", "raw"];
         var $ = __webpack_require__( /*! jquery */ 9),
-            Globalize = __webpack_require__( /*! globalize */ 172),
+            Globalize = __webpack_require__( /*! globalize */ 173),
             dateLocalization = __webpack_require__( /*! ../date */ 27),
             isObject = __webpack_require__( /*! ../../core/utils/common */ 12).isObject,
             errors = __webpack_require__( /*! ../../core/errors */ 7);
@@ -26146,10 +26380,10 @@
       !*** ./js/localization/globalize/currency.js ***!
       \***********************************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./core */ 171);
-        __webpack_require__( /*! ./number */ 174);
+        __webpack_require__( /*! ./core */ 172);
+        __webpack_require__( /*! ./number */ 175);
         __webpack_require__( /*! ../currency */ 30);
-        __webpack_require__( /*! globalize/currency */ 172);
+        __webpack_require__( /*! globalize/currency */ 173);
         var enCurrencyUSD = {
             main: {
                 en: {
@@ -26191,7 +26425,7 @@
                 }
             }
         };
-        var Globalize = __webpack_require__( /*! globalize */ 172),
+        var Globalize = __webpack_require__( /*! globalize */ 173),
             config = __webpack_require__( /*! ../../core/config */ 13),
             numberLocalization = __webpack_require__( /*! ../number */ 25);
         if (Globalize && Globalize.formatCurrency) {
@@ -26623,8 +26857,8 @@
       \******************************************/
     function(module, exports, __webpack_require__) {
         var DevExpress = __webpack_require__( /*! ./core */ 5);
-        var data = DevExpress.data = __webpack_require__( /*! ../../../bundles/modules/data */ 181);
-        data.odata = __webpack_require__( /*! ../../../bundles/modules/data.odata */ 186);
+        var data = DevExpress.data = __webpack_require__( /*! ../../../bundles/modules/data */ 182);
+        data.odata = __webpack_require__( /*! ../../../bundles/modules/data.odata */ 187);
         module.exports = data
     },
     /*!************************************!*\
@@ -26649,20 +26883,20 @@
                 __webpack_require__( /*! ../../data/errors */ 151)._errorHandler = value
             }
         });
-        DevExpress.data.DataSource = __webpack_require__( /*! ../../data/data_source */ 182);
-        DevExpress.data.query = __webpack_require__( /*! ../../data/query */ 152);
+        DevExpress.data.DataSource = __webpack_require__( /*! ../../data/data_source */ 183);
+        DevExpress.data.query = __webpack_require__( /*! ../../data/query */ 155);
         DevExpress.data.Store = __webpack_require__( /*! ../../data/abstract_store */ 150);
-        DevExpress.data.ArrayStore = __webpack_require__( /*! ../../data/array_store */ 156);
-        DevExpress.data.CustomStore = __webpack_require__( /*! ../../data/custom_store */ 157);
-        DevExpress.data.LocalStore = __webpack_require__( /*! ../../data/local_store */ 183);
+        DevExpress.data.ArrayStore = __webpack_require__( /*! ../../data/array_store */ 154);
+        DevExpress.data.CustomStore = __webpack_require__( /*! ../../data/custom_store */ 158);
+        DevExpress.data.LocalStore = __webpack_require__( /*! ../../data/local_store */ 184);
         DevExpress.data.base64_encode = __webpack_require__( /*! ../../data/utils */ 133).base64_encode;
         DevExpress.data.Guid = __webpack_require__( /*! ../../core/guid */ 147);
         DevExpress.data.utils = {};
         DevExpress.data.utils.compileGetter = __webpack_require__( /*! ../../core/utils/data */ 43).compileGetter;
         DevExpress.data.utils.compileSetter = __webpack_require__( /*! ../../core/utils/data */ 43).compileSetter;
-        DevExpress.EndpointSelector = __webpack_require__( /*! ../../data/endpoint_selector */ 184);
-        DevExpress.data.queryImpl = __webpack_require__( /*! ../../data/query */ 152).queryImpl;
-        DevExpress.data.queryAdapters = __webpack_require__( /*! ../../data/query_adapters */ 155);
+        DevExpress.EndpointSelector = __webpack_require__( /*! ../../data/endpoint_selector */ 185);
+        DevExpress.data.queryImpl = __webpack_require__( /*! ../../data/query */ 155).queryImpl;
+        DevExpress.data.queryAdapters = __webpack_require__( /*! ../../data/query_adapters */ 157);
         var dataUtils = __webpack_require__( /*! ../../data/utils */ 133);
         DevExpress.data.utils.normalizeBinaryCriterion = dataUtils.normalizeBinaryCriterion;
         DevExpress.data.utils.normalizeSortingInfo = dataUtils.normalizeSortingInfo;
@@ -26673,8 +26907,8 @@
         DevExpress.data.utils.isConjunctiveOperator = dataUtils.isConjunctiveOperator;
         DevExpress.data.utils.processRequestResultLock = dataUtils.processRequestResultLock;
         DevExpress.data.utils.toComparable = __webpack_require__( /*! ../../core/utils/data */ 43).toComparable;
-        DevExpress.data.utils.multiLevelGroup = __webpack_require__( /*! ../../data/abstract_store */ 150).multiLevelGroup;
-        DevExpress.data.utils.arrangeSortingInfo = __webpack_require__( /*! ../../data/abstract_store */ 150).arrangeSortingInfo;
+        DevExpress.data.utils.multiLevelGroup = __webpack_require__( /*! ../../data/store_helper */ 152).multiLevelGroup;
+        DevExpress.data.utils.arrangeSortingInfo = __webpack_require__( /*! ../../data/store_helper */ 152).arrangeSortingInfo;
         DevExpress.data.utils.normalizeDataSourceOptions = __webpack_require__( /*! ../../data/data_source/data_source */ 149).normalizeDataSourceOptions
     },
     /*!********************************!*\
@@ -26691,7 +26925,7 @@
             Class = __webpack_require__( /*! ../core/class */ 22),
             abstract = Class.abstract,
             errors = __webpack_require__( /*! ./errors */ 151).errors,
-            ArrayStore = __webpack_require__( /*! ./array_store */ 156);
+            ArrayStore = __webpack_require__( /*! ./array_store */ 154);
         var LocalStoreBackend = Class.inherit({
             ctor: function(store, storeOptions) {
                 this._store = store;
@@ -26792,7 +27026,7 @@
       \**************************************/
     function(module, exports, __webpack_require__) {
         var errors = __webpack_require__( /*! ../core/errors */ 7),
-            proxyUrlFormatter = __webpack_require__( /*! ./proxy_url_formatter */ 185);
+            proxyUrlFormatter = __webpack_require__( /*! ./proxy_url_formatter */ 186);
         var location = window.location,
             IS_WINJS_ORIGIN = "ms-appx:" === location.protocol,
             IS_LOCAL_ORIGIN = isLocalHostName(location.hostname);
@@ -26889,21 +27123,21 @@
       !*** ./js/bundles/modules/data.odata.js ***!
       \******************************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./data */ 181);
-        DevExpress.data.ODataStore = __webpack_require__( /*! ../../data/odata/store */ 187);
-        DevExpress.data.ODataContext = __webpack_require__( /*! ../../data/odata/context */ 191);
+        __webpack_require__( /*! ./data */ 182);
+        DevExpress.data.ODataStore = __webpack_require__( /*! ../../data/odata/store */ 188);
+        DevExpress.data.ODataContext = __webpack_require__( /*! ../../data/odata/context */ 192);
         DevExpress.data.utils = DevExpress.data.utils || {};
         DevExpress.data.utils.odata = {};
-        DevExpress.data.utils.odata.keyConverters = __webpack_require__( /*! ../../data/odata/utils */ 188).keyConverters;
-        DevExpress.data.EdmLiteral = __webpack_require__( /*! ../../data/odata/utils */ 188).EdmLiteral;
-        var ODataUtilsModule = __webpack_require__( /*! ../../data/odata/utils */ 188);
+        DevExpress.data.utils.odata.keyConverters = __webpack_require__( /*! ../../data/odata/utils */ 189).keyConverters;
+        DevExpress.data.EdmLiteral = __webpack_require__( /*! ../../data/odata/utils */ 189).EdmLiteral;
+        var ODataUtilsModule = __webpack_require__( /*! ../../data/odata/utils */ 189);
         DevExpress.data.utils.odata.serializePropName = ODataUtilsModule.serializePropName;
         DevExpress.data.utils.odata.serializeValue = ODataUtilsModule.serializeValue;
         DevExpress.data.utils.odata.serializeKey = ODataUtilsModule.serializeKey;
         DevExpress.data.utils.odata.sendRequest = ODataUtilsModule.sendRequest;
         DevExpress.data.OData__internals = ODataUtilsModule.OData__internals;
         DevExpress.data.queryAdapters = DevExpress.data.queryAdapters || {};
-        DevExpress.data.queryAdapters.odata = __webpack_require__( /*! ../../data/odata/query_adapter */ 190).odata
+        DevExpress.data.queryAdapters.odata = __webpack_require__( /*! ../../data/odata/query_adapter */ 191).odata
     },
     /*!********************************!*\
       !*** ./js/data/odata/store.js ***!
@@ -26911,14 +27145,14 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            odataUtils = __webpack_require__( /*! ./utils */ 188),
-            proxyUrlFormatter = __webpack_require__( /*! ../proxy_url_formatter */ 185),
+            odataUtils = __webpack_require__( /*! ./utils */ 189),
+            proxyUrlFormatter = __webpack_require__( /*! ../proxy_url_formatter */ 186),
             errorsModule = __webpack_require__( /*! ../errors */ 151),
-            query = __webpack_require__( /*! ../query */ 152),
+            query = __webpack_require__( /*! ../query */ 155),
             Store = __webpack_require__( /*! ../abstract_store */ 150),
-            mixins = __webpack_require__( /*! ./mixins */ 189),
+            mixins = __webpack_require__( /*! ./mixins */ 190),
             when = __webpack_require__( /*! ../../integration/jquery/deferred */ 14).when;
-        __webpack_require__( /*! ./query_adapter */ 190);
+        __webpack_require__( /*! ./query_adapter */ 191);
         var convertSimpleKey = function(keyType, keyValue) {
             var converter = odataUtils.keyConverters[keyType];
             if (!converter) {
@@ -27466,8 +27700,8 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             stringUtils = __webpack_require__( /*! ../../core/utils/string */ 11),
-            odataUtils = __webpack_require__( /*! ./utils */ 188);
-        __webpack_require__( /*! ./query_adapter */ 190);
+            odataUtils = __webpack_require__( /*! ./utils */ 189);
+        __webpack_require__( /*! ./query_adapter */ 191);
         var DEFAULT_PROTOCOL_VERSION = 2;
         var formatFunctionInvocationUrl = function(baseUrl, args) {
             return stringUtils.format("{0}({1})", baseUrl, $.map(args || {}, function(value, key) {
@@ -27519,8 +27753,8 @@
       \****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            queryAdapters = __webpack_require__( /*! ../query_adapters */ 155),
-            odataUtils = __webpack_require__( /*! ./utils */ 188),
+            queryAdapters = __webpack_require__( /*! ../query_adapters */ 157),
+            odataUtils = __webpack_require__( /*! ./utils */ 189),
             serializePropName = odataUtils.serializePropName,
             errors = __webpack_require__( /*! ../errors */ 151).errors,
             dataUtils = __webpack_require__( /*! ../utils */ 133);
@@ -27854,10 +28088,10 @@
             Class = __webpack_require__( /*! ../../core/class */ 22),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             errorsModule = __webpack_require__( /*! ../errors */ 151),
-            ODataStore = __webpack_require__( /*! ./store */ 187),
-            mixins = __webpack_require__( /*! ./mixins */ 189),
+            ODataStore = __webpack_require__( /*! ./store */ 188),
+            mixins = __webpack_require__( /*! ./mixins */ 190),
             when = __webpack_require__( /*! ../../integration/jquery/deferred */ 14).when;
-        __webpack_require__( /*! ./query_adapter */ 190);
+        __webpack_require__( /*! ./query_adapter */ 191);
         var ODataContext = Class.inherit({
             ctor: function(options) {
                 var that = this;
@@ -27912,52 +28146,276 @@
             }
         }).include(mixins.SharedMethods);
         module.exports = ODataContext
-    }, , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ,
+    }, , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ,
+    /*!*********************************************!*\
+      !*** ./js/core/utils/date_serialization.js ***!
+      \*********************************************/
+    function(module, exports, __webpack_require__) {
+        var config = __webpack_require__( /*! ../config */ 13),
+            commonUtils = __webpack_require__( /*! ./common */ 12),
+            isString = commonUtils.isString,
+            isDate = commonUtils.isDate,
+            isNumber = commonUtils.isNumber;
+        var NUMBER_SERIALIZATION_FORMAT = "number",
+            DATE_SERIALIZATION_FORMAT = "yyyy/MM/dd",
+            DATETIME_SERIALIZATION_FORMAT = "yyyy/MM/dd HH:mm:ss";
+        var ISO8601_PATTERN = /^(\d{4})(-)?(\d{2})(-)?(\d{2})(?:T(\d{2})(:)?(\d{2})?(:)?(\d{2}(?:\.(\d+))?)?)?(Z|([\+\-])(\d{2})(:)?(\d{2})?)?$/;
+        var ISO8601_TIME_PATTERN = /^(\d{2}):(\d{2})(:(\d{2}))?$/;
+        var ISO8601_PATTERN_PARTS = ["", "yyyy", "", "MM", "", "dd", "THH", "", "mm", "", "ss", ".SSS"];
+
+        function leftPad(text, length) {
+            while (text.length < length) {
+                text = "0" + text
+            }
+            return text
+        }
+        var LDML_FORMATTERS = {
+            y: function(date, count, useUtc) {
+                return leftPad(date[useUtc ? "getUTCFullYear" : "getFullYear"]().toString(), count)
+            },
+            M: function(date, count, useUtc) {
+                return leftPad((date[useUtc ? "getUTCMonth" : "getMonth"]() + 1).toString(), Math.min(count, 2))
+            },
+            d: function(date, count, useUtc) {
+                return leftPad(date[useUtc ? "getUTCDate" : "getDate"]().toString(), Math.min(count, 2))
+            },
+            H: function(date, count, useUtc) {
+                return leftPad(date[useUtc ? "getUTCHours" : "getHours"]().toString(), Math.min(count, 2))
+            },
+            m: function(date, count, useUtc) {
+                return leftPad(date[useUtc ? "getUTCMinutes" : "getMinutes"]().toString(), Math.min(count, 2))
+            },
+            s: function(date, count, useUtc) {
+                return leftPad(date[useUtc ? "getUTCSeconds" : "getSeconds"]().toString(), Math.min(count, 2))
+            },
+            S: function(date, count, useUtc) {
+                return leftPad(date[useUtc ? "getUTCMilliseconds" : "getMilliseconds"]().toString(), 3).substr(0, count)
+            },
+            x: function(date, count, useUtc) {
+                var timezoneOffset = useUtc ? 0 : date.getTimezoneOffset(),
+                    signPart = timezoneOffset > 0 ? "-" : "+",
+                    timezoneOffsetAbs = Math.abs(timezoneOffset),
+                    hours = Math.floor(timezoneOffsetAbs / 60),
+                    minutes = timezoneOffsetAbs % 60,
+                    hoursPart = leftPad(hours.toString(), 2),
+                    minutesPart = leftPad(minutes.toString(), 2);
+                return signPart + hoursPart + (count >= 3 ? ":" : "") + (count > 1 || minutes ? minutesPart : "")
+            },
+            X: function(date, count, useUtc) {
+                if (useUtc || !date.getTimezoneOffset()) {
+                    return "Z"
+                }
+                return LDML_FORMATTERS.x(date, count, useUtc)
+            },
+            Z: function(date, count, useUtc) {
+                return LDML_FORMATTERS.X(date, count >= 5 ? 3 : 2, useUtc)
+            }
+        };
+        var formatDate = function(date, format) {
+            var charIndex, formatter, char, isCurrentCharEqualsNext, charCount = 0,
+                separator = "'",
+                isEscaping = false,
+                result = "";
+            if (!date) {
+                return null
+            }
+            if (!format) {
+                return date
+            }
+            var useUtc = "Z" === format[format.length - 1] || "'Z'" === format.slice(-3);
+            for (charIndex = 0; charIndex < format.length; charIndex++) {
+                char = format[charIndex];
+                formatter = LDML_FORMATTERS[char];
+                isCurrentCharEqualsNext = char === format[charIndex + 1];
+                charCount++;
+                if (!isCurrentCharEqualsNext) {
+                    if (formatter && !isEscaping) {
+                        result += formatter(date, charCount, useUtc)
+                    }
+                    charCount = 0
+                }
+                if (char === separator && !isCurrentCharEqualsNext) {
+                    isEscaping = !isEscaping
+                } else {
+                    if (isEscaping || !formatter) {
+                        result += char
+                    }
+                }
+                if (char === separator && isCurrentCharEqualsNext) {
+                    charIndex++
+                }
+            }
+            return result
+        };
+        var dateParser = function(text, skipISO8601Parsing) {
+            var result;
+            var parsedValue;
+            if (isString(text) && !skipISO8601Parsing) {
+                result = parseISO8601String(text)
+            }
+            if (!result) {
+                parsedValue = !isDate(text) && Date.parse(text);
+                result = isNumber(parsedValue) ? new Date(parsedValue) : text
+            }
+            return result
+        };
+        var parseISO8601String = function(text) {
+            var parts = text.match(ISO8601_PATTERN);
+            var timePart = function(part) {
+                return +part || 0
+            };
+            if (!parts) {
+                parts = text.match(ISO8601_TIME_PATTERN);
+                if (parts) {
+                    return new Date(0, 0, 0, timePart(parts[1]), timePart(parts[2]), timePart(parts[4]))
+                }
+                return
+            }
+            var year = parts[1],
+                month = --parts[3],
+                day = parts[5],
+                timeZoneHour = 0,
+                timeZoneMinute = 0;
+            timeZoneHour = timePart(parts[14]);
+            timeZoneMinute = timePart(parts[16]);
+            if ("-" === parts[13]) {
+                timeZoneHour = -timeZoneHour;
+                timeZoneMinute = -timeZoneMinute
+            }
+            var hour = timePart(parts[6]) - timeZoneHour,
+                minute = timePart(parts[8]) - timeZoneMinute,
+                second = timePart(parts[10]);
+            if (!!parts[12]) {
+                return new Date(Date.UTC(year, month, day, hour, minute, second))
+            }
+            return new Date(year, month, day, hour, minute, second)
+        };
+        var getIso8601Format = function(text, useUtc) {
+            var parts = text.match(ISO8601_PATTERN),
+                result = "";
+            if (!parts) {
+                parts = text.match(ISO8601_TIME_PATTERN);
+                if (parts) {
+                    return parts[3] ? "HH:mm:ss" : "HH:mm"
+                }
+                return
+            }
+            for (var i = 1; i < ISO8601_PATTERN_PARTS.length; i++) {
+                if (parts[i]) {
+                    result += ISO8601_PATTERN_PARTS[i] || parts[i]
+                }
+            }
+            if ("Z" === parts[12]) {
+                result += "'Z'"
+            }
+            if (parts[14]) {
+                if (parts[15]) {
+                    result += "xxx"
+                } else {
+                    if (parts[16]) {
+                        result += "xx"
+                    } else {
+                        result += "x"
+                    }
+                }
+            }
+            return result
+        };
+        var deserializeDate = function(value) {
+            if ("number" === typeof value) {
+                return new Date(value)
+            }
+            return dateParser(value, !config().forceIsoDateParsing)
+        };
+        var serializeDate = function(value, serializationFormat) {
+            if (!serializationFormat) {
+                return value
+            }
+            if (!isDate(value)) {
+                return null
+            }
+            if (serializationFormat === NUMBER_SERIALIZATION_FORMAT) {
+                return value && value.valueOf ? value.valueOf() : null
+            }
+            return formatDate(value, serializationFormat)
+        };
+        var getDateSerializationFormat = function(value) {
+            if ("number" === typeof value) {
+                return NUMBER_SERIALIZATION_FORMAT
+            } else {
+                if (isString(value)) {
+                    var format;
+                    if (config().forceIsoDateParsing) {
+                        format = getIso8601Format(value)
+                    }
+                    if (format) {
+                        return format
+                    } else {
+                        if (value.indexOf(":") >= 0) {
+                            return DATETIME_SERIALIZATION_FORMAT
+                        } else {
+                            return DATE_SERIALIZATION_FORMAT
+                        }
+                    }
+                } else {
+                    if (value) {
+                        return null
+                    }
+                }
+            }
+        };
+        module.exports = {
+            dateParser: dateParser,
+            deserializeDate: deserializeDate,
+            serializeDate: serializeDate,
+            getDateSerializationFormat: getDateSerializationFormat
+        }
+    }, , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ,
     /*!*****************************************!*\
       !*** ./js/bundles/modules/parts/viz.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var DevExpress = __webpack_require__( /*! ./core */ 5);
-        __webpack_require__( /*! ./data */ 180);
-        var viz = DevExpress.viz = __webpack_require__( /*! ../../../bundles/modules/viz */ 446);
-        viz.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 447).currentTheme;
-        viz.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 447).registerTheme;
-        viz.exportFromMarkup = __webpack_require__( /*! ../../../viz/export */ 449).exportFromMarkup;
-        viz.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 451).currentPalette;
-        viz.getPalette = __webpack_require__( /*! ../../../viz/palette */ 451).getPalette;
-        viz.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 451).registerPalette;
-        viz.dxChart = __webpack_require__( /*! ../../../viz/chart */ 452);
-        viz.dxPieChart = __webpack_require__( /*! ../../../viz/pie_chart */ 523);
-        viz.dxPolarChart = __webpack_require__( /*! ../../../viz/polar_chart */ 525);
-        viz.dxLinearGauge = __webpack_require__( /*! ../../../viz/linear_gauge */ 527);
-        viz.dxCircularGauge = __webpack_require__( /*! ../../../viz/circular_gauge */ 537);
-        viz.dxBarGauge = __webpack_require__( /*! ../../../viz/bar_gauge */ 541);
-        viz.dxRangeSelector = __webpack_require__( /*! ../../../viz/range_selector */ 543);
-        viz.dxVectorMap = __webpack_require__( /*! ../../../viz/vector_map */ 553);
+        __webpack_require__( /*! ./data */ 181);
+        var viz = DevExpress.viz = __webpack_require__( /*! ../../../bundles/modules/viz */ 447);
+        viz.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 448).currentTheme;
+        viz.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 448).registerTheme;
+        viz.exportFromMarkup = __webpack_require__( /*! ../../../viz/export */ 450).exportFromMarkup;
+        viz.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 452).currentPalette;
+        viz.getPalette = __webpack_require__( /*! ../../../viz/palette */ 452).getPalette;
+        viz.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 452).registerPalette;
+        viz.dxChart = __webpack_require__( /*! ../../../viz/chart */ 453);
+        viz.dxPieChart = __webpack_require__( /*! ../../../viz/pie_chart */ 524);
+        viz.dxPolarChart = __webpack_require__( /*! ../../../viz/polar_chart */ 526);
+        viz.dxLinearGauge = __webpack_require__( /*! ../../../viz/linear_gauge */ 528);
+        viz.dxCircularGauge = __webpack_require__( /*! ../../../viz/circular_gauge */ 538);
+        viz.dxBarGauge = __webpack_require__( /*! ../../../viz/bar_gauge */ 542);
+        viz.dxRangeSelector = __webpack_require__( /*! ../../../viz/range_selector */ 544);
+        viz.dxVectorMap = __webpack_require__( /*! ../../../viz/vector_map */ 554);
         viz.map = {};
         viz.map.sources = {};
-        viz.map.projection = __webpack_require__( /*! ../../../viz/vector_map/projection */ 566).projection;
-        viz.dxSparkline = __webpack_require__( /*! ../../../viz/sparkline */ 567);
-        viz.dxBullet = __webpack_require__( /*! ../../../viz/bullet */ 570);
-        viz.dxTreeMap = __webpack_require__( /*! ../../../viz/tree_map */ 572);
+        viz.map.projection = __webpack_require__( /*! ../../../viz/vector_map/projection */ 567).projection;
+        viz.dxSparkline = __webpack_require__( /*! ../../../viz/sparkline */ 568);
+        viz.dxBullet = __webpack_require__( /*! ../../../viz/bullet */ 571);
+        viz.dxTreeMap = __webpack_require__( /*! ../../../viz/tree_map */ 573);
         var core = {};
         viz.core = core;
-        core.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 447).currentTheme;
-        core.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 447).registerTheme;
-        core.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 451).currentPalette;
-        core.getPalette = __webpack_require__( /*! ../../../viz/palette */ 451).getPalette;
-        core.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 451).registerPalette;
-        viz.BaseWidget = __webpack_require__( /*! ../../../viz/core/base_widget */ 454);
-        viz.findTheme = __webpack_require__( /*! ../../../viz/themes */ 447).findTheme;
-        viz.refreshAll = __webpack_require__( /*! ../../../viz/themes */ 447).refreshAll;
-        viz.refreshPaths = __webpack_require__( /*! ../../../viz/utils */ 594).refreshPaths;
+        core.currentTheme = __webpack_require__( /*! ../../../viz/themes */ 448).currentTheme;
+        core.registerTheme = __webpack_require__( /*! ../../../viz/themes */ 448).registerTheme;
+        core.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 452).currentPalette;
+        core.getPalette = __webpack_require__( /*! ../../../viz/palette */ 452).getPalette;
+        core.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 452).registerPalette;
+        viz.BaseWidget = __webpack_require__( /*! ../../../viz/core/base_widget */ 455);
+        viz.findTheme = __webpack_require__( /*! ../../../viz/themes */ 448).findTheme;
+        viz.refreshAll = __webpack_require__( /*! ../../../viz/themes */ 448).refreshAll;
+        viz.refreshPaths = __webpack_require__( /*! ../../../viz/utils */ 596).refreshPaths;
         viz.gauges = {
             __internals: {}
         };
         viz._dashboard = {};
-        viz._dashboard.Renderer = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 457).Renderer;
-        viz._dashboard.SvgElement = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 457).SvgElement;
-        viz._dashboard.patchFontOptions = __webpack_require__( /*! ../../../viz/core/utils */ 448).patchFontOptions;
+        viz._dashboard.Renderer = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 458).Renderer;
+        viz._dashboard.SvgElement = __webpack_require__( /*! ../../../viz/core/renderers/renderer */ 458).SvgElement;
+        viz._dashboard.patchFontOptions = __webpack_require__( /*! ../../../viz/core/utils */ 449).patchFontOptions;
         module.exports = viz
     },
     /*!***********************************!*\
@@ -27972,7 +28430,7 @@
       \**************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 449),
             themes = {},
             themesMapping = {},
             themesSchemeMapping = {},
@@ -28548,6 +29006,7 @@
                     generatedSeries = {},
                     seriesOrder = [],
                     i = 0;
+                items = items || [];
                 for (length = items.length; i < length; i++) {
                     data = items[i];
                     if (nameField in data) {
@@ -28670,7 +29129,7 @@
       !*** ./js/viz/export.js ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./core/export */ 450)
+        module.exports = __webpack_require__( /*! ./core/export */ 451)
     },
     /*!*******************************!*\
       !*** ./js/viz/core/export.js ***!
@@ -28806,7 +29265,7 @@
                 var layoutOptions;
                 this._options.exportOptions.width = canvas.width;
                 this._options.exportOptions.height = canvas.height;
-                this._group.move(width - BUTTON_SIZE - SHADOW_OFFSET - SHADOW_BLUR, Math.floor(height / 2 - BUTTON_SIZE / 2));
+                this._group.move(width - BUTTON_SIZE - SHADOW_OFFSET - SHADOW_BLUR + canvas.left, Math.floor(height / 2 - BUTTON_SIZE / 2));
                 layoutOptions = this.getLayoutOptions();
                 if (layoutOptions.width > width || layoutOptions.height > height) {
                     this._incidentOccurred("W2107");
@@ -29201,7 +29660,7 @@
       \***************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 449),
             _floor = Math.floor,
             _ceil = Math.ceil,
             _Color = __webpack_require__( /*! ../color */ 32),
@@ -29434,15 +29893,15 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../core/utils/common */ 12),
             registerComponent = __webpack_require__( /*! ../core/component_registrator */ 52),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
-            overlapping = __webpack_require__( /*! ./chart_components/base_chart */ 453).overlapping,
-            translatorsModule = __webpack_require__( /*! ./translators/translator2d */ 501),
-            rangeModule = __webpack_require__( /*! ./translators/range */ 507),
-            LayoutManagerModule = __webpack_require__( /*! ./chart_components/layout_manager */ 494),
-            multiAxesSynchronizer = __webpack_require__( /*! ./chart_components/multi_axes_synchronizer */ 508),
-            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 509).AdvancedChart,
-            scrollBarModule = __webpack_require__( /*! ./chart_components/scroll_bar */ 520),
-            crosshairModule = __webpack_require__( /*! ./chart_components/crosshair */ 521),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 449),
+            overlapping = __webpack_require__( /*! ./chart_components/base_chart */ 454).overlapping,
+            translatorsModule = __webpack_require__( /*! ./translators/translator2d */ 502),
+            rangeModule = __webpack_require__( /*! ./translators/range */ 508),
+            LayoutManagerModule = __webpack_require__( /*! ./chart_components/layout_manager */ 495),
+            multiAxesSynchronizer = __webpack_require__( /*! ./chart_components/multi_axes_synchronizer */ 509),
+            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 510).AdvancedChart,
+            scrollBarModule = __webpack_require__( /*! ./chart_components/scroll_bar */ 521),
+            crosshairModule = __webpack_require__( /*! ./chart_components/crosshair */ 522),
             MAX_ADJUSTMENT_ATTEMPTS = 5,
             DEFAULT_PANE_NAME = "default",
             DEFAULT_PANES = [{
@@ -30434,7 +30893,7 @@
                 }
             }
         });
-        dxChart.addPlugin(__webpack_require__( /*! ./chart_components/shutter_zoom */ 522));
+        dxChart.addPlugin(__webpack_require__( /*! ./chart_components/shutter_zoom */ 523));
         registerComponent("dxChart", dxChart);
         module.exports = dxChart;
         module.exports._test_prepareSegmentRectPoints = function() {
@@ -30456,21 +30915,21 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
-            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 454),
-            legendModule = __webpack_require__( /*! ../components/legend */ 460),
-            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 462),
-            seriesModule = __webpack_require__( /*! ../series/base_series */ 464),
-            chartThemeManagerModule = __webpack_require__( /*! ../components/chart_theme_manager */ 488),
-            LayoutManagerModule = __webpack_require__( /*! ./layout_manager */ 494),
-            trackerModule = __webpack_require__( /*! ./tracker */ 495),
-            headerBlockModule = __webpack_require__( /*! ./header_block */ 496),
+            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 455),
+            legendModule = __webpack_require__( /*! ../components/legend */ 461),
+            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 463),
+            seriesModule = __webpack_require__( /*! ../series/base_series */ 465),
+            chartThemeManagerModule = __webpack_require__( /*! ../components/chart_theme_manager */ 489),
+            LayoutManagerModule = __webpack_require__( /*! ./layout_manager */ 495),
+            trackerModule = __webpack_require__( /*! ./tracker */ 496),
+            headerBlockModule = __webpack_require__( /*! ./header_block */ 497),
             REINIT_REFRESH_ACTION = "_reinit",
             REINIT_DATA_SOURCE_REFRESH_ACTION = "_updateDataSource",
             DATA_INIT_REFRESH_ACTION = "_dataInit",
             FORCE_RENDER_REFRESH_ACTION = "_forceRender",
             RESIZE_REFRESH_ACTION = "_resize",
             ACTIONS_BY_PRIORITY = [REINIT_REFRESH_ACTION, REINIT_DATA_SOURCE_REFRESH_ACTION, DATA_INIT_REFRESH_ACTION, FORCE_RENDER_REFRESH_ACTION, RESIZE_REFRESH_ACTION],
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _noop = $.noop,
             _map = vizUtils.map,
             _each = $.each,
@@ -31495,11 +31954,11 @@
         });
         exports.overlapping = overlapping;
         exports.BaseChart = BaseChart;
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin);
-        BaseChart.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/export */ 451).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/title */ 498).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/tooltip */ 499).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 500).plugin);
+        BaseChart.addPlugin(__webpack_require__( /*! ../core/data_source */ 501).plugin);
         var _change_TITLE = BaseChart.prototype._change_TITLE;
         BaseChart.prototype._change_TITLE = function() {
             _change_TITLE.apply(this, arguments);
@@ -31520,14 +31979,14 @@
             _windowResizeCallbacks = __webpack_require__( /*! ../../core/utils/window */ 37).resizeCallbacks,
             _stringFormat = __webpack_require__( /*! ../../core/utils/string */ 11).format,
             _isObject = __webpack_require__( /*! ../../core/utils/common */ 12).isObject,
-            _Number = Number,
+            _floor = Math.floor,
             DOMComponent = __webpack_require__( /*! ../../core/dom_component */ 36),
-            helpers = __webpack_require__( /*! ./helpers */ 455),
-            _parseScalar = __webpack_require__( /*! ./utils */ 448).parseScalar,
-            errors = __webpack_require__( /*! ./errors_warnings */ 456),
+            helpers = __webpack_require__( /*! ./helpers */ 456),
+            _parseScalar = __webpack_require__( /*! ./utils */ 449).parseScalar,
+            errors = __webpack_require__( /*! ./errors_warnings */ 457),
             _log = errors.log,
-            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 457),
-            _Layout = __webpack_require__( /*! ./layout */ 459),
+            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 458),
+            _Layout = __webpack_require__( /*! ./layout */ 460),
             OPTION_RTL_ENABLED = "rtlEnabled",
             _option = DOMComponent.prototype.option;
 
@@ -31576,7 +32035,7 @@
         };
 
         function pickPositiveValue(value, defaultValue) {
-            return _Number(value > 0 ? value : defaultValue || 0)
+            return Number(value > 0 ? value : defaultValue || 0)
         }
         module.exports = DOMComponent.inherit({
             _eventsMap: {
@@ -31639,7 +32098,7 @@
             },
             _resumeChanges: function() {
                 var that = this;
-                if (0 === --that._changesLocker && that._changes.count() > 0) {
+                if (0 === --that._changesLocker && that._changes.count() > 0 && !that._applyingChanges) {
                     that._renderer.lock();
                     that._applyingChanges = true;
                     that._applyChanges();
@@ -31662,14 +32121,9 @@
                 that.endUpdate()
             },
             _requestChange: function(codes) {
-                var applyingChanges = this._applyingChanges;
-                if (!applyingChanges) {
-                    this._suspendChanges()
-                }
+                this._suspendChanges();
                 this._change(codes);
-                if (!applyingChanges) {
-                    this._resumeChanges()
-                }
+                this._resumeChanges()
             },
             _applyChanges: function() {
                 var i, that = this,
@@ -31752,8 +32206,8 @@
                     margin = that.option("margin") || {},
                     defaultCanvas = that._getDefaultSize() || {},
                     canvas = {
-                        width: size.width <= 0 ? 0 : pickPositiveValue(size.width, that._$element.width() || defaultCanvas.width),
-                        height: size.height <= 0 ? 0 : pickPositiveValue(size.height, that._$element.height() || defaultCanvas.height),
+                        width: size.width <= 0 ? 0 : _floor(pickPositiveValue(size.width, that._$element.width() || defaultCanvas.width)),
+                        height: size.height <= 0 ? 0 : _floor(pickPositiveValue(size.height, that._$element.height() || defaultCanvas.height)),
                         left: pickPositiveValue(margin.left, defaultCanvas.left || 0),
                         top: pickPositiveValue(margin.top, defaultCanvas.top || 0),
                         right: pickPositiveValue(margin.right, defaultCanvas.right || 0),
@@ -32102,7 +32556,7 @@
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
             getSvgMarkup = __webpack_require__( /*! ../../../core/utils/svg */ 35).getSvgMarkup,
             doc = document,
-            animation = __webpack_require__( /*! ./animation */ 458),
+            animation = __webpack_require__( /*! ./animation */ 459),
             math = Math,
             mathMin = math.min,
             mathMax = math.max,
@@ -32113,7 +32567,7 @@
             mathAbs = math.abs,
             mathPI = math.PI,
             _isDefined = commonUtils.isDefined,
-            vizUtils = __webpack_require__( /*! ../utils */ 448),
+            vizUtils = __webpack_require__( /*! ../utils */ 449),
             _normalizeEnum = vizUtils.normalizeEnum,
             _normalizeBBox = vizUtils.normalizeBBox,
             _rotateBBox = vizUtils.rotateBBox,
@@ -33967,7 +34421,7 @@
       !*** ./js/viz/core/layout.js ***!
       \*******************************/
     function(module, exports, __webpack_require__) {
-        var _normalizeEnum = __webpack_require__( /*! ./utils */ 448).normalizeEnum,
+        var _normalizeEnum = __webpack_require__( /*! ./utils */ 449).normalizeEnum,
             _min = Math.min,
             _max = Math.max,
             ALIGN_START = 0,
@@ -34198,8 +34652,8 @@
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
-            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 461),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
+            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 462),
             _Number = Number,
             _math = Math,
             _round = _math.round,
@@ -35051,8 +35505,8 @@
             LOGARITHMIC = "logarithmic",
             VALUE_TYPE = "valueType",
             ARGUMENT_TYPE = "argumentType",
-            axisTypeParser = __webpack_require__( /*! ../core/utils */ 448).enumParser([STRING, NUMERIC, DATETIME]),
-            _getParser = __webpack_require__( /*! ./parse_utils */ 463).getParser,
+            axisTypeParser = __webpack_require__( /*! ../core/utils */ 449).enumParser([STRING, NUMERIC, DATETIME]),
+            _getParser = __webpack_require__( /*! ./parse_utils */ 464).getParser,
             _isDefined = commonUtils.isDefined,
             _isFunction = commonUtils.isFunction,
             _isArray = commonUtils.isArray,
@@ -35507,6 +35961,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
+            dateSerialization = __webpack_require__( /*! ../../core/utils/date_serialization */ 255),
             isDefined = commonUtils.isDefined,
             parsers = {
                 string: function(val) {
@@ -35530,7 +35985,7 @@
                     if (!isNaN(numVal)) {
                         parsedVal = new Date(numVal)
                     } else {
-                        parsedVal = new Date(val)
+                        parsedVal = dateSerialization.deserializeDate(val)
                     }
                     if (isNaN(Number(parsedVal))) {
                         parsedVal = void 0
@@ -35557,9 +36012,9 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             seriesNS = {},
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            pointModule = __webpack_require__( /*! ./points/base_point */ 465),
+            pointModule = __webpack_require__( /*! ./points/base_point */ 466),
             _isDefined = commonUtils.isDefined,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _map = vizUtils.map,
             _each = $.each,
             _extend = $.extend,
@@ -35568,16 +36023,16 @@
             _Event = $.Event,
             _noop = $.noop,
             _inArray = $.inArray,
-            states = __webpack_require__( /*! ../components/consts */ 466).states,
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478),
-            lineSeries = __webpack_require__( /*! ./line_series */ 480),
-            areaSeries = __webpack_require__( /*! ./area_series */ 481),
-            barSeries = __webpack_require__( /*! ./bar_series */ 482),
-            rangeSeries = __webpack_require__( /*! ./range_series */ 483),
-            bubbleSeries = __webpack_require__( /*! ./bubble_series */ 484),
-            pieSeries = __webpack_require__( /*! ./pie_series */ 485),
-            financialSeries = __webpack_require__( /*! ./financial_series */ 486),
-            stackedSeries = __webpack_require__( /*! ./stacked_series */ 487),
+            states = __webpack_require__( /*! ../components/consts */ 467).states,
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479),
+            lineSeries = __webpack_require__( /*! ./line_series */ 481),
+            areaSeries = __webpack_require__( /*! ./area_series */ 482),
+            barSeries = __webpack_require__( /*! ./bar_series */ 483),
+            rangeSeries = __webpack_require__( /*! ./range_series */ 484),
+            bubbleSeries = __webpack_require__( /*! ./bubble_series */ 485),
+            pieSeries = __webpack_require__( /*! ./pie_series */ 486),
+            financialSeries = __webpack_require__( /*! ./financial_series */ 487),
+            stackedSeries = __webpack_require__( /*! ./stacked_series */ 488),
             DISCRETE = "discrete",
             SELECTED_STATE = states.selectedMark,
             HOVER_STATE = states.hoverMark,
@@ -36547,17 +37002,17 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             mixins = {},
-            statesConsts = __webpack_require__( /*! ../../components/consts */ 466).states,
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
-            barPoint = __webpack_require__( /*! ./bar_point */ 470),
-            bubblePoint = __webpack_require__( /*! ./bubble_point */ 471),
-            piePoint = __webpack_require__( /*! ./pie_point */ 472),
-            rangeSymbolPoint = __webpack_require__( /*! ./range_symbol_point */ 473),
-            rangeBarPoint = __webpack_require__( /*! ./range_bar_point */ 474),
-            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 475),
-            stockPoint = __webpack_require__( /*! ./stock_point */ 476),
-            polarPoints = __webpack_require__( /*! ./polar_point */ 477),
-            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 448).normalizeEnum,
+            statesConsts = __webpack_require__( /*! ../../components/consts */ 467).states,
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
+            barPoint = __webpack_require__( /*! ./bar_point */ 471),
+            bubblePoint = __webpack_require__( /*! ./bubble_point */ 472),
+            piePoint = __webpack_require__( /*! ./pie_point */ 473),
+            rangeSymbolPoint = __webpack_require__( /*! ./range_symbol_point */ 474),
+            rangeBarPoint = __webpack_require__( /*! ./range_bar_point */ 475),
+            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 476),
+            stockPoint = __webpack_require__( /*! ./stock_point */ 477),
+            polarPoints = __webpack_require__( /*! ./polar_point */ 478),
+            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 449).normalizeEnum,
             _each = $.each,
             _extend = $.extend,
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
@@ -37021,10 +37476,10 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
-            labelModule = __webpack_require__( /*! ./label */ 468),
+            labelModule = __webpack_require__( /*! ./label */ 469),
             _extend = $.extend,
             _isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 448).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../../core/utils */ 449).normalizeEnum,
             _math = Math,
             _round = _math.round,
             _floor = _math.floor,
@@ -37610,8 +38065,8 @@
       \***************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            _format = __webpack_require__( /*! ../../core/format */ 469),
-            vizUtils = __webpack_require__( /*! ../../core/utils */ 448),
+            _format = __webpack_require__( /*! ../../core/format */ 470),
+            vizUtils = __webpack_require__( /*! ../../core/utils */ 449),
             _degreesToRadians = vizUtils.degreesToRadians,
             _patchFontOptions = vizUtils.patchFontOptions,
             _round = Math.round,
@@ -37947,7 +38402,7 @@
             _floor = _math.floor,
             _abs = _math.abs,
             _min = _math.min,
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
             CANVAS_POSITION_DEFAULT = "canvas_position_default",
             DEFAULT_BAR_TRACKER_SIZE = 9,
             CORRECTING_BAR_TRACKER_VALUE = 4,
@@ -38227,7 +38682,7 @@
       \**********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
             _extend = $.extend,
             MIN_BUBBLE_HEIGHT = 20;
         module.exports = _extend({}, symbolPoint, {
@@ -38306,20 +38761,20 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             CONNECTOR_LENGTH = 20,
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
             _extend = $.extend,
             _round = Math.round,
             _sqrt = Math.sqrt,
             _acos = Math.acos,
             DEG = 180 / Math.PI,
             _abs = Math.abs,
-            vizUtils = __webpack_require__( /*! ../../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../../core/utils */ 449),
             _normalizeAngle = vizUtils.normalizeAngle,
             _getCosAndSin = vizUtils.getCosAndSin,
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             getVerticallyShiftedAngularCoords = vizUtils.getVerticallyShiftedAngularCoords,
-            INDENT_FROM_PIE = __webpack_require__( /*! ../../components/consts */ 466).pieLabelIndent;
+            INDENT_FROM_PIE = __webpack_require__( /*! ../../components/consts */ 467).pieLabelIndent;
         module.exports = _extend({}, symbolPoint, {
             _updateData: function(data) {
                 var that = this;
@@ -38639,8 +39094,8 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
-            labelModule = __webpack_require__( /*! ./label */ 468),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
+            labelModule = __webpack_require__( /*! ./label */ 469),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
             _extend = $.extend,
             _isDefined = commonUtils.isDefined,
             _math = Math,
@@ -39111,8 +39566,8 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            barPoint = __webpack_require__( /*! ./bar_point */ 470),
-            rangeSymbolPointMethods = __webpack_require__( /*! ./range_symbol_point */ 473),
+            barPoint = __webpack_require__( /*! ./bar_point */ 471),
+            rangeSymbolPointMethods = __webpack_require__( /*! ./range_symbol_point */ 474),
             _extend = $.extend;
         module.exports = _extend({}, barPoint, {
             deleteLabel: rangeSymbolPointMethods.deleteLabel,
@@ -39197,8 +39652,8 @@
       \***************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
-            barPoint = __webpack_require__( /*! ./bar_point */ 470),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
+            barPoint = __webpack_require__( /*! ./bar_point */ 471),
             _isNumeric = $.isNumeric,
             _extend = $.extend,
             _math = Math,
@@ -39501,7 +39956,7 @@
       \*********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 475),
+            candlestickPoint = __webpack_require__( /*! ./candlestick_point */ 476),
             _extend = $.extend,
             _isNumeric = $.isNumeric;
         module.exports = _extend({}, candlestickPoint, {
@@ -39546,11 +40001,11 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             _extend = $.extend,
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
-            symbolPoint = __webpack_require__( /*! ./symbol_point */ 467),
-            barPoint = __webpack_require__( /*! ./bar_point */ 470),
-            piePoint = __webpack_require__( /*! ./pie_point */ 472),
+            symbolPoint = __webpack_require__( /*! ./symbol_point */ 468),
+            barPoint = __webpack_require__( /*! ./bar_point */ 471),
+            piePoint = __webpack_require__( /*! ./pie_point */ 473),
             isDefined = commonUtils.isDefined,
-            vizUtils = __webpack_require__( /*! ../../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../../core/utils */ 449),
             normalizeAngle = vizUtils.normalizeAngle,
             _math = Math,
             _max = _math.max,
@@ -39721,14 +40176,14 @@
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 480),
             _each = $.each,
             _extend = $.extend,
             _noop = $.noop,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isString = commonUtils.isString,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _map = vizUtils.map,
             _normalizeEnum = vizUtils.normalizeEnum,
             math = Math,
@@ -40256,7 +40711,7 @@
             commonUtils = __webpack_require__( /*! ../../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isFinite = isFinite,
-            unique = __webpack_require__( /*! ../../core/utils */ 448).unique,
+            unique = __webpack_require__( /*! ../../core/utils */ 449).unique,
             MIN_VISIBLE = "minVisible",
             MAX_VISIBLE = "maxVisible",
             DISCRETE = "discrete";
@@ -40540,11 +40995,11 @@
       \**************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            series = __webpack_require__( /*! ./scatter_series */ 478),
+            series = __webpack_require__( /*! ./scatter_series */ 479),
             chartScatterSeries = series.chart,
             polarScatterSeries = series.polar,
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             normalizeAngle = vizUtils.normalizeAngle,
             CANVAS_POSITION_START = "canvas_position_start",
             CANVAS_POSITION_TOP = "canvas_position_top",
@@ -40770,69 +41225,71 @@
                         return otherPointCoord > pointCoord && controlCoord > otherPointCoord || otherPointCoord < pointCoord && controlCoord < otherPointCoord ? otherPointCoord : controlCoord
                     };
                 if (1 !== pointsCopy.length) {
-                    _each(pointsCopy, function(i, curPoint) {
-                        var leftControlX, leftControlY, rightControlX, rightControlY, prevPoint, nextPoint, xCur, yCur, x1, x2, y1, y2, curIsExtremum, leftPoint, rightPoint, a, b, c, xc, yc, shift, lambda = .5;
-                        if (!i) {
-                            bezierPoints.push(curPoint);
-                            bezierPoints.push(curPoint);
-                            return
-                        }
-                        prevPoint = pointsCopy[i - 1];
-                        if (i < pointsCopy.length - 1) {
-                            nextPoint = pointsCopy[i + 1];
-                            xCur = curPoint.x;
-                            yCur = curPoint.y;
-                            x1 = prevPoint.x;
-                            x2 = nextPoint.x;
-                            y1 = prevPoint.y;
-                            y2 = nextPoint.y;
-                            curIsExtremum = !!(!rotated && (yCur <= prevPoint.y && yCur <= nextPoint.y || yCur >= prevPoint.y && yCur >= nextPoint.y) || rotated && (xCur <= prevPoint.x && xCur <= nextPoint.x || xCur >= prevPoint.x && xCur >= nextPoint.x));
-                            if (curIsExtremum) {
-                                if (!rotated) {
-                                    rightControlY = leftControlY = yCur;
-                                    rightControlX = (xCur + nextPoint.x) / 2;
-                                    leftControlX = (xCur + prevPoint.x) / 2
-                                } else {
-                                    rightControlX = leftControlX = xCur;
-                                    rightControlY = (yCur + nextPoint.y) / 2;
-                                    leftControlY = (yCur + prevPoint.y) / 2
-                                }
-                            } else {
-                                a = y2 - y1;
-                                b = x1 - x2;
-                                c = y1 * x2 - x1 * y2;
-                                if (!rotated) {
-                                    xc = xCur;
-                                    yc = -1 * (a * xc + c) / b;
-                                    shift = yc - yCur || 0;
-                                    y1 -= shift;
-                                    y2 -= shift
-                                } else {
-                                    yc = yCur;
-                                    xc = -1 * (b * yc + c) / a;
-                                    shift = xc - xCur || 0;
-                                    x1 -= shift;
-                                    x2 -= shift
-                                }
-                                rightControlX = (xCur + lambda * x2) / (1 + lambda);
-                                rightControlY = (yCur + lambda * y2) / (1 + lambda);
-                                leftControlX = (xCur + lambda * x1) / (1 + lambda);
-                                leftControlY = (yCur + lambda * y1) / (1 + lambda)
-                            }
-                            if (!rotated) {
-                                leftControlY = checkExtremum(prevPoint.y, yCur, leftControlY);
-                                rightControlY = checkExtremum(nextPoint.y, yCur, rightControlY)
-                            } else {
-                                leftControlX = checkExtremum(prevPoint.x, xCur, leftControlX);
-                                rightControlX = checkExtremum(nextPoint.x, xCur, rightControlX)
-                            }
-                            leftPoint = clonePoint(curPoint, leftControlX, leftControlY);
-                            rightPoint = clonePoint(curPoint, rightControlX, rightControlY);
-                            bezierPoints.push(leftPoint, curPoint, rightPoint)
-                        } else {
+                    pointsCopy.forEach(function(curPoint, i) {
+                        var leftControlX, leftControlY, rightControlX, rightControlY, xCur, yCur, x1, x2, y1, y2, curIsExtremum, leftPoint, rightPoint, a, b, c, xc, yc, shift, prevPoint = pointsCopy[i - 1],
+                            nextPoint = pointsCopy[i + 1],
+                            lambda = .5;
+                        if (!i || i === pointsCopy.length - 1) {
                             bezierPoints.push(curPoint, curPoint);
                             return
                         }
+                        xCur = curPoint.x;
+                        yCur = curPoint.y;
+                        x1 = prevPoint.x;
+                        x2 = nextPoint.x;
+                        y1 = prevPoint.y;
+                        y2 = nextPoint.y;
+                        curIsExtremum = !!(!rotated && (yCur <= prevPoint.y && yCur <= nextPoint.y || yCur >= prevPoint.y && yCur >= nextPoint.y) || rotated && (xCur <= prevPoint.x && xCur <= nextPoint.x || xCur >= prevPoint.x && xCur >= nextPoint.x));
+                        if (curIsExtremum) {
+                            if (!rotated) {
+                                rightControlY = leftControlY = yCur;
+                                rightControlX = (xCur + nextPoint.x) / 2;
+                                leftControlX = (xCur + prevPoint.x) / 2
+                            } else {
+                                rightControlX = leftControlX = xCur;
+                                rightControlY = (yCur + nextPoint.y) / 2;
+                                leftControlY = (yCur + prevPoint.y) / 2
+                            }
+                        } else {
+                            a = y2 - y1;
+                            b = x1 - x2;
+                            c = y1 * x2 - x1 * y2;
+                            if (!rotated) {
+                                if (!b) {
+                                    bezierPoints.push(curPoint, curPoint, curPoint);
+                                    return
+                                }
+                                xc = xCur;
+                                yc = -1 * (a * xc + c) / b;
+                                shift = yc - yCur;
+                                y1 -= shift;
+                                y2 -= shift
+                            } else {
+                                if (!a) {
+                                    bezierPoints.push(curPoint, curPoint, curPoint);
+                                    return
+                                }
+                                yc = yCur;
+                                xc = -1 * (b * yc + c) / a;
+                                shift = xc - xCur;
+                                x1 -= shift;
+                                x2 -= shift
+                            }
+                            rightControlX = (xCur + lambda * x2) / (1 + lambda);
+                            rightControlY = (yCur + lambda * y2) / (1 + lambda);
+                            leftControlX = (xCur + lambda * x1) / (1 + lambda);
+                            leftControlY = (yCur + lambda * y1) / (1 + lambda)
+                        }
+                        if (!rotated) {
+                            leftControlY = checkExtremum(prevPoint.y, yCur, leftControlY);
+                            rightControlY = checkExtremum(nextPoint.y, yCur, rightControlY)
+                        } else {
+                            leftControlX = checkExtremum(prevPoint.x, xCur, leftControlX);
+                            rightControlX = checkExtremum(nextPoint.x, xCur, rightControlX)
+                        }
+                        leftPoint = clonePoint(curPoint, leftControlX, leftControlY);
+                        rightPoint = clonePoint(curPoint, rightControlX, rightControlY);
+                        bezierPoints.push(leftPoint, curPoint, rightPoint)
                     })
                 } else {
                     bezierPoints.push(pointsCopy[0])
@@ -40913,12 +41370,12 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
-            lineSeries = __webpack_require__( /*! ./line_series */ 480),
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 480),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479).chart,
+            lineSeries = __webpack_require__( /*! ./line_series */ 481),
             chartLineSeries = lineSeries.chart.line,
             polarLineSeries = lineSeries.polar.line,
-            _map = __webpack_require__( /*! ../core/utils */ 448).map,
+            _map = __webpack_require__( /*! ../core/utils */ 449).map,
             _extend = $.extend;
         exports.chart = {};
         exports.polar = {};
@@ -41090,8 +41547,8 @@
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478),
-            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart.area,
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479),
+            areaSeries = __webpack_require__( /*! ./area_series */ 482).chart.area,
             chartSeries = scatterSeries.chart,
             polarSeries = scatterSeries.polar,
             _extend = $.extend,
@@ -41262,12 +41719,12 @@
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _extend = $.extend,
             _isDefined = commonUtils.isDefined,
-            _map = __webpack_require__( /*! ../core/utils */ 448).map,
+            _map = __webpack_require__( /*! ../core/utils */ 449).map,
             _noop = $.noop,
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
-            barSeries = __webpack_require__( /*! ./bar_series */ 482).chart.bar,
-            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart.area;
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 480),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479).chart,
+            barSeries = __webpack_require__( /*! ./bar_series */ 483).chart.bar,
+            areaSeries = __webpack_require__( /*! ./area_series */ 482).chart.area;
         exports.chart = {};
         var baseRangeSeries = {
             _beginUpdateData: _noop,
@@ -41400,10 +41857,10 @@
       \****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            lineSeries = __webpack_require__( /*! ./line_series */ 480).chart.line,
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
-            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart.area,
-            barSeries = __webpack_require__( /*! ./bar_series */ 482),
+            lineSeries = __webpack_require__( /*! ./line_series */ 481).chart.line,
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479).chart,
+            areaSeries = __webpack_require__( /*! ./area_series */ 482).chart.area,
+            barSeries = __webpack_require__( /*! ./bar_series */ 483),
             chartBarSeries = barSeries.chart.bar,
             polarBarSeries = barSeries.polar.bar,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
@@ -41501,10 +41958,10 @@
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             chartScatterSeries = scatterSeries.chart,
-            barSeries = __webpack_require__( /*! ./bar_series */ 482).chart.bar,
+            barSeries = __webpack_require__( /*! ./bar_series */ 483).chart.bar,
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
@@ -41775,12 +42232,12 @@
       \*******************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            scatterSeries = __webpack_require__( /*! ./scatter_series */ 478).chart,
-            barSeries = __webpack_require__( /*! ./bar_series */ 482).chart.bar,
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
+            scatterSeries = __webpack_require__( /*! ./scatter_series */ 479).chart,
+            barSeries = __webpack_require__( /*! ./bar_series */ 483).chart.bar,
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 480),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
@@ -42022,14 +42479,14 @@
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            areaSeries = __webpack_require__( /*! ./area_series */ 481).chart,
+            areaSeries = __webpack_require__( /*! ./area_series */ 482).chart,
             chartAreaSeries = areaSeries.area,
-            barSeries = __webpack_require__( /*! ./bar_series */ 482),
+            barSeries = __webpack_require__( /*! ./bar_series */ 483),
             chartBarSeries = barSeries.chart.bar,
-            lineSeries = __webpack_require__( /*! ./line_series */ 480).chart,
-            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 479),
+            lineSeries = __webpack_require__( /*! ./line_series */ 481).chart,
+            rangeCalculator = __webpack_require__( /*! ./helpers/range_data_calculator */ 480),
             _extend = $.extend,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
             _noop = $.noop,
             baseStackedSeries = {
@@ -42220,10 +42677,10 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager,
+            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 490).BaseThemeManager,
             _isString = commonUtils.isString,
             _isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             FONT = "font",
             COMMON_AXIS_SETTINGS = "commonAxisSettings",
             PIE_FONT_FIELDS = ["legend." + FONT, "title." + FONT, "title.subtitle." + FONT, "tooltip." + FONT, "loadingIndicator." + FONT, "export." + FONT, "commonSeriesSettings.label." + FONT],
@@ -42409,19 +42866,19 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             Class = __webpack_require__( /*! ../../core/class */ 22),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            paletteModule = __webpack_require__( /*! ../palette */ 451),
+            paletteModule = __webpack_require__( /*! ../palette */ 452),
             _isString = commonUtils.isString,
-            _parseScalar = __webpack_require__( /*! ./utils */ 448).parseScalar,
-            themeModule = __webpack_require__( /*! ../themes */ 447),
+            _parseScalar = __webpack_require__( /*! ./utils */ 449).parseScalar,
+            themeModule = __webpack_require__( /*! ../themes */ 448),
             _findTheme = themeModule.findTheme,
             _addCacheItem = themeModule.addCacheItem,
             _removeCacheItem = themeModule.removeCacheItem,
             _extend = $.extend,
             _each = $.each;
-        __webpack_require__( /*! ./default */ 490);
-        __webpack_require__( /*! ./ios */ 491);
-        __webpack_require__( /*! ./android */ 492);
-        __webpack_require__( /*! ./win */ 493);
+        __webpack_require__( /*! ./default */ 491);
+        __webpack_require__( /*! ./ios */ 492);
+        __webpack_require__( /*! ./android */ 493);
+        __webpack_require__( /*! ./win */ 494);
 
         function getThemePart(theme, path) {
             var _theme = theme;
@@ -42521,7 +42978,7 @@
             CENTER = "center",
             INSIDE = "inside",
             OUTSIDE = "outside",
-            themeModule = __webpack_require__( /*! ../themes */ 447),
+            themeModule = __webpack_require__( /*! ../themes */ 448),
             registerTheme = themeModule.registerTheme,
             registerThemeAlias = themeModule.registerThemeAlias;
         registerTheme({
@@ -44406,7 +44863,7 @@
       !*** ./js/viz/core/ios.js ***!
       \****************************/
     function(module, exports, __webpack_require__) {
-        var themeModule = __webpack_require__( /*! ../themes */ 447),
+        var themeModule = __webpack_require__( /*! ../themes */ 448),
             IOS7_DEFAULT = "ios7.default",
             SECONDARY_TEXT_COLOR = "#767676",
             BORDER_COLOR = "#d3d3d3",
@@ -44464,7 +44921,7 @@
       \********************************/
     function(module, exports, __webpack_require__) {
         var ANDROID5_LIGHT = "android5.light",
-            themeModule = __webpack_require__( /*! ../themes */ 447),
+            themeModule = __webpack_require__( /*! ../themes */ 448),
             registerThemeAlias = themeModule.registerThemeAlias,
             SECONDARY_TEXT_COLOR = "#767676",
             BORDER_COLOR = "#e8e8e8",
@@ -44510,7 +44967,7 @@
       !*** ./js/viz/core/win.js ***!
       \****************************/
     function(module, exports, __webpack_require__) {
-        var themeModule = __webpack_require__( /*! ../themes */ 447),
+        var themeModule = __webpack_require__( /*! ../themes */ 448),
             registerTheme = themeModule.registerTheme,
             registerThemeSchemeAlias = themeModule.registerThemeSchemeAlias,
             BLACK = "#000000",
@@ -44626,7 +45083,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 461),
+            layoutElementModule = __webpack_require__( /*! ../core/layout_element */ 462),
             _isNumber = commonUtils.isNumber,
             _min = Math.min,
             _max = Math.max,
@@ -44634,7 +45091,7 @@
             _sqrt = Math.sqrt,
             _each = $.each,
             _extend = $.extend,
-            consts = __webpack_require__( /*! ../components/consts */ 466),
+            consts = __webpack_require__( /*! ../components/consts */ 467),
             pieLabelIndent = consts.pieLabelIndent,
             pieLabelSpacing = consts.pieLabelSpacing;
 
@@ -45133,17 +45590,17 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             clickEvent = __webpack_require__( /*! ../../events/click */ 71),
-            consts = __webpack_require__( /*! ../components/consts */ 466),
+            consts = __webpack_require__( /*! ../components/consts */ 467),
             eventsConsts = consts.events,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             pointerEvents = __webpack_require__( /*! ../../events/pointer */ 72),
             wheelEvent = __webpack_require__( /*! ../../events/core/wheel */ 81),
-            holdEvent = __webpack_require__( /*! ../../events/hold */ 159),
+            holdEvent = __webpack_require__( /*! ../../events/hold */ 160),
             addNamespace = __webpack_require__( /*! ../../events/utils */ 67).addNamespace,
             devices = __webpack_require__( /*! ../../core/devices */ 48),
             isDefined = commonUtils.isDefined,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             _floor = Math.floor,
             _each = $.each,
             _noop = $.noop,
@@ -45907,7 +46364,7 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            LayoutElementModule = __webpack_require__( /*! ../core/layout_element */ 461),
+            LayoutElementModule = __webpack_require__( /*! ../core/layout_element */ 462),
             _extend = $.extend,
             _each = $.each;
 
@@ -45990,9 +46447,9 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             _Number = Number,
             _isString = __webpack_require__( /*! ../../core/utils/common */ 12).isString,
-            _patchFontOptions = __webpack_require__( /*! ./utils */ 448).patchFontOptions,
-            parseHorizontalAlignment = __webpack_require__( /*! ./utils */ 448).enumParser(["left", "center", "right"]),
-            parseVerticalAlignment = __webpack_require__( /*! ./utils */ 448).enumParser(["top", "bottom"]),
+            _patchFontOptions = __webpack_require__( /*! ./utils */ 449).patchFontOptions,
+            parseHorizontalAlignment = __webpack_require__( /*! ./utils */ 449).enumParser(["left", "center", "right"]),
+            parseVerticalAlignment = __webpack_require__( /*! ./utils */ 449).enumParser(["top", "bottom"]),
             DEFAULT_MARGIN = 10,
             DEFAULT_GAP = 3;
 
@@ -46043,7 +46500,7 @@
             });
             this._hasText = false
         }
-        __webpack_require__( /*! jquery */ 9).extend(Title.prototype, __webpack_require__( /*! ./layout_element */ 461).LayoutElement.prototype, {
+        __webpack_require__( /*! jquery */ 9).extend(Title.prototype, __webpack_require__( /*! ./layout_element */ 462).LayoutElement.prototype, {
             dispose: function() {
                 var that = this;
                 that._group.linkRemove();
@@ -46277,11 +46734,11 @@
         var doc = document,
             win = window,
             $ = __webpack_require__( /*! jquery */ 9),
-            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 457),
+            rendererModule = __webpack_require__( /*! ./renderers/renderer */ 458),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             HALF_ARROW_WIDTH = 10,
-            vizUtils = __webpack_require__( /*! ./utils */ 448),
-            _format = __webpack_require__( /*! ./format */ 469),
+            vizUtils = __webpack_require__( /*! ./utils */ 449),
+            _format = __webpack_require__( /*! ./format */ 470),
             mathCeil = Math.ceil;
 
         function hideElement($element) {
@@ -46316,7 +46773,6 @@
             that._wrapper = $("<div>").css({
                 position: "absolute",
                 overflow: "visible",
-                width: "1px",
                 height: "1px",
                 "pointer-events": "none"
             }).addClass(params.cssClass);
@@ -46548,7 +47004,8 @@
                 }).offset();
                 that._wrapper.css({
                     left: coords.x - offset.left,
-                    top: coords.y - offset.top
+                    top: coords.y - offset.top,
+                    width: contentSize.fullWidth
                 })
             },
             formatValue: function(value, _specialFormat) {
@@ -46769,7 +47226,7 @@
       !*** ./js/viz/core/loading_indicator.js ***!
       \******************************************/
     function(module, exports, __webpack_require__) {
-        var _patchFontOptions = __webpack_require__( /*! ./utils */ 448).patchFontOptions,
+        var _patchFontOptions = __webpack_require__( /*! ./utils */ 449).patchFontOptions,
             STATE_HIDDEN = 0,
             STATE_SHOWN = 1,
             ANIMATION_EASING = "linear",
@@ -47018,12 +47475,12 @@
       \********************************************/
     function(module, exports, __webpack_require__) {
         var _Translator2d, $ = __webpack_require__( /*! jquery */ 9),
-            numericTranslator = __webpack_require__( /*! ./numeric_translator */ 502),
-            categoryTranslator = __webpack_require__( /*! ./category_translator */ 503),
-            intervalTranslator = __webpack_require__( /*! ./interval_translator */ 504),
-            datetimeTranslator = __webpack_require__( /*! ./datetime_translator */ 505),
-            logarithmicTranslator = __webpack_require__( /*! ./logarithmic_translator */ 506),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            numericTranslator = __webpack_require__( /*! ./numeric_translator */ 503),
+            categoryTranslator = __webpack_require__( /*! ./category_translator */ 504),
+            intervalTranslator = __webpack_require__( /*! ./interval_translator */ 505),
+            datetimeTranslator = __webpack_require__( /*! ./datetime_translator */ 506),
+            logarithmicTranslator = __webpack_require__( /*! ./logarithmic_translator */ 507),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             getLog = vizUtils.getLog,
             getPower = vizUtils.getPower,
@@ -47520,7 +47977,7 @@
       !*** ./js/viz/translators/interval_translator.js ***!
       \***************************************************/
     function(module, exports, __webpack_require__) {
-        var adjustValue = __webpack_require__( /*! ../core/utils */ 448).adjustValue,
+        var adjustValue = __webpack_require__( /*! ../core/utils */ 449).adjustValue,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             isNumber = commonUtils.isNumber,
             isDefined = commonUtils.isDefined,
@@ -47655,7 +48112,7 @@
       !*** ./js/viz/translators/datetime_translator.js ***!
       \***************************************************/
     function(module, exports, __webpack_require__) {
-        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 502);
+        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 503);
         module.exports = {
             translate: numericTranslator.translate,
             untranslate: function() {
@@ -47685,8 +48142,8 @@
       !*** ./js/viz/translators/logarithmic_translator.js ***!
       \******************************************************/
     function(module, exports, __webpack_require__) {
-        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 502),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+        var numericTranslator = __webpack_require__( /*! ./numeric_translator */ 503),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             raiseTo = vizUtils.raiseTo,
             getLog = vizUtils.getLog;
@@ -47740,7 +48197,7 @@
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isDate = commonUtils.isDate,
-            unique = __webpack_require__( /*! ../core/utils */ 448).unique,
+            unique = __webpack_require__( /*! ../core/utils */ 449).unique,
             minSelector = "min",
             maxSelector = "max",
             minVisibleSelector = "minVisible",
@@ -47886,9 +48343,9 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             debug = __webpack_require__( /*! ../../core/utils/console */ 10).debug,
-            Range = __webpack_require__( /*! ../translators/range */ 507).Range,
+            Range = __webpack_require__( /*! ../translators/range */ 508).Range,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _adjustValue = vizUtils.adjustValue,
             _applyPrecisionByMinDelta = vizUtils.applyPrecisionByMinDelta,
             _isDefined = commonUtils.isDefined,
@@ -47897,7 +48354,7 @@
             _max = _math.max,
             _abs = _math.abs,
             _each = $.each,
-            _map = __webpack_require__( /*! ../core/utils */ 448).map,
+            _map = __webpack_require__( /*! ../core/utils */ 449).map,
             MIN_RANGE_FOR_ADJUST_BOUNDS = .1;
         var getValueAxesPerPanes = function(valueAxes) {
             var result = {};
@@ -48229,18 +48686,18 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
+            rangeModule = __webpack_require__( /*! ../translators/range */ 508),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             DEFAULT_AXIS_NAME = "defaultAxisName",
-            axisModule = __webpack_require__( /*! ../axes/base_axis */ 510),
-            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 519),
-            BaseChart = __webpack_require__( /*! ./base_chart */ 453).BaseChart,
+            axisModule = __webpack_require__( /*! ../axes/base_axis */ 511),
+            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 520),
+            BaseChart = __webpack_require__( /*! ./base_chart */ 454).BaseChart,
             _isArray = commonUtils.isArray,
             _isDefined = commonUtils.isDefined,
             _each = $.each,
             _noop = $.noop,
             _extend = $.extend,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _map = vizUtils.map,
             MIN = "min",
             MAX = "max";
@@ -48661,11 +49118,11 @@
       \**********************************/
     function(module, exports, __webpack_require__) {
         var Axis, $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            constants = __webpack_require__( /*! ./axes_constants */ 511),
-            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 463),
-            tickManagerModule = __webpack_require__( /*! ./base_tick_manager */ 512),
+            constants = __webpack_require__( /*! ./axes_constants */ 512),
+            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 464),
+            tickManagerModule = __webpack_require__( /*! ./base_tick_manager */ 513),
             formatLabel = constants.formatLabel,
             convertTicksToValues = constants.convertTicksToValues,
             convertValuesToTicks = constants.convertValuesToTicks,
@@ -49442,10 +49899,10 @@
                 var axisTypeMethods, that = this;
                 switch (axisType) {
                     case "xyAxes":
-                        axisTypeMethods = __webpack_require__( /*! ./xy_axes */ 517);
+                        axisTypeMethods = __webpack_require__( /*! ./xy_axes */ 518);
                         break;
                     case "polarAxes":
-                        axisTypeMethods = __webpack_require__( /*! ./polar_axes */ 518)
+                        axisTypeMethods = __webpack_require__( /*! ./polar_axes */ 519)
                 }
                 _each(axisTypeMethods[drawingType], function(methodName, method) {
                     that[methodName] = method
@@ -49794,8 +50251,8 @@
       \***************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            _map = __webpack_require__( /*! ../core/utils */ 448).map,
-            _format = __webpack_require__( /*! ../core/format */ 469);
+            _map = __webpack_require__( /*! ../core/utils */ 449).map,
+            _format = __webpack_require__( /*! ../core/format */ 470);
 
         function getFormatObject(value, options, axisMinMax, point) {
             var formatObject = {
@@ -49859,17 +50316,17 @@
       \******************************************/
     function(module, exports, __webpack_require__) {
         var TickManager, $ = __webpack_require__( /*! jquery */ 9),
-            coreTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 513),
-            dateTimeManager = __webpack_require__( /*! ./datetime_tick_manager */ 514),
-            overlappingMethods = __webpack_require__( /*! ./tick_overlapping_manager */ 515),
-            logarithmicMethods = __webpack_require__( /*! ./logarithmic_tick_manager */ 516),
+            coreTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 514),
+            dateTimeManager = __webpack_require__( /*! ./datetime_tick_manager */ 515),
+            overlappingMethods = __webpack_require__( /*! ./tick_overlapping_manager */ 516),
+            logarithmicMethods = __webpack_require__( /*! ./logarithmic_tick_manager */ 517),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             formatHelper = __webpack_require__( /*! ../../format_helper */ 62),
             _isDefined = commonUtils.isDefined,
             _isNumber = commonUtils.isNumber,
             _addInterval = dateUtils.addInterval,
-            utils = __webpack_require__( /*! ../core/utils */ 448),
+            utils = __webpack_require__( /*! ../core/utils */ 449),
             _adjustValue = utils.adjustValue,
             _map = utils.map,
             _each = $.each,
@@ -50417,7 +50874,7 @@
       \*********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _adjustValue = vizUtils.adjustValue,
@@ -50536,7 +50993,7 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 513).continuous,
+            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 514).continuous,
             _isDefined = commonUtils.isDefined,
             _convertDateUnitToMilliseconds = dateUtils.convertDateUnitToMilliseconds,
             _correctDateWithUnitBeginning = dateUtils.correctDateWithUnitBeginning,
@@ -50682,7 +51139,7 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            numericTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 513),
+            numericTickManager = __webpack_require__( /*! ./numeric_tick_manager */ 514),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _addInterval = __webpack_require__( /*! ../../core/utils/date */ 59).addInterval,
             _isDefined = commonUtils.isDefined,
@@ -51012,13 +51469,13 @@
       \*************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _addInterval = dateUtils.addInterval,
             _adjustValue = vizUtils.adjustValue,
-            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 513).continuous,
+            tickManagerContinuous = __webpack_require__( /*! ./numeric_tick_manager */ 514).continuous,
             _getLog = vizUtils.getLog,
             _raiseTo = vizUtils.raiseTo,
             _math = Math,
@@ -51104,9 +51561,9 @@
             getNextDateUnit = dateUtils.getNextDateUnit,
             correctDateWithUnitBeginning = dateUtils.correctDateWithUnitBeginning,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _isDefined = commonUtils.isDefined,
-            constants = __webpack_require__( /*! ./axes_constants */ 511),
+            constants = __webpack_require__( /*! ./axes_constants */ 512),
             _extend = $.extend,
             CANVAS_POSITION_PREFIX = constants.canvasPositionPrefix,
             TOP = constants.top,
@@ -51731,10 +52188,10 @@
       \***********************************/
     function(module, exports, __webpack_require__) {
         var circularAxes, polarAxes, $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            constants = __webpack_require__( /*! ./axes_constants */ 511),
-            xyAxesLinear = __webpack_require__( /*! ./xy_axes */ 517).linear,
+            constants = __webpack_require__( /*! ./axes_constants */ 512),
+            xyAxesLinear = __webpack_require__( /*! ./xy_axes */ 518).linear,
             _map = vizUtils.map,
             _math = Math,
             _abs = _math.abs,
@@ -52204,7 +52661,7 @@
             _pow = _math.pow,
             _each = $.each,
             _noop = $.noop,
-            vizUtils = __webpack_require__( /*! ./utils */ 448),
+            vizUtils = __webpack_require__( /*! ./utils */ 449),
             _normalizeEnum = vizUtils.normalizeEnum;
 
         function getStacksWithArgument(stackKeepers, argument) {
@@ -52214,7 +52671,7 @@
                     var i, points = singleSeries.getPointsByArg(argument),
                         pointsLength = points.length;
                     for (i = 0; i < pointsLength; ++i) {
-                        if (points[i].value) {
+                        if (points[i].hasValue()) {
                             stacksWithArgument.push(stackName);
                             return false
                         }
@@ -52622,7 +53079,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             MIN_SCROLL_BAR_SIZE = 2,
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 502),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             pointerEvents = __webpack_require__( /*! ../../events/pointer */ 72),
             isDefined = commonUtils.isDefined,
@@ -52823,7 +53280,7 @@
             mathMin = math.min,
             mathMax = math.max,
             mathFloor = math.floor,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             HORIZONTAL = "horizontal",
             VERTICAL = "vertical",
             LABEL_BACKGROUND_PADDING_X = 8,
@@ -53265,21 +53722,21 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             errors = __webpack_require__( /*! ../core/errors */ 7),
-            seriesConsts = __webpack_require__( /*! ./components/consts */ 466),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
+            seriesConsts = __webpack_require__( /*! ./components/consts */ 467),
+            vizUtils = __webpack_require__( /*! ./core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../core/utils/common */ 12),
-            rangeModule = __webpack_require__( /*! ./translators/range */ 507),
+            rangeModule = __webpack_require__( /*! ./translators/range */ 508),
             registerComponent = __webpack_require__( /*! ../core/component_registrator */ 52),
-            baseChartModule = __webpack_require__( /*! ./chart_components/base_chart */ 453),
+            baseChartModule = __webpack_require__( /*! ./chart_components/base_chart */ 454),
             BaseChart = baseChartModule.BaseChart,
             overlapping = baseChartModule.overlapping,
             seriesSpacing = seriesConsts.pieSeriesSpacing,
-            translator1DModule = __webpack_require__( /*! ./translators/translator1d */ 524),
+            translator1DModule = __webpack_require__( /*! ./translators/translator1d */ 525),
             OPTIONS_FOR_REFRESH_SERIES = ["startAngle", "innerRadius", "segmentsDirection", "type"],
             _extend = $.extend,
             _each = $.each,
             _noop = $.noop,
-            _getVerticallyShiftedAngularCoords = __webpack_require__( /*! ./core/utils */ 448).getVerticallyShiftedAngularCoords,
+            _getVerticallyShiftedAngularCoords = __webpack_require__( /*! ./core/utils */ 449).getVerticallyShiftedAngularCoords,
             states = seriesConsts.states,
             NORMAL_STATE = states.normalMark,
             LEGEND_ACTIONS = [states.resetItem, states.applyHover, states.applySelected, states.applySelected];
@@ -53633,10 +54090,10 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             registerComponent = __webpack_require__( /*! ../core/component_registrator */ 52),
-            vizUtils = __webpack_require__( /*! ./core/utils */ 448),
-            polarTranslatorModule = __webpack_require__( /*! ./translators/polar_translator */ 526),
-            rangeModule = __webpack_require__( /*! ./translators/range */ 507),
-            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 509).AdvancedChart,
+            vizUtils = __webpack_require__( /*! ./core/utils */ 449),
+            polarTranslatorModule = __webpack_require__( /*! ./translators/polar_translator */ 527),
+            rangeModule = __webpack_require__( /*! ./translators/range */ 508),
+            AdvancedChart = __webpack_require__( /*! ./chart_components/advanced_chart */ 510).AdvancedChart,
             _noop = $.noop,
             DEFAULT_PANE_NAME = "default";
         var dxPolarChart = AdvancedChart.inherit({
@@ -53793,9 +54250,9 @@
       \************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            translator2DModule = __webpack_require__( /*! ./translator2d */ 501),
+            translator2DModule = __webpack_require__( /*! ./translator2d */ 502),
             SHIFT_ANGLE = 90,
             _round = Math.round;
 
@@ -53939,7 +54396,7 @@
       !*** ./js/viz/linear_gauge.js ***!
       \********************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./gauges/linear_gauge */ 528)
+        module.exports = __webpack_require__( /*! ./gauges/linear_gauge */ 529)
     },
     /*!***************************************!*\
       !*** ./js/viz/gauges/linear_gauge.js ***!
@@ -53952,14 +54409,14 @@
             _each = $.each,
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 529).dxBaseGauge,
-            dxGauge = __webpack_require__( /*! ./common */ 531).dxGauge,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
-            linearIndicatorsModule = __webpack_require__( /*! ./linear_indicators */ 532),
-            createIndicatorCreator = __webpack_require__( /*! ./common */ 531).createIndicatorCreator,
-            LinearRangeContainer = __webpack_require__( /*! ./linear_range_container */ 534),
-            ThemeManager = __webpack_require__( /*! ./theme_manager */ 536);
+            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 530).dxBaseGauge,
+            dxGauge = __webpack_require__( /*! ./common */ 532).dxGauge,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 502),
+            linearIndicatorsModule = __webpack_require__( /*! ./linear_indicators */ 533),
+            createIndicatorCreator = __webpack_require__( /*! ./common */ 532).createIndicatorCreator,
+            LinearRangeContainer = __webpack_require__( /*! ./linear_range_container */ 535),
+            ThemeManager = __webpack_require__( /*! ./theme_manager */ 537);
         var dxLinearGauge = dxGauge.inherit({
             _rootClass: "dxg-linear-gauge",
             _factoryMethods: {
@@ -54215,13 +54672,13 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             _Number = Number,
-            _getAppropriateFormat = __webpack_require__( /*! ../core/utils */ 448).getAppropriateFormat,
-            translator1DModule = __webpack_require__( /*! ../translators/translator1d */ 524),
+            _getAppropriateFormat = __webpack_require__( /*! ../core/utils */ 449).getAppropriateFormat,
+            translator1DModule = __webpack_require__( /*! ../translators/translator1d */ 525),
             _extend = $.extend,
-            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 454),
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 455),
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            Tracker = __webpack_require__( /*! ./tracker */ 530),
+            Tracker = __webpack_require__( /*! ./tracker */ 531),
             _isString = commonUtils.isString;
         var dxBaseGauge = BaseWidget.inherit({
             _rootClassPrefix: "dxg",
@@ -54476,7 +54933,7 @@
             }
         });
         exports.dxBaseGauge = dxBaseGauge;
-        var _format = __webpack_require__( /*! ../core/format */ 469);
+        var _format = __webpack_require__( /*! ../core/format */ 470);
         var formatValue = function(value, options, extra) {
             options = options || {};
             var formatObject, text = _format(value, options);
@@ -54509,10 +54966,10 @@
             }
             return true
         }
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
-        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/export */ 451).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/title */ 498).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/tooltip */ 499).plugin);
+        dxBaseGauge.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 500).plugin);
         var _setTooltipOptions = dxBaseGauge.prototype._setTooltipOptions;
         dxBaseGauge.prototype._setTooltipOptions = function() {
             _setTooltipOptions.apply(this, arguments);
@@ -54752,16 +55209,16 @@
       \*********************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 529).dxBaseGauge,
+            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 530).dxBaseGauge,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
             _isDefined = commonUtils.isDefined,
             _isArray = commonUtils.isArray,
             _isNumber = commonUtils.isNumber,
-            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
-            axisModule = __webpack_require__( /*! ../axes/base_axis */ 510),
-            _map = __webpack_require__( /*! ../core/utils */ 448).map,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
-            _compareArrays = __webpack_require__( /*! ./base_gauge */ 529).compareArrays,
+            rangeModule = __webpack_require__( /*! ../translators/range */ 508),
+            axisModule = __webpack_require__( /*! ../axes/base_axis */ 511),
+            _map = __webpack_require__( /*! ../core/utils */ 449).map,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
+            _compareArrays = __webpack_require__( /*! ./base_gauge */ 530).compareArrays,
             _isFinite = isFinite,
             _Number = Number,
             _min = Math.min,
@@ -55390,12 +55847,12 @@
       !*** ./js/viz/gauges/linear_indicators.js ***!
       \********************************************/
     function(module, exports, __webpack_require__) {
-        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 533),
+        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 534),
             BaseIndicator = baseIndicatorsModule.BaseIndicator,
             BaseTextCloudMarker = baseIndicatorsModule.BaseTextCloudMarker,
             BaseRangeBar = baseIndicatorsModule.BaseRangeBar,
             _Number = Number,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum;
         var SimpleIndicator = BaseIndicator.inherit({
             _move: function() {
                 var that = this,
@@ -55904,10 +56361,10 @@
             _isFinite = isFinite,
             _Number = Number,
             _round = Math.round,
-            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 529),
+            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 530),
             _formatValue = baseGaugeModule.formatValue,
             _getSampleText = baseGaugeModule.getSampleText,
-            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions,
+            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 449).patchFontOptions,
             Class = __webpack_require__( /*! ../../core/class */ 22);
         var BaseElement = Class.inherit({
             ctor: function(parameters) {
@@ -56321,10 +56778,10 @@
       !*** ./js/viz/gauges/linear_range_container.js ***!
       \*************************************************/
     function(module, exports, __webpack_require__) {
-        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 535),
+        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 536),
             _Number = Number,
             _max = Math.max,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum;
         var LinearRangeContainer = BaseRangeContainer.inherit({
             _processOptions: function() {
                 var that = this;
@@ -56392,7 +56849,7 @@
       \***********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            BaseElement = __webpack_require__( /*! ./base_indicators */ 533).BaseElement,
+            BaseElement = __webpack_require__( /*! ./base_indicators */ 534).BaseElement,
             _Number = Number,
             _abs = Math.abs,
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
@@ -56624,7 +57081,7 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             _extend = $.extend,
-            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager;
+            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 490).BaseThemeManager;
         var ThemeManager = BaseThemeManager.inherit({
             _themeSection: "gauge",
             _fontFields: ["scale.label.font", "valueIndicators.rangebar.text.font", "valueIndicators.textcloud.text.font", "title.font", "title.subtitle.font", "tooltip.font", "indicator.text.font", "loadingIndicator.font", "export.font"],
@@ -56643,7 +57100,7 @@
       !*** ./js/viz/circular_gauge.js ***!
       \**********************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./gauges/circular_gauge */ 538)
+        module.exports = __webpack_require__( /*! ./gauges/circular_gauge */ 539)
     },
     /*!*****************************************!*\
       !*** ./js/viz/gauges/circular_gauge.js ***!
@@ -56653,16 +57110,16 @@
             _isFinite = isFinite,
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
-            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 529).dxBaseGauge,
-            dxGauge = __webpack_require__( /*! ./common */ 531).dxGauge,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            dxBaseGauge = __webpack_require__( /*! ./base_gauge */ 530).dxBaseGauge,
+            dxGauge = __webpack_require__( /*! ./common */ 532).dxGauge,
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _normalizeAngle = vizUtils.normalizeAngle,
             _getCosAndSin = vizUtils.getCosAndSin,
-            polarTranslatorModule = __webpack_require__( /*! ../translators/polar_translator */ 526),
-            circularIndicatorsModule = __webpack_require__( /*! ./circular_indicators */ 539),
-            createIndicatorCreator = __webpack_require__( /*! ./common */ 531).createIndicatorCreator,
-            CircularRangeContainer = __webpack_require__( /*! ./circular_range_container */ 540),
-            ThemeManager = __webpack_require__( /*! ./theme_manager */ 536),
+            polarTranslatorModule = __webpack_require__( /*! ../translators/polar_translator */ 527),
+            circularIndicatorsModule = __webpack_require__( /*! ./circular_indicators */ 540),
+            createIndicatorCreator = __webpack_require__( /*! ./common */ 532).createIndicatorCreator,
+            CircularRangeContainer = __webpack_require__( /*! ./circular_range_container */ 541),
+            ThemeManager = __webpack_require__( /*! ./theme_manager */ 537),
             _abs = Math.abs,
             _max = Math.max,
             _min = Math.min,
@@ -56935,11 +57392,11 @@
       !*** ./js/viz/gauges/circular_indicators.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
-        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 533),
+        var baseIndicatorsModule = __webpack_require__( /*! ./base_indicators */ 534),
             BaseIndicator = baseIndicatorsModule.BaseIndicator,
             BaseTextCloudMarker = baseIndicatorsModule.BaseTextCloudMarker,
             BaseRangeBar = baseIndicatorsModule.BaseRangeBar,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _Number = Number,
             _getCosAndSin = vizUtils.getCosAndSin,
             _convertAngleToRendererSpace = vizUtils.convertAngleToRendererSpace;
@@ -57330,10 +57787,10 @@
       !*** ./js/viz/gauges/circular_range_container.js ***!
       \***************************************************/
     function(module, exports, __webpack_require__) {
-        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 535),
+        var BaseRangeContainer = __webpack_require__( /*! ./base_range_container */ 536),
             _Number = Number,
             _max = Math.max,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum;
         var CircularRangeContainer = BaseRangeContainer.inherit({
             _processOptions: function() {
                 var that = this;
@@ -57376,7 +57833,7 @@
       !*** ./js/viz/bar_gauge.js ***!
       \*****************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./gauges/bar_gauge */ 542).dxBarGauge
+        module.exports = __webpack_require__( /*! ./gauges/bar_gauge */ 543).dxBarGauge
     },
     /*!************************************!*\
       !*** ./js/viz/gauges/bar_gauge.js ***!
@@ -57392,15 +57849,15 @@
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             objectUtils = __webpack_require__( /*! ../../core/utils/object */ 44),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 529),
+            baseGaugeModule = __webpack_require__( /*! ./base_gauge */ 530),
             dxBaseGauge = baseGaugeModule.dxBaseGauge,
             _getSampleText = baseGaugeModule.getSampleText,
             _formatValue = baseGaugeModule.formatValue,
             _compareArrays = baseGaugeModule.compareArrays,
-            dxCircularGauge = __webpack_require__( /*! ./circular_gauge */ 538),
-            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager,
+            dxCircularGauge = __webpack_require__( /*! ./circular_gauge */ 539),
+            BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 490).BaseThemeManager,
             _isArray = commonUtils.isArray,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _convertAngleToRendererSpace = vizUtils.convertAngleToRendererSpace,
             _getCosAndSin = vizUtils.getCosAndSin,
             _patchFontOptions = vizUtils.patchFontOptions,
@@ -57871,7 +58328,7 @@
       !*** ./js/viz/range_selector.js ***!
       \**********************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./range_selector/range_selector */ 544)
+        module.exports = __webpack_require__( /*! ./range_selector/range_selector */ 545)
     },
     /*!*************************************************!*\
       !*** ./js/viz/range_selector/range_selector.js ***!
@@ -57880,26 +58337,26 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             adjustValue = vizUtils.adjustValue,
             dateUtils = __webpack_require__( /*! ../../core/utils/date */ 59),
             addInterval = dateUtils.addInterval,
             dateToMilliseconds = dateUtils.dateToMilliseconds,
             getSequenceByInterval = dateUtils.getSequenceByInterval,
-            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
-            axisModule = __webpack_require__( /*! ../axes/base_axis */ 510),
+            rangeModule = __webpack_require__( /*! ../translators/range */ 508),
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 502),
+            axisModule = __webpack_require__( /*! ../axes/base_axis */ 511),
             patchFontOptions = vizUtils.patchFontOptions,
-            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 463),
+            parseUtils = __webpack_require__( /*! ../components/parse_utils */ 464),
             _normalizeEnum = vizUtils.normalizeEnum,
             formatHelper = __webpack_require__( /*! ../../format_helper */ 62),
-            commonModule = __webpack_require__( /*! ./common */ 545),
-            slidersControllerModule = __webpack_require__( /*! ./sliders_controller */ 546),
-            trackerModule = __webpack_require__( /*! ./tracker */ 549),
-            rangeViewModule = __webpack_require__( /*! ./range_view */ 550),
-            seriesDataSourceModule = __webpack_require__( /*! ./series_data_source */ 551),
-            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 552),
-            tickManagerModule = __webpack_require__( /*! ../axes/base_tick_manager */ 512),
+            commonModule = __webpack_require__( /*! ./common */ 546),
+            slidersControllerModule = __webpack_require__( /*! ./sliders_controller */ 547),
+            trackerModule = __webpack_require__( /*! ./tracker */ 550),
+            rangeViewModule = __webpack_require__( /*! ./range_view */ 551),
+            seriesDataSourceModule = __webpack_require__( /*! ./series_data_source */ 552),
+            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 553),
+            tickManagerModule = __webpack_require__( /*! ../axes/base_tick_manager */ 513),
             log = __webpack_require__( /*! ../../core/errors */ 7).log,
             _isDefined = commonUtils.isDefined,
             _isNumber = commonUtils.isNumber,
@@ -58378,7 +58835,7 @@
             }
             return res
         }
-        var dxRangeSelector = __webpack_require__( /*! ../core/base_widget */ 454).inherit({
+        var dxRangeSelector = __webpack_require__( /*! ../core/base_widget */ 455).inherit({
             _eventsMap: {
                 onSelectedRangeChanged: {
                     name: SELECTED_RANGE_CHANGED
@@ -58844,16 +59301,16 @@
         };
         registerComponent("dxRangeSelector", dxRangeSelector);
         module.exports = dxRangeSelector;
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin);
-        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin)
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/export */ 451).plugin);
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/title */ 498).plugin);
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 500).plugin);
+        dxRangeSelector.addPlugin(__webpack_require__( /*! ../core/data_source */ 501).plugin)
     },
     /*!*****************************************!*\
       !*** ./js/viz/range_selector/common.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var _format = __webpack_require__( /*! ../core/format */ 469),
+        var _format = __webpack_require__( /*! ../core/format */ 470),
             isFunction = __webpack_require__( /*! ../../core/utils/common */ 12).isFunction,
             HEIGHT_COMPACT_MODE = 24,
             POINTER_SIZE = 4,
@@ -58889,11 +59346,11 @@
       \*****************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            commonModule = __webpack_require__( /*! ./common */ 545),
+            commonModule = __webpack_require__( /*! ./common */ 546),
             animationSettings = commonModule.utils.animationSettings,
             emptySliderMarkerText = commonModule.consts.emptySliderMarkerText,
-            Slider = __webpack_require__( /*! ./slider */ 547),
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum;
+            Slider = __webpack_require__( /*! ./slider */ 548),
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum;
 
         function buildRectPoints(left, top, right, bottom) {
             return [left, top, right, top, right, bottom, left, bottom]
@@ -59314,10 +59771,10 @@
       !*** ./js/viz/range_selector/slider.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var commonModule = __webpack_require__( /*! ./common */ 545),
+        var commonModule = __webpack_require__( /*! ./common */ 546),
             animationSettings = commonModule.utils.animationSettings,
             formatValue = commonModule.formatValue,
-            SliderMarker = __webpack_require__( /*! ./slider_marker */ 548),
+            SliderMarker = __webpack_require__( /*! ./slider_marker */ 549),
             support = __webpack_require__( /*! ../../core/utils/support */ 56),
             SPLITTER_WIDTH = 8,
             TOUCH_SPLITTER_WIDTH = 20;
@@ -59437,9 +59894,9 @@
       !*** ./js/viz/range_selector/slider_marker.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions,
+        var patchFontOptions = __webpack_require__( /*! ../core/utils */ 449).patchFontOptions,
             SLIDER_MARKER_UPDATE_DELAY = 75,
-            POINTER_SIZE = __webpack_require__( /*! ./common */ 545).consts.pointerSize;
+            POINTER_SIZE = __webpack_require__( /*! ./common */ 546).consts.pointerSize;
 
         function SliderMarker(renderer, root, isLeftPointer) {
             var that = this;
@@ -59878,7 +60335,7 @@
       !*** ./js/viz/range_selector/range_view.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
-        var translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501);
+        var translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 502);
 
         function createTranslator(valueRange, screenRange) {
             return new translator2DModule.Translator2D(valueRange, {
@@ -59954,13 +60411,13 @@
       \*****************************************************/
     function(module, exports, __webpack_require__) {
         var SeriesDataSource, $ = __webpack_require__( /*! jquery */ 9),
-            seriesModule = __webpack_require__( /*! ../series/base_series */ 464),
-            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 519),
+            seriesModule = __webpack_require__( /*! ../series/base_series */ 465),
+            seriesFamilyModule = __webpack_require__( /*! ../core/series_family */ 520),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
-            rangeModule = __webpack_require__( /*! ../translators/range */ 507),
-            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 462),
-            ChartThemeManager = __webpack_require__( /*! ../components/chart_theme_manager */ 488).ThemeManager;
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
+            rangeModule = __webpack_require__( /*! ../translators/range */ 508),
+            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 463),
+            ChartThemeManager = __webpack_require__( /*! ../components/chart_theme_manager */ 489).ThemeManager;
         var createThemeManager = function(chartOptions) {
             return new ChartThemeManager(chartOptions, "rangeSelector.chart")
         };
@@ -60177,7 +60634,7 @@
       !*** ./js/viz/range_selector/theme_manager.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager;
+        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 490).BaseThemeManager;
         exports.ThemeManager = BaseThemeManager.inherit({
             _themeSection: "rangeSelector",
             _fontFields: ["scale.label.font", "sliderMarker.font", "loadingIndicator.font", "export.font", "title.font", "title.subtitle.font"]
@@ -60187,24 +60644,24 @@
       !*** ./js/viz/vector_map.js ***!
       \******************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./vector_map/vector_map */ 554)
+        module.exports = __webpack_require__( /*! ./vector_map/vector_map */ 555)
     },
     /*!*****************************************!*\
       !*** ./js/viz/vector_map/vector_map.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
-            projectionModule = __webpack_require__( /*! ./projection.main */ 555),
-            controlBarModule = __webpack_require__( /*! ./control_bar */ 557),
-            gestureHandlerModule = __webpack_require__( /*! ./gesture_handler */ 558),
-            trackerModule = __webpack_require__( /*! ./tracker */ 559),
-            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 560),
-            dataExchangerModule = __webpack_require__( /*! ./data_exchanger */ 561),
-            legendModule = __webpack_require__( /*! ./legend */ 562),
-            layoutModule = __webpack_require__( /*! ./layout */ 563),
-            mapLayerModule = __webpack_require__( /*! ./map_layer */ 564),
-            tooltipViewerModule = __webpack_require__( /*! ./tooltip_viewer */ 565),
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 449).parseScalar,
+            projectionModule = __webpack_require__( /*! ./projection.main */ 556),
+            controlBarModule = __webpack_require__( /*! ./control_bar */ 558),
+            gestureHandlerModule = __webpack_require__( /*! ./gesture_handler */ 559),
+            trackerModule = __webpack_require__( /*! ./tracker */ 560),
+            themeManagerModule = __webpack_require__( /*! ./theme_manager */ 561),
+            dataExchangerModule = __webpack_require__( /*! ./data_exchanger */ 562),
+            legendModule = __webpack_require__( /*! ./legend */ 563),
+            layoutModule = __webpack_require__( /*! ./layout */ 564),
+            mapLayerModule = __webpack_require__( /*! ./map_layer */ 565),
+            tooltipViewerModule = __webpack_require__( /*! ./tooltip_viewer */ 566),
             _noop = $.noop,
             _extend = $.extend,
             DEFAULT_WIDTH = 800,
@@ -60212,12 +60669,12 @@
             nextDataKey = 1,
             RE_STARTS_LAYERS = /^layers/,
             RE_ENDS_DATA_SOURCE = /\.(dataSource|data)$/;
-        __webpack_require__( /*! ./projection */ 566);
+        __webpack_require__( /*! ./projection */ 567);
 
         function generateDataKey() {
             return "vectormap-data-" + nextDataKey++
         }
-        var dxVectorMap = __webpack_require__( /*! ../core/base_widget */ 454).inherit({
+        var dxVectorMap = __webpack_require__( /*! ../core/base_widget */ 455).inherit({
             _eventsMap: {
                 onClick: {
                     name: "click"
@@ -60752,17 +61209,17 @@
         module.exports._TESTS_resetDataKey = function() {
             nextDataKey = 1
         };
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
-        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin)
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/export */ 451).plugin);
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/title */ 498).plugin);
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/tooltip */ 499).plugin);
+        dxVectorMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 500).plugin)
     },
     /*!**********************************************!*\
       !*** ./js/viz/vector_map/projection.main.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 556);
+            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 557);
         var _Number = Number,
             _min = Math.min,
             _max = Math.max,
@@ -61228,7 +61685,7 @@
             _round = _math.round,
             _floor = _math.floor,
             _sqrt = _math.sqrt,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _parseScalar = vizUtils.parseScalar,
             parseHorizontalAlignment = vizUtils.enumParser(["left", "center", "right"]),
             parseVerticalAlignment = vizUtils.enumParser(["top", "bottom"]),
@@ -61767,11 +62224,11 @@
             _abs = _math.abs,
             _sqrt = _math.sqrt,
             _round = _math.round,
-            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 556),
+            eventEmitterModule = __webpack_require__( /*! ./event_emitter */ 557),
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
             wheelEventName = __webpack_require__( /*! ../../events/core/wheel */ 81).name,
             _addNamespace = eventUtils.addNamespace,
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 449).parseScalar,
             _now = $.now,
             _NAME = "dxVectorMap",
             EVENTS = {};
@@ -62367,7 +62824,7 @@
       !*** ./js/viz/vector_map/theme_manager.js ***!
       \********************************************/
     function(module, exports, __webpack_require__) {
-        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager;
+        var BaseThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 490).BaseThemeManager;
         exports.ThemeManager = BaseThemeManager.inherit({
             _themeSection: "map",
             _fontFields: ["layer:area.label.font", "layer:marker:dot.label.font", "layer:marker:bubble.label.font", "layer:marker:pie.label.font", "layer:marker:image.label.font", "tooltip.font", "legend.font", "title.font", "title.subtitle.font", "loadingIndicator.font", "export.font"]
@@ -62421,7 +62878,7 @@
         var $ = __webpack_require__( /*! jquery */ 9),
             _extend = $.extend,
             _each = $.each,
-            legendModule = __webpack_require__( /*! ../components/legend */ 460),
+            legendModule = __webpack_require__( /*! ../components/legend */ 461),
             _BaseLegend = legendModule.Legend;
         var sourceMap = {
             areacolorgroups: {
@@ -62863,7 +63320,7 @@
             DataHelperMixin = __webpack_require__( /*! ../../data_helper */ 148),
             _isFunction = _utils.isFunction,
             _isArray = _utils.isArray,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _parseScalar = vizUtils.parseScalar,
             _patchFontOptions = vizUtils.patchFontOptions,
             _normalizeEnum = vizUtils.normalizeEnum,
@@ -64493,7 +64950,7 @@
       !*** ./js/viz/vector_map/projection.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var projectionModule = __webpack_require__( /*! ./projection.main */ 555),
+        var projectionModule = __webpack_require__( /*! ./projection.main */ 556),
             projection = projectionModule.projection,
             _min = Math.min,
             _max = Math.max,
@@ -64556,16 +65013,16 @@
       !*** ./js/viz/sparkline.js ***!
       \*****************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./sparklines/sparkline */ 568)
+        module.exports = __webpack_require__( /*! ./sparklines/sparkline */ 569)
     },
     /*!****************************************!*\
       !*** ./js/viz/sparklines/sparkline.js ***!
       \****************************************/
     function(module, exports, __webpack_require__) {
-        var BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 569),
+        var BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 570),
             commonUtils = __webpack_require__( /*! ../../core/utils/common */ 12),
-            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 462),
-            seriesModule = __webpack_require__( /*! ../series/base_series */ 464),
+            dataValidatorModule = __webpack_require__( /*! ../components/data_validator */ 463),
+            seriesModule = __webpack_require__( /*! ../series/base_series */ 465),
             MIN_BAR_WIDTH = 1,
             MAX_BAR_WIDTH = 50,
             DEFAULT_BAR_INTERVAL = 4,
@@ -64589,7 +65046,7 @@
             _max = _math.max,
             _min = _math.min,
             _isFinite = isFinite,
-            vizUtils = __webpack_require__( /*! ../core/utils */ 448),
+            vizUtils = __webpack_require__( /*! ../core/utils */ 449),
             _map = vizUtils.map,
             _normalizeEnum = vizUtils.normalizeEnum,
             _isDefined = commonUtils.isDefined,
@@ -65023,21 +65480,21 @@
         });
         __webpack_require__( /*! ../../core/component_registrator */ 52)("dxSparkline", dxSparkline);
         module.exports = dxSparkline;
-        dxSparkline.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin)
+        dxSparkline.addPlugin(__webpack_require__( /*! ../core/data_source */ 501).plugin)
     },
     /*!*********************************************!*\
       !*** ./js/viz/sparklines/base_sparkline.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 454),
+            BaseWidget = __webpack_require__( /*! ../core/base_widget */ 455),
             DEFAULT_LINE_SPACING = 2,
             DEFAULT_EVENTS_DELAY = 200,
             TOUCH_EVENTS_DELAY = 1e3,
             eventUtils = __webpack_require__( /*! ../../events/utils */ 67),
             wheelEvent = __webpack_require__( /*! ../../events/core/wheel */ 81),
-            baseThemeManagerModule = __webpack_require__( /*! ../core/base_theme_manager */ 489),
-            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 501),
+            baseThemeManagerModule = __webpack_require__( /*! ../core/base_theme_manager */ 490),
+            translator2DModule = __webpack_require__( /*! ../translators/translator2d */ 502),
             _abs = Math.abs,
             _extend = $.extend,
             _noop = $.noop;
@@ -65305,7 +65762,7 @@
         module.exports._DEBUG_reset = function() {
             active_touch_tooltip_widget = null
         };
-        BaseSparkline.addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin);
+        BaseSparkline.addPlugin(__webpack_require__( /*! ../core/tooltip */ 499).plugin);
         var _initTooltip = BaseSparkline.prototype._initTooltip;
         BaseSparkline.prototype._initTooltip = _noop;
         var _disposeTooltip = BaseSparkline.prototype._disposeTooltip;
@@ -65352,7 +65809,7 @@
                 that._hideTooltipCallback()
             }
         };
-        var exportPlugin = $.extend(true, {}, __webpack_require__( /*! ../core/export */ 450).plugin, {
+        var exportPlugin = $.extend(true, {}, __webpack_require__( /*! ../core/export */ 451).plugin, {
             init: _noop,
             dispose: _noop,
             customize: null,
@@ -65366,14 +65823,14 @@
       !*** ./js/viz/bullet.js ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./sparklines/bullet */ 571)
+        module.exports = __webpack_require__( /*! ./sparklines/bullet */ 572)
     },
     /*!*************************************!*\
       !*** ./js/viz/sparklines/bullet.js ***!
       \*************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 569),
+            BaseSparkline = __webpack_require__( /*! ./base_sparkline */ 570),
             TARGET_MIN_Y = .02,
             TARGET_MAX_Y = .98,
             BAR_VALUE_MIN_Y = .1,
@@ -65592,39 +66049,40 @@
       !*** ./js/viz/tree_map.js ***!
       \****************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! ./tree_map/tree_map */ 573)
+        module.exports = __webpack_require__( /*! ./tree_map/tree_map */ 574)
     },
     /*!*************************************!*\
       !*** ./js/viz/tree_map/tree_map.js ***!
       \*************************************/
     function(module, exports, __webpack_require__) {
-        var dxTreeMap = module.exports = __webpack_require__( /*! ./tree_map.base */ 574);
-        __webpack_require__( /*! ./tiling.squarified */ 579);
-        __webpack_require__( /*! ./tiling.strip */ 582);
-        __webpack_require__( /*! ./tiling.slice_and_dice */ 583);
-        __webpack_require__( /*! ./colorizing.discrete */ 581);
-        __webpack_require__( /*! ./colorizing.gradient */ 584);
-        __webpack_require__( /*! ./colorizing.range */ 585);
-        __webpack_require__( /*! ./api */ 586);
-        __webpack_require__( /*! ./hover */ 587);
-        __webpack_require__( /*! ./selection */ 589);
-        __webpack_require__( /*! ./tooltip */ 590);
-        __webpack_require__( /*! ./tracker */ 591);
-        __webpack_require__( /*! ./drilldown */ 592);
-        __webpack_require__( /*! ./plain_data_source */ 593);
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/export */ 450).plugin);
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/title */ 497).plugin);
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 499).plugin)
+        var dxTreeMap = module.exports = __webpack_require__( /*! ./tree_map.base */ 575);
+        __webpack_require__( /*! ./tiling.squarified */ 580);
+        __webpack_require__( /*! ./tiling.strip */ 583);
+        __webpack_require__( /*! ./tiling.slice_and_dice */ 584);
+        __webpack_require__( /*! ./tiling.rotated_slice_and_dice */ 585);
+        __webpack_require__( /*! ./colorizing.discrete */ 582);
+        __webpack_require__( /*! ./colorizing.gradient */ 586);
+        __webpack_require__( /*! ./colorizing.range */ 587);
+        __webpack_require__( /*! ./api */ 588);
+        __webpack_require__( /*! ./hover */ 589);
+        __webpack_require__( /*! ./selection */ 591);
+        __webpack_require__( /*! ./tooltip */ 592);
+        __webpack_require__( /*! ./tracker */ 593);
+        __webpack_require__( /*! ./drilldown */ 594);
+        __webpack_require__( /*! ./plain_data_source */ 595);
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/export */ 451).plugin);
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/title */ 498).plugin);
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/loading_indicator */ 500).plugin)
     },
     /*!******************************************!*\
       !*** ./js/viz/tree_map/tree_map.base.js ***!
       \******************************************/
     function(module, exports, __webpack_require__) {
-        var common = __webpack_require__( /*! ./common */ 575),
-            Node = __webpack_require__( /*! ./node */ 576),
-            _getTilingAlgorithm = __webpack_require__( /*! ./tiling */ 577).getAlgorithm,
-            _getColorizer = __webpack_require__( /*! ./colorizing */ 578).getColorizer,
-            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions,
+        var common = __webpack_require__( /*! ./common */ 576),
+            Node = __webpack_require__( /*! ./node */ 577),
+            _getTilingAlgorithm = __webpack_require__( /*! ./tiling */ 578).getAlgorithm,
+            _getColorizer = __webpack_require__( /*! ./colorizing */ 579).getColorizer,
+            _patchFontOptions = __webpack_require__( /*! ../core/utils */ 449).patchFontOptions,
             _buildRectAppearance = common.buildRectAppearance,
             _buildTextAppearance = common.buildTextAppearance,
             _noop = __webpack_require__( /*! jquery */ 9).noop,
@@ -65635,15 +66093,15 @@
                 righttopleftbottom: [-1, 1],
                 rightbottomlefttop: [-1, -1]
             };
-        __webpack_require__( /*! ./tiling.squarified */ 579);
-        __webpack_require__( /*! ./tiling */ 577).setDefaultAlgorithm("squarified");
-        __webpack_require__( /*! ./colorizing.discrete */ 581);
-        __webpack_require__( /*! ./colorizing */ 578).setDefaultColorizer("discrete");
+        __webpack_require__( /*! ./tiling.squarified */ 580);
+        __webpack_require__( /*! ./tiling */ 578).setDefaultAlgorithm("squarified");
+        __webpack_require__( /*! ./colorizing.discrete */ 582);
+        __webpack_require__( /*! ./colorizing */ 579).setDefaultColorizer("discrete");
 
         function pickPositiveInteger(val) {
             return val > 0 ? Math.round(val) : 0
         }
-        var dxTreeMap = __webpack_require__( /*! ../core/base_widget */ 454).inherit({
+        var dxTreeMap = __webpack_require__( /*! ../core/base_widget */ 455).inherit({
             _handlers: {
                 beginBuildNodes: _noop,
                 buildNode: _noop,
@@ -66136,19 +66594,19 @@
                 visibility: fitByHeight && fitByWidth ? "visible" : "hidden"
             })
         }
-        var ThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 489).BaseThemeManager.inherit({
+        var ThemeManager = __webpack_require__( /*! ../core/base_theme_manager */ 490).BaseThemeManager.inherit({
             _themeSection: "treeMap",
             _fontFields: ["tile.label.font", "group.label.font", "loadingIndicator.font", "title.font", "title.subtitle.font", "tooltip.font"]
         });
         __webpack_require__( /*! ../../core/component_registrator */ 52)("dxTreeMap", dxTreeMap);
         module.exports = dxTreeMap;
-        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/data_source */ 500).plugin)
+        dxTreeMap.addPlugin(__webpack_require__( /*! ../core/data_source */ 501).plugin)
     },
     /*!***********************************!*\
       !*** ./js/viz/tree_map/common.js ***!
       \***********************************/
     function(module, exports, __webpack_require__) {
-        var _patchFontOptions = __webpack_require__( /*! ../core/utils */ 448).patchFontOptions;
+        var _patchFontOptions = __webpack_require__( /*! ../core/utils */ 449).patchFontOptions;
 
         function empty() {}
         exports.empty = empty;
@@ -66269,7 +66727,7 @@
       \***********************************/
     function(module, exports, __webpack_require__) {
         var defaultAlgorithm, _isFunction = __webpack_require__( /*! ../../core/utils/common */ 12).isFunction,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             _round = Math.round,
             algorithms = {};
         exports.getAlgorithm = function(value) {
@@ -66333,7 +66791,7 @@
       !*** ./js/viz/tree_map/colorizing.js ***!
       \***************************************/
     function(module, exports, __webpack_require__) {
-        var defaultColorizerName, _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+        var defaultColorizerName, _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             _noop = __webpack_require__( /*! jquery */ 9).noop,
             colorizers = {};
 
@@ -66379,7 +66837,7 @@
       \**********************************************/
     function(module, exports, __webpack_require__) {
         var _max = Math.max,
-            _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 580);
+            _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 581);
 
         function accumulate(total, current) {
             return _max(total, current)
@@ -66388,7 +66846,7 @@
         function squarified(data) {
             return _squarify(data, accumulate, false)
         }
-        __webpack_require__( /*! ./tiling */ 577).addAlgorithm("squarified", squarified);
+        __webpack_require__( /*! ./tiling */ 578).addAlgorithm("squarified", squarified);
         module.exports = squarified
     },
     /*!***************************************************!*\
@@ -66397,7 +66855,7 @@
     function(module, exports, __webpack_require__) {
         var _max = Math.max,
             _round = Math.round,
-            tiling = __webpack_require__( /*! ./tiling */ 577);
+            tiling = __webpack_require__( /*! ./tiling */ 578);
 
         function compare(a, b) {
             return b.value - a.value
@@ -66525,14 +66983,14 @@
                 return colors[node._id]
             }
         }
-        __webpack_require__( /*! ./colorizing */ 578).addColorizer("discrete", discreteColorizer);
+        __webpack_require__( /*! ./colorizing */ 579).addColorizer("discrete", discreteColorizer);
         module.exports = discreteColorizer
     },
     /*!*****************************************!*\
       !*** ./js/viz/tree_map/tiling.strip.js ***!
       \*****************************************/
     function(module, exports, __webpack_require__) {
-        var _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 580);
+        var _squarify = __webpack_require__( /*! ./tiling.squarified.base */ 581);
 
         function accumulate(total, current, count) {
             return ((count - 1) * total + current) / count
@@ -66541,14 +66999,14 @@
         function strip(data) {
             return _squarify(data, accumulate, true)
         }
-        __webpack_require__( /*! ./tiling */ 577).addAlgorithm("strip", strip);
+        __webpack_require__( /*! ./tiling */ 578).addAlgorithm("strip", strip);
         module.exports = strip
     },
     /*!**************************************************!*\
       !*** ./js/viz/tree_map/tiling.slice_and_dice.js ***!
       \**************************************************/
     function(module, exports, __webpack_require__) {
-        var tiling = __webpack_require__( /*! ./tiling */ 577);
+        var tiling = __webpack_require__( /*! ./tiling */ 578);
 
         function sliceAndDice(data) {
             var items = data.items,
@@ -66562,11 +67020,24 @@
         tiling.addAlgorithm("sliceanddice", sliceAndDice);
         module.exports = sliceAndDice
     },
+    /*!**********************************************************!*\
+      !*** ./js/viz/tree_map/tiling.rotated_slice_and_dice.js ***!
+      \**********************************************************/
+    function(module, exports, __webpack_require__) {
+        var tiling = __webpack_require__( /*! ./tiling */ 578),
+            sliceAndDiceAlgorithm = tiling.getAlgorithm("sliceanddice");
+
+        function rotatedSliceAndDice(data) {
+            data.isRotated = !data.isRotated;
+            return sliceAndDiceAlgorithm.call(this, data)
+        }
+        tiling.addAlgorithm("rotatedsliceanddice", rotatedSliceAndDice)
+    },
     /*!************************************************!*\
       !*** ./js/viz/tree_map/colorizing.gradient.js ***!
       \************************************************/
     function(module, exports, __webpack_require__) {
-        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 578).createColorCodeGetter,
+        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 579).createColorCodeGetter,
             _min = Math.min,
             _max = Math.max;
 
@@ -66609,14 +67080,14 @@
                 return palette.getColor((getValue(node) - arg[0]) / arg[1])
             }
         }
-        __webpack_require__( /*! ./colorizing */ 578).addColorizer("gradient", gradientColorizer);
+        __webpack_require__( /*! ./colorizing */ 579).addColorizer("gradient", gradientColorizer);
         module.exports = gradientColorizer
     },
     /*!*********************************************!*\
       !*** ./js/viz/tree_map/colorizing.range.js ***!
       \*********************************************/
     function(module, exports, __webpack_require__) {
-        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 578).createColorCodeGetter;
+        var _createColorCodeGetter = __webpack_require__( /*! ./colorizing */ 579).createColorCodeGetter;
 
         function getPaletteIndex(value, items) {
             var middle, start = 0,
@@ -66648,15 +67119,15 @@
                 return palette.getColor(getPaletteIndex(getValue(node), range))
             }
         }
-        __webpack_require__( /*! ./colorizing */ 578).addColorizer("range", rangeColorizer);
+        __webpack_require__( /*! ./colorizing */ 579).addColorizer("range", rangeColorizer);
         module.exports = rangeColorizer
     },
     /*!********************************!*\
       !*** ./js/viz/tree_map/api.js ***!
       \********************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 577).prototype,
             _extend = __webpack_require__( /*! jquery */ 9).extend;
         proto._eventsMap.onNodesInitialized = {
             name: "nodesInitialized"
@@ -66785,7 +67256,7 @@
                 node = node.parent
             }
         }
-        proto._extendProxyType = __webpack_require__( /*! ./common */ 575).empty;
+        proto._extendProxyType = __webpack_require__( /*! ./common */ 576).empty;
         var _resetNodes = proto._resetNodes;
         proto._resetNodes = function() {
             _resetNodes.call(this);
@@ -66835,21 +67306,21 @@
       !*** ./js/viz/tree_map/hover.js ***!
       \**********************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
-            common = __webpack_require__( /*! ./common */ 575),
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 577).prototype,
+            common = __webpack_require__( /*! ./common */ 576),
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 449).parseScalar,
             _buildRectAppearance = common.buildRectAppearance,
             STATE_CODE = 1;
-        __webpack_require__( /*! ./api */ 586);
-        __webpack_require__( /*! ./states */ 588);
+        __webpack_require__( /*! ./api */ 588);
+        __webpack_require__( /*! ./states */ 590);
         proto._eventsMap.onHoverChanged = {
             name: "hoverChanged"
         };
         common.expand(proto._handlers, "calculateAdditionalStates", function(states, options) {
             states[1] = options.hoverStyle ? _buildRectAppearance(options.hoverStyle) : {}
         });
-        __webpack_require__( /*! ./tree_map.base */ 574).addChange({
+        __webpack_require__( /*! ./tree_map.base */ 575).addChange({
             code: "HOVER_ENABLED",
             handler: function() {
                 var hoverEnabled = _parseScalar(this._getOption("hoverEnabled", true), true);
@@ -66926,8 +67397,8 @@
       !*** ./js/viz/tree_map/states.js ***!
       \***********************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 577).prototype,
             handlers = proto._handlers,
             _calculateState = handlers.calculateState,
             _buildState = nodeProto._buildState,
@@ -66939,7 +67410,7 @@
             handlers.calculateAdditionalStates(states, options);
             return states
         };
-        handlers.calculateAdditionalStates = __webpack_require__( /*! ./common */ 575).empty;
+        handlers.calculateAdditionalStates = __webpack_require__( /*! ./common */ 576).empty;
         nodeProto.code = 0;
         nodeProto.statesMap = {
             0: 0
@@ -66977,18 +67448,18 @@
       !*** ./js/viz/tree_map/selection.js ***!
       \**************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            nodeProto = __webpack_require__( /*! ./node */ 576).prototype,
-            common = __webpack_require__( /*! ./common */ 575),
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            nodeProto = __webpack_require__( /*! ./node */ 577).prototype,
+            common = __webpack_require__( /*! ./common */ 576),
             _buildRectAppearance = common.buildRectAppearance,
-            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 448).normalizeEnum,
+            _normalizeEnum = __webpack_require__( /*! ../core/utils */ 449).normalizeEnum,
             _inArray = __webpack_require__( /*! jquery */ 9).inArray,
             MODE_NONE = 0,
             MODE_SINGLE = 1,
             MODE_MULTIPLE = 2,
             STATE_CODE = 2;
-        __webpack_require__( /*! ./api */ 586);
-        __webpack_require__( /*! ./states */ 588);
+        __webpack_require__( /*! ./api */ 588);
+        __webpack_require__( /*! ./states */ 590);
         proto._eventsMap.onSelectionChanged = {
             name: "selectionChanged"
         };
@@ -67010,7 +67481,7 @@
             };
             that._selectionList = []
         });
-        __webpack_require__( /*! ./tree_map.base */ 574).addChange({
+        __webpack_require__( /*! ./tree_map.base */ 575).addChange({
             code: "SELECTION_MODE",
             handler: function() {
                 var mode, tmp, that = this,
@@ -67104,9 +67575,9 @@
       !*** ./js/viz/tree_map/tooltip.js ***!
       \************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            common = __webpack_require__( /*! ./common */ 575);
-        __webpack_require__( /*! ./api */ 586);
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            common = __webpack_require__( /*! ./common */ 576);
+        __webpack_require__( /*! ./api */ 588);
         common.expand(proto, "_extendProxyType", function(proto) {
             var that = this;
             proto.showTooltip = function(coords) {
@@ -67163,16 +67634,16 @@
                 this._tooltip.hide()
             }
         };
-        __webpack_require__( /*! ./tree_map.base */ 574).addPlugin(__webpack_require__( /*! ../core/tooltip */ 498).plugin)
+        __webpack_require__( /*! ./tree_map.base */ 575).addPlugin(__webpack_require__( /*! ../core/tooltip */ 499).plugin)
     },
     /*!************************************!*\
       !*** ./js/viz/tree_map/tracker.js ***!
       \************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            common = __webpack_require__( /*! ./common */ 575),
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            common = __webpack_require__( /*! ./common */ 576),
             _eventData = __webpack_require__( /*! ../../events/utils */ 67).eventData,
-            _parseScalar = __webpack_require__( /*! ../core/utils */ 448).parseScalar,
+            _parseScalar = __webpack_require__( /*! ../core/utils */ 449).parseScalar,
             clickEventName = __webpack_require__( /*! ../../events/click */ 71).name,
             downPointerEventName = __webpack_require__( /*! ../../events/pointer */ 72).down,
             movePointerEventName = __webpack_require__( /*! ../../events/pointer */ 72).move,
@@ -67180,9 +67651,9 @@
             $doc = $(document),
             DATA_KEY_BASE = "__treemap_data_",
             dataKeyModifier = 0;
-        __webpack_require__( /*! ./api */ 586);
-        __webpack_require__( /*! ./hover */ 587);
-        __webpack_require__( /*! ./tooltip */ 590);
+        __webpack_require__( /*! ./api */ 588);
+        __webpack_require__( /*! ./hover */ 589);
+        __webpack_require__( /*! ./tooltip */ 592);
         proto._eventsMap.onClick = {
             name: "click"
         };
@@ -67214,7 +67685,7 @@
         common.expand(proto, "_disposeCore", function() {
             this._tracker.dispose()
         });
-        __webpack_require__( /*! ./tree_map.base */ 574).addChange({
+        __webpack_require__( /*! ./tree_map.base */ 575).addChange({
             code: "INTERACT_WITH_GROUP",
             handler: function() {
                 this._tracker.setOptions({
@@ -67312,9 +67783,9 @@
       !*** ./js/viz/tree_map/drilldown.js ***!
       \**************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype,
-            _expand = __webpack_require__( /*! ./common */ 575).expand;
-        __webpack_require__( /*! ./api */ 586);
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype,
+            _expand = __webpack_require__( /*! ./common */ 576).expand;
+        __webpack_require__( /*! ./api */ 588);
         proto._eventsMap.onDrill = {
             name: "drill"
         };
@@ -67359,7 +67830,7 @@
       !*** ./js/viz/tree_map/plain_data_source.js ***!
       \**********************************************/
     function(module, exports, __webpack_require__) {
-        var proto = __webpack_require__( /*! ./tree_map.base */ 574).prototype;
+        var proto = __webpack_require__( /*! ./tree_map.base */ 575).prototype;
         proto._optionChangesMap.idField = proto._optionChangesMap.parentField = "NODES_CREATE";
         proto._processDataSourceItems = function(items) {
             var i, currentItem, parentId, tmpItems, item, struct = {},
@@ -67415,12 +67886,12 @@
       !*** ./js/viz/utils.js ***!
       \*************************/
     function(module, exports, __webpack_require__) {
-        exports.refreshPaths = __webpack_require__( /*! ./core/renderers/renderer */ 457).refreshPaths
+        exports.refreshPaths = __webpack_require__( /*! ./core/renderers/renderer */ 458).refreshPaths
     }, , , ,
     /*!******************************!*\
       !*** ./js/bundles/dx.viz.js ***!
       \******************************/
     function(module, exports, __webpack_require__) {
-        __webpack_require__( /*! ./modules/parts/viz */ 445)
+        __webpack_require__( /*! ./modules/parts/viz */ 446)
     }
 ]);
