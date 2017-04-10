@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.6
- * Build date: Tue Mar 28 2017
+ * Version: 16.2.6 (build 17100)
+ * Build date: Mon Apr 10 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -32,7 +32,7 @@
       !*** multi dx.viz.debug ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\BuildLabel\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 600)
+        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\Build\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 600)
     }, , , , ,
     /*!******************************************!*\
       !*** ./js/bundles/modules/parts/core.js ***!
@@ -986,42 +986,42 @@
             errors = __webpack_require__( /*! ../../core/errors */ 7);
         module.exports = errorUtils(errors.ERROR_MESSAGES, {
             E1001: "Module '{0}'. Controller '{1}' is already registered",
-            E1002: "Module '{0}'. Controller '{1}' must be inheritor of DevExpress.ui.dxDataGrid.Controller",
+            E1002: "Module '{0}'. Controller '{1}' does not inherit from DevExpress.ui.dxDataGrid.Controller",
             E1003: "Module '{0}'. View '{1}' is already registered",
-            E1004: "Module '{0}'. View '{1}' must be inheritor of DevExpress.ui.dxDataGrid.View",
+            E1004: "Module '{0}'. View '{1}' does not inherit from DevExpress.ui.dxDataGrid.View",
             E1005: "Public method '{0}' is already registered",
-            E1006: "Public method '{0}.{1}' is not exists",
-            E1007: "State storing can not be provided due to the restrictions of your browser",
-            E1010: "A template should contain dxTextBox widget",
-            E1011: "You have to implement 'remove' method in dataStore used by dxList to be able to delete items",
-            E1012: "Editing type '{0}' with name '{1}' not supported",
+            E1006: "Public method '{0}.{1}' does not exist",
+            E1007: "State storing cannot be provided due to the restrictions of the browser",
+            E1010: "The template does not contain the TextBox widget",
+            E1011: 'Items cannot be deleted from the List. Implement the "remove" function in the data store',
+            E1012: "Editing type '{0}' with the name '{1}' is unsupported",
             E1016: "Unexpected type of data source is provided for a lookup column",
-            E1018: "The 'collapseAll' method cannot be called when using a remote data source",
+            E1018: "The 'collapseAll' method cannot be called if you use a remote data source",
             E1019: "Search mode '{0}' is unavailable",
-            E1020: "Type can not be changed after initialization",
+            E1020: "The type cannot be changed after initialization",
             E1021: "{0} '{1}' you are trying to remove does not exist",
-            E1022: "Markers option should be an array",
-            E1023: "Routes option should be an array",
+            E1022: 'The "markers" option is given an invalid value. Assign an array instead',
+            E1023: 'The "routes" option is given an invalid value. Assign an array instead',
             E1025: "This layout is too complex to render",
-            E1026: "The 'custom' value is set to a summary item's summaryType option, but a function for calculating the custom summary is not assigned to the grid's calculateCustomSummary option",
-            E1030: "Unknown dxScrollView refresh strategy: '{0}'",
-            E1031: "Unknown subscription is detected in the dxScheduler widget: '{0}'",
-            E1032: "Unknown start date is detected in an appointment of the dxScheduler widget: '{0}'",
-            E1033: "Unknown step is specified for the scheduler's navigator: '{0}'",
-            E1034: "The current browser does not implement an API required for saving files",
-            E1035: "The editor could not be created because of the internal error: {0}",
+            E1026: 'The "calculateCustomSummary" function is missing from a field whose "summaryType" option is set to "custom"',
+            E1030: "Unknown ScrollView refresh strategy: '{0}'",
+            E1031: "Unknown subscription in the Scheduler widget: '{0}'",
+            E1032: "Unknown start date in an appointment: '{0}'",
+            E1033: "Unknown step in the date navigator: '{0}'",
+            E1034: "The browser does not implement an API for saving files",
+            E1035: "The editor cannot be created because of an internal error: {0}",
             E1036: "Validation rules are not defined for any form item",
             E1037: "Invalid structure of grouped data",
-            E1038: "Your browser does not support local storage for local web pages",
-            E1039: "The cell position can not be calculated",
-            E1040: "The '{0}' key value should be unique within the data array",
-            E1041: "The jszip script should be included before DevExtreme scripts",
-            E1042: 'Deferred selection cannot be performed if the "key" field is not set for the Store.',
-            E1043: "Changes cannot be processed due to the incorrectly set key.",
-            W1001: "Key option can not be modified after initialization",
-            W1002: "The item with the key '{0}' does not exist",
-            W1003: "Group with key '{0}' in which you are trying to select items does not exist",
-            W1004: "Item '{0}' you are trying to select in group '{1}' does not exist",
+            E1038: "The browser does not support local storages for local web pages",
+            E1039: "A cell's position cannot be calculated",
+            E1040: "The '{0}' key value is not unique within the data array",
+            E1041: "The JSZip script is referenced after DevExtreme scripts",
+            E1042: 'Deferred selection cannot be performed. Set the "key" field for the data store',
+            E1043: "Changes cannot be processed due to the incorrectly set key",
+            W1001: 'The "key" option cannot be modified after initialization',
+            W1002: "An item with the key '{0}' does not exist",
+            W1003: "A group with the key '{0}' in which you are trying to select items does not exist",
+            W1004: "The item '{0}' you are trying to select in the group '{1}' does not exist",
             W1005: "Due to column data types being unspecified, data has been loaded twice in order to apply initial filter settings. To resolve this issue, specify data types for all grid columns.",
             W1006: "The map service returned the '{0}' error"
         })
@@ -1841,10 +1841,10 @@
             _format: function(value, format) {
                 if (Array.isArray(value)) {
                     return value.map(function(value) {
-                        return dateLocalization.format(value, format).toString()
+                        return (dateLocalization.format(value, format) || "").toString()
                     })
                 }
-                return dateLocalization.format(value, format).toString()
+                return (dateLocalization.format(value, format) || "").toString()
             },
             _escapeChars: function(pattern, defaultPattern, processedIndexes, patternPositions) {
                 var escapeIndexes = defaultPattern.split("").map(function(char, index) {
@@ -1906,6 +1906,9 @@
                         date: new Date(1998, 8, 8, 6, 5, 4),
                         pattern: "y"
                     }];
+                if (!result) {
+                    return
+                }
                 datePatterns.forEach(function(test) {
                     var diff = that._getDifference(defaultPattern, that._format(test.date, format), processedIndexes);
                     result = that._replaceChars(result, diff, test.pattern, patternPositions)
@@ -32526,25 +32529,25 @@
         module.exports = errorUtils(errors.ERROR_MESSAGES, {
             E2001: "Invalid data source",
             E2002: "Axis type and data type are incompatible",
-            E2003: '"{0}" data source field contains data of unsupported type',
-            E2004: '"{0}" data source field is inconsistent',
-            E2101: "Unknown series type was specified: {0}",
+            E2003: 'The "{0}" data source field contains data of unsupported type',
+            E2004: 'The "{0}" data source field is inconsistent',
+            E2101: "Unknown series type: {0}",
             E2102: "Ambiguity occurred between two value axes with the same name",
-            E2103: '"{0}" option must be a function',
+            E2103: 'The "{0}" option is given an invalid value. Assign a function instead',
             E2104: "Invalid logarithm base",
             E2105: 'Invalid value of a "{0}"',
             E2106: "Invalid visible range",
-            E2202: "Invalid scale {0} value",
+            E2202: "Invalid {0} scale value",
             E2203: "The range you are trying to set is invalid",
             W2002: "The {0} data field is absent",
             W2003: "Tick interval is too small",
             W2101: 'The "{0}" pane does not exist; the last pane is used by default',
-            W2102: 'Value axis with the "{0}" name was created automatically',
-            W2103: "Chart title was hidden due to container size",
-            W2104: "Legend was hidden due to container size",
-            W2105: 'Title of "{0}" axis was hidden due to container size',
-            W2106: 'Labels of "{0}" axis were hidden due to container size',
-            W2107: "Export menu was hidden due to container size",
+            W2102: 'A value axis with the "{0}" name was created automatically',
+            W2103: "The chart title was hidden due to the container size",
+            W2104: "The legend was hidden due to the container size",
+            W2105: 'The title of the "{0}" axis was hidden due to the container size',
+            W2106: 'The labels of the "{0}" axis were hidden due to the container size',
+            W2107: "The export menu was hidden due to the container size",
             W2301: "Invalid value range"
         })
     },
@@ -34300,9 +34303,16 @@
             return true
         }
 
+        function delayTick(now) {
+            if (now - this._startTime >= this.delay) {
+                this.tick = step
+            }
+            return true
+        }
+
         function start(now) {
             this._startTime = now;
-            this.tick = step;
+            this.tick = this.delay ? delayTick : step;
             return true
         }
 
@@ -34313,6 +34323,7 @@
             that.params = params;
             that.options = options;
             that.duration = options.partitionDuration ? options.duration * options.partitionDuration : options.duration;
+            that.delay = options.delay && options.duration * options.delay || 0;
             that._animateStep = options.animateStep || animationSvgStep;
             that._easing = easingFunctions[options.easing] || easingFunctions.easeOutCubic;
             that._currentParams = {};
@@ -34320,7 +34331,7 @@
         }
         Animation.prototype = {
             _calcProgress: function(now) {
-                return Math.min(1, (now - this._startTime) / this.duration)
+                return Math.min(1, (now - this.delay - this._startTime) / this.duration)
             },
             stop: function(disableComplete) {
                 var that = this,
@@ -38782,7 +38793,7 @@
                 that._visible = true;
                 that.minValue = that.initialMinValue = that.originalMinValue = _isDefined(data.minValue) ? data.minValue : 0
             },
-            animate: function(complete, duration, step) {
+            animate: function(complete, duration, delay) {
                 var that = this;
                 that.graphic.animate({
                     x: that.centerX,
@@ -38792,8 +38803,8 @@
                     startAngle: that.toAngle,
                     endAngle: that.fromAngle
                 }, {
-                    partitionDuration: duration,
-                    step: step
+                    delay: delay,
+                    partitionDuration: duration
                 }, complete)
             },
             correctPosition: function(correction) {
@@ -41968,6 +41979,7 @@
             _map = vizUtils.map,
             _isFinite = isFinite,
             _max = Math.max,
+            ANIMATION_DURATION = .7,
             INSIDE = "inside";
         exports.pie = _extend({}, barSeries, {
             _setGroupsSettings: chartScatterSeries._setGroupsSettings,
@@ -42188,32 +42200,22 @@
             },
             _applyVisibleArea: _noop,
             _animate: function(firstDrawing) {
-                var that = this,
-                    index = 0,
-                    timeThreshold = .2,
+                var animatePoint, that = this,
                     points = that._points,
                     pointsCount = points && points.length,
-                    duration = 1 / (timeThreshold * (pointsCount - 1) + 1),
                     completeFunc = function() {
                         that._animateComplete()
-                    },
-                    animateP = function() {
-                        points[index] && points[index].animate(index === pointsCount - 1 ? completeFunc : void 0, duration, stepFunc);
-                        index++
-                    },
-                    stepFunc = function(_, progress) {
-                        if (progress >= timeThreshold) {
-                            this.step = null;
-                            animateP()
-                        }
                     };
                 if (firstDrawing) {
-                    animateP()
+                    animatePoint = function(p, i) {
+                        p.animate(i === pointsCount - 1 ? completeFunc : void 0, ANIMATION_DURATION, (1 - ANIMATION_DURATION) * i / (pointsCount - 1))
+                    }
                 } else {
-                    $.each(points, function(i, p) {
+                    animatePoint = function(p, i) {
                         p.animate(i === pointsCount - 1 ? completeFunc : void 0)
-                    })
+                    }
                 }
+                points.forEach(animatePoint)
             },
             getVisiblePoints: function() {
                 return _map(this._points, function(p) {
@@ -52350,7 +52352,9 @@
             },
             _checkAlignmentConstantLineLabels: _noop,
             _getScreenDelta: function() {
-                return 2 * Math.PI * this._additionalTranslator.getRadius()
+                var tr = this._additionalTranslator,
+                    angles = tr.getAngles();
+                return _abs(angles[0] - angles[1]) * tr.getRadius() * Math.PI / 180
             },
             _getTickCoord: function(tick) {
                 var center = this._additionalTranslator.getCenter(),
