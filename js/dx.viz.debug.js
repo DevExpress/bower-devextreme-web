@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.6 (build 17100)
- * Build date: Mon Apr 10 2017
+ * Version: 16.2.6 (build 17104)
+ * Build date: Fri Apr 14 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -20653,8 +20653,10 @@
             },
             _render: function() {
                 this._rendering = true;
-                this._syncSelectionOptions();
-                this._normalizeSelectedItems();
+                if (!this._dataSource || !this._dataSource.isLoading()) {
+                    this._syncSelectionOptions();
+                    this._normalizeSelectedItems()
+                }
                 this.callBase();
                 var selectedItemIndices = this._getSelectedItemIndices();
                 this._renderSelection(selectedItemIndices, []);
@@ -32938,7 +32940,7 @@
                         left: rtl ? "end" : "start",
                         center: "middle",
                         right: rtl ? "start" : "end"
-                    }[value] || ""
+                    }[value] || null
                 } else {
                     if ("dashStyle" === key) {
                         recalculateDashStyle = true;
