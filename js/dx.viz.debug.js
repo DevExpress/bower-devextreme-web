@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.6 (build 17111)
- * Build date: Fri Apr 21 2017
+ * Version: 16.2.6 (build 17116)
+ * Build date: Wed Apr 26 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -28174,7 +28174,7 @@
         var NUMBER_SERIALIZATION_FORMAT = "number",
             DATE_SERIALIZATION_FORMAT = "yyyy/MM/dd",
             DATETIME_SERIALIZATION_FORMAT = "yyyy/MM/dd HH:mm:ss";
-        var ISO8601_PATTERN = /^(\d{4})(-)?(\d{2})(-)?(\d{2})(?:T(\d{2})(:)?(\d{2})?(:)?(\d{2}(?:\.(\d+))?)?)?(Z|([\+\-])(\d{2})(:)?(\d{2})?)?$/;
+        var ISO8601_PATTERN = /^(\d{4,})(-)?(\d{2})(-)?(\d{2})(?:T(\d{2})(:)?(\d{2})?(:)?(\d{2}(?:\.(\d+))?)?)?(Z|([\+\-])(\d{2})(:)?(\d{2})?)?$/;
         var ISO8601_TIME_PATTERN = /^(\d{2}):(\d{2})(:(\d{2}))?$/;
         var ISO8601_PATTERN_PARTS = ["", "yyyy", "", "MM", "", "dd", "THH", "", "mm", "", "ss", ".SSS"];
 
@@ -30693,7 +30693,7 @@
                         }
                         that._createClipRect(panesClipRects.wide, i, left, top, width, height)
                     } else {
-                        panesClipRects.wide.push(null)
+                        panesClipRects.wide[i] = null
                     }
                 })
             },
@@ -38555,7 +38555,7 @@
                 that.graphic = renderer.rect(x, y, width, height).attr({
                     rx: r,
                     ry: r
-                }).attr(style).data({
+                }).smartAttr(style).data({
                     "chart-data-point": that
                 }).append(group)
             },
@@ -38719,7 +38719,7 @@
                         translateX: that.x,
                         translateY: that.y
                     }, that._getStyle());
-                that.graphic = renderer.circle(0, 0, animationEnabled ? 0 : that.bubbleSize).attr(attr).data({
+                that.graphic = renderer.circle(0, 0, animationEnabled ? 0 : that.bubbleSize).smartAttr(attr).data({
                     "chart-data-point": that
                 }).append(group)
             },
@@ -39008,7 +39008,7 @@
                 }
                 that.graphic = renderer.arc(that.centerX, that.centerY, radiusInner, radiusOuter, toAngle, fromAngle).attr({
                     "stroke-linejoin": "round"
-                }).attr(that._getStyle()).data({
+                }).smartAttr(that._getStyle()).data({
                     "chart-data-point": that
                 }).sharp().append(group)
             },
