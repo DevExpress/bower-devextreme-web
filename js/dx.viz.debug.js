@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.6 (build 17116)
- * Build date: Wed Apr 26 2017
+ * Version: 16.2.6 (build 17123)
+ * Build date: Wed May 03 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -10679,6 +10679,7 @@
                 "dxPivotGrid-sortColumnBySummary": 'Sort "{0}" by This Column',
                 "dxPivotGrid-sortRowBySummary": 'Sort "{0}" by This Row',
                 "dxPivotGrid-removeAllSorting": "Remove All Sorting",
+                "dxPivotGrid-dataNotAvailable": "N/A",
                 "dxPivotGrid-rowFields": "Row Fields",
                 "dxPivotGrid-columnFields": "Column Fields",
                 "dxPivotGrid-dataFields": "Data Fields",
@@ -10833,6 +10834,8 @@
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
             ko = __webpack_require__( /*! knockout */ 89),
+            errors = __webpack_require__( /*! ../../core/errors */ 7),
+            inflector = __webpack_require__( /*! ../../core/utils/inflector */ 57),
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             Widget = __webpack_require__( /*! ../../ui/widget/ui.widget */ 91),
             KoTemplate = __webpack_require__( /*! ./template */ 101),
@@ -10840,8 +10843,7 @@
             Locker = __webpack_require__( /*! ../../core/utils/locker */ 108),
             config = __webpack_require__( /*! ../../core/config */ 13);
         var LOCKS_DATA_KEY = "dxKoLocks",
-            CREATED_WITH_KO_DATA_KEY = "dxKoCreation",
-            DX_POLYMORPH_WIDGET_TEMPLATE = "<!-- ko dxPolymorphWidget: { name: $data.widget, options: $data.options } --><!-- /ko -->";
+            CREATED_WITH_KO_DATA_KEY = "dxKoCreation";
         var editorsBindingHandlers = [];
         var registerComponentKoBinding = function(componentName, componentClass) {
             if (componentClass.subclassOf(Editor)) {
@@ -10900,7 +10902,22 @@
                                     }
                                 },
                                 templates: {
-                                    "dx-polymorph-widget": new KoTemplate(DX_POLYMORPH_WIDGET_TEMPLATE, this)
+                                    "dx-polymorph-widget": {
+                                        render: function(options) {
+                                            var widgetName = ko.utils.unwrapObservable(options.model.widget);
+                                            if (!widgetName) {
+                                                return
+                                            }
+                                            if ("button" === widgetName || "tabs" === widgetName || "dropDownMenu" === widgetName) {
+                                                var deprecatedName = widgetName;
+                                                widgetName = inflector.camelize("dx-" + widgetName);
+                                                errors.log("W0001", "dxToolbar - 'widget' item field", deprecatedName, "16.1", "Use: '" + widgetName + "' instead")
+                                            }
+                                            var markup = $('<div data-bind="' + widgetName + ': options">').get(0);
+                                            options.container.append(markup);
+                                            ko.applyBindings(options.model, markup)
+                                        }
+                                    }
                                 },
                                 createTemplate: function(element) {
                                     return new KoTemplate(element)
@@ -14183,12 +14200,10 @@
       \***********************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
-            errors = __webpack_require__( /*! ../../core/errors */ 7),
             Action = __webpack_require__( /*! ../../core/action */ 42),
             compileGetter = __webpack_require__( /*! ../../core/utils/data */ 43).compileGetter,
             ko = __webpack_require__( /*! knockout */ 89),
             iconUtils = __webpack_require__( /*! ../../core/utils/icon */ 111),
-            inflector = __webpack_require__( /*! ../../core/utils/inflector */ 57),
             clickEvent = __webpack_require__( /*! ../../events/click */ 71);
         ko.bindingHandlers.dxAction = {
             update: function(element, valueAccessor, allBindingsAccessor, viewModel) {
@@ -14230,28 +14245,6 @@
                 }
             }
         };
-        ko.bindingHandlers.dxPolymorphWidget = {
-            init: function(element, valueAccessor, allBindings, viewModel, bindingContext) {
-                var widgetName = ko.utils.unwrapObservable(valueAccessor()).name;
-                if (!widgetName) {
-                    return
-                }
-                ko.virtualElements.emptyNode(element);
-                if ("button" === widgetName || "tabs" === widgetName || "dropDownMenu" === widgetName) {
-                    var deprecatedName = widgetName;
-                    widgetName = inflector.camelize("dx-" + widgetName);
-                    errors.log("W0001", "dxToolbar - 'widget' item field", deprecatedName, "16.1", "Use: '" + widgetName + "' instead")
-                }
-                var markup = $('<div data-bind="' + widgetName + ': options">').get(0);
-                ko.virtualElements.prepend(element, markup);
-                var innerBindingContext = bindingContext.extend(valueAccessor);
-                ko.applyBindingsToDescendants(innerBindingContext, element);
-                return {
-                    controlsDescendantBindings: true
-                }
-            }
-        };
-        ko.virtualElements.allowedBindings.dxPolymorphWidget = true;
         ko.bindingHandlers.dxIcon = {
             init: function(element, valueAccessor) {
                 var options = ko.utils.unwrapObservable(valueAccessor()) || {},
@@ -22695,7 +22688,8 @@
             E4020: "Unknown store type is detected: {0}",
             E4021: "The server response does not provide the totalCount value",
             E4022: "The server response does not provide the groupCount value",
-            W4000: "Data returned from the server has an incorrect structure"
+            W4000: "Data returned from the server has an incorrect structure",
+            W4002: "Data loading has failed for some cells due to the following error: {0}"
         });
 
         function handleError(error) {
