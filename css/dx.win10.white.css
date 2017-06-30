@@ -1,7 +1,7 @@
 /*!
 * DevExtreme
-* Version: 16.2.6 (build 17123)
-* Build date: May 3, 2017
+* Version: 16.2.8
+* Build date: Jun 28, 2017
 *
 * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
 * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -6546,6 +6546,11 @@
 .dx-datagrid-header-panel .dx-link {
   padding: 7px 0px 7px 10px;
 }
+.dx-datagrid-header-panel .dx-toolbar-label {
+  padding: 0;
+  font-weight: inherit;
+  text-transform: none;
+}
 .dx-datagrid-header-panel .dx-toolbar-button:not(.dx-state-disabled) .dx-apply-:not(.dx-state-hover) .dx-button-content {
   background-color: #099f21;
 }
@@ -6606,6 +6611,7 @@
 .dx-datagrid-group-panel {
   margin-bottom: 10px;
   margin-top: 8px;
+  vertical-align: middle;
   -ms-touch-action: pinch-zoom;
   touch-action: pinch-zoom;
 }
@@ -7257,7 +7263,7 @@
   margin: 0;
 }
 .dx-treeview .dx-treeview-select-all-item .dx-checkbox-text {
-  padding-left: 12px;
+  padding-left: 32px;
 }
 .dx-treeview .dx-treeview-node {
   padding-left: 20px;
@@ -7355,7 +7361,7 @@
 }
 .dx-treeview.dx-rtl .dx-treeview-select-all-item .dx-checkbox-text {
   padding-left: 0;
-  padding-right: 12px;
+  padding-right: 32px;
 }
 .dx-treeview.dx-rtl.dx-rtl .dx-treeview-node .dx-checkbox {
   left: auto;

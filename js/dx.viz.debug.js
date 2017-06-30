@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.6 (build 17123)
- * Build date: Wed May 03 2017
+ * Version: 16.2.8
+ * Build date: Wed Jun 28 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -32,7 +32,7 @@
       !*** multi dx.viz.debug ***!
       \**************************/
     function(module, exports, __webpack_require__) {
-        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\Build\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 600)
+        module.exports = __webpack_require__( /*! c:\Projects\DevExtreme\16.2\BuildLabel\Temp\DevExtreme.v16.2\repo\GitHub\js\bundles\dx.viz.js */ 600)
     }, , , , ,
     /*!******************************************!*\
       !*** ./js/bundles/modules/parts/core.js ***!
@@ -717,7 +717,8 @@
                 defaultCurrency: "USD",
                 designMode: false,
                 serverDecimalSeparator: ".",
-                forceIsoDateParsing: false
+                forceIsoDateParsing: false,
+                wrapActionsBeforeExecute: false
             };
         module.exports = function() {
             if (!arguments.length) {
@@ -794,7 +795,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.6"
+        module.exports = "16.2.8"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
@@ -1023,7 +1024,9 @@
             W1003: "A group with the key '{0}' in which you are trying to select items does not exist",
             W1004: "The item '{0}' you are trying to select in the group '{1}' does not exist",
             W1005: "Due to column data types being unspecified, data has been loaded twice in order to apply initial filter settings. To resolve this issue, specify data types for all grid columns.",
-            W1006: "The map service returned the '{0}' error"
+            W1006: "The map service returned the '{0}' error",
+            W1007: "No item with key {0} was found in the data source, but this key was used as the parent key for item {1}",
+            W1008: "Cannot scroll to the '{0}' date because it does not exist on the current view"
         })
     },
     /*!**********************************!*\
@@ -1731,8 +1734,7 @@
             stringUtils = __webpack_require__( /*! ../core/utils/string */ 11),
             numberFormatter = __webpack_require__( /*! ../localization/number */ 25),
             dateLocalization = __webpack_require__( /*! ../localization/date */ 27),
-            coreLocalization = __webpack_require__( /*! ../localization/core */ 28),
-            excelLanguages = __webpack_require__( /*! ./excel_languages */ 29),
+            getLanguageID = __webpack_require__( /*! ../localization/language_codes */ 29).getLanguageId,
             UNSUPPORTED_FORMAT_MAPPING = {
                 quarter: "shortDate",
                 quarterAndYear: "shortDate",
@@ -1918,8 +1920,7 @@
                 return result
             },
             _getLanguageInfo: function(defaultPattern) {
-                var locale = coreLocalization.locale(),
-                    languageID = excelLanguages.getLanguageID(locale),
+                var languageID = getLanguageID(),
                     languageIDStr = languageID ? languageID.toString(16) : "",
                     languageInfo = "";
                 if (this._hasArabicDigits(defaultPattern)) {
@@ -2034,6 +2035,7 @@
             },
             _formatNumber: function(value, formatObject, formatConfig) {
                 var powerPostfix;
+                var result;
                 if ("auto" === formatObject.power) {
                     formatObject.power = this._calculateNumberPower(value, 1e3, 0, MAX_LARGE_NUMBER_POWER)
                 }
@@ -2041,7 +2043,9 @@
                     value = this._getNumberByPower(value, formatObject.power, 1e3)
                 }
                 powerPostfix = this.defaultLargeNumberFormatPostfixes[formatObject.power] || "";
-                return this._formatNumberCore(value, formatObject.formatType, formatConfig) + powerPostfix
+                result = this._formatNumberCore(value, formatObject.formatType, formatConfig);
+                result = result.replace(/(\d|.$)(\D*)$/, "$1" + powerPostfix + "$2");
+                return result
             },
             _formatNumberExponential: function(value, formatConfig) {
                 var powString, power = this._calculateNumberPower(value, DECIMAL_BASE),
@@ -2476,11 +2480,15 @@
                 return PARSERS.year(year)
             },
             shortdate: function(text) {
-                if (!/^(0?[1-9]|1[012])\/(0?[1-9]|[12][0-9]|3[01])\/\d{4}/.test(text)) {
+                if (!/^(0?[1-9]|1[012])\/(0?[1-9]|[12][0-9]|3[01])\/\d{1,4}/.test(text)) {
                     return
                 }
                 var parts = text.split("/");
-                return new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]))
+                var date = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+                if (parts[2].length < 3) {
+                    date.setFullYear(parts[2], Number(parts[0]) - 1, Number(parts[1]))
+                }
+                return date
             },
             longtime: function(text) {
                 return parseTime(text)
@@ -2661,365 +2669,366 @@
             }()
         })
     },
-    /*!***********************************************!*\
-      !*** ./js/client_exporter/excel_languages.js ***!
-      \***********************************************/
-    function(module, exports) {
-        var LANGUAGE_CODES = {
-            ar: 1,
-            bg: 2,
-            ca: 3,
-            "zh-Hans": 4,
-            cs: 5,
-            da: 6,
-            de: 7,
-            el: 8,
-            en: 9,
-            es: 10,
-            fi: 11,
-            fr: 12,
-            he: 13,
-            hu: 14,
-            is: 15,
-            it: 16,
-            ja: 17,
-            ko: 18,
-            nl: 19,
-            no: 20,
-            pl: 21,
-            pt: 22,
-            rm: 23,
-            ro: 24,
-            ru: 25,
-            hr: 26,
-            sk: 27,
-            sq: 28,
-            sv: 29,
-            th: 30,
-            tr: 31,
-            ur: 32,
-            id: 33,
-            uk: 34,
-            be: 35,
-            sl: 36,
-            et: 37,
-            lv: 38,
-            lt: 39,
-            tg: 40,
-            fa: 41,
-            vi: 42,
-            hy: 43,
-            az: 44,
-            eu: 45,
-            hsb: 46,
-            mk: 47,
-            tn: 50,
-            xh: 52,
-            zu: 53,
-            af: 54,
-            ka: 55,
-            fo: 56,
-            hi: 57,
-            mt: 58,
-            se: 59,
-            ga: 60,
-            ms: 62,
-            kk: 63,
-            ky: 64,
-            sw: 65,
-            tk: 66,
-            uz: 67,
-            tt: 68,
-            bn: 69,
-            pa: 70,
-            gu: 71,
-            or: 72,
-            ta: 73,
-            te: 74,
-            kn: 75,
-            ml: 76,
-            as: 77,
-            mr: 78,
-            sa: 79,
-            mn: 80,
-            bo: 81,
-            cy: 82,
-            km: 83,
-            lo: 84,
-            gl: 86,
-            kok: 87,
-            syr: 90,
-            si: 91,
-            iu: 93,
-            am: 94,
-            tzm: 95,
-            ne: 97,
-            fy: 98,
-            ps: 99,
-            fil: 100,
-            dv: 101,
-            ha: 104,
-            yo: 106,
-            quz: 107,
-            nso: 108,
-            ba: 109,
-            lb: 110,
-            kl: 111,
-            ig: 112,
-            ii: 120,
-            arn: 122,
-            moh: 124,
-            br: 126,
-            ug: 128,
-            mi: 129,
-            oc: 130,
-            co: 131,
-            gsw: 132,
-            sah: 133,
-            qut: 134,
-            rw: 135,
-            wo: 136,
-            prs: 140,
-            gd: 145,
-            "ar-SA": 1025,
-            "bg-BG": 1026,
-            "ca-ES": 1027,
-            "zh-TW": 1028,
-            "cs-CZ": 1029,
-            "da-DK": 1030,
-            "de-DE": 1031,
-            "el-GR": 1032,
-            "en-US": 1033,
-            "fi-FI": 1035,
-            "fr-FR": 1036,
-            "he-IL": 1037,
-            "hu-HU": 1038,
-            "is-IS": 1039,
-            "it-IT": 1040,
-            "ja-JP": 1041,
-            "ko-KR": 1042,
-            "nl-NL": 1043,
-            "nb-NO": 1044,
-            "pl-PL": 1045,
-            "pt-BR": 1046,
-            "rm-CH": 1047,
-            "ro-RO": 1048,
-            "ru-RU": 1049,
-            "hr-HR": 1050,
-            "sk-SK": 1051,
-            "sq-AL": 1052,
-            "sv-SE": 1053,
-            "th-TH": 1054,
-            "tr-TR": 1055,
-            "ur-PK": 1056,
-            "id-ID": 1057,
-            "uk-UA": 1058,
-            "be-BY": 1059,
-            "sl-SI": 1060,
-            "et-EE": 1061,
-            "lv-LV": 1062,
-            "lt-LT": 1063,
-            "tg-Cyrl-TJ": 1064,
-            "fa-IR": 1065,
-            "vi-VN": 1066,
-            "hy-AM": 1067,
-            "az-Latn-AZ": 1068,
-            "eu-ES": 1069,
-            "hsb-DE": 1070,
-            "mk-MK": 1071,
-            "tn-ZA": 1074,
-            "xh-ZA": 1076,
-            "zu-ZA": 1077,
-            "af-ZA": 1078,
-            "ka-GE": 1079,
-            "fo-FO": 1080,
-            "hi-IN": 1081,
-            "mt-MT": 1082,
-            "se-NO": 1083,
-            "ms-MY": 1086,
-            "kk-KZ": 1087,
-            "ky-KG": 1088,
-            "sw-KE": 1089,
-            "tk-TM": 1090,
-            "uz-Latn-UZ": 1091,
-            "tt-RU": 1092,
-            "bn-IN": 1093,
-            "pa-IN": 1094,
-            "gu-IN": 1095,
-            "or-IN": 1096,
-            "ta-IN": 1097,
-            "te-IN": 1098,
-            "kn-IN": 1099,
-            "ml-IN": 1100,
-            "as-IN": 1101,
-            "mr-IN": 1102,
-            "sa-IN": 1103,
-            "mn-MN": 1104,
-            "bo-CN": 1105,
-            "cy-GB": 1106,
-            "km-KH": 1107,
-            "lo-LA": 1108,
-            "gl-ES": 1110,
-            "kok-IN": 1111,
-            "syr-SY": 1114,
-            "si-LK": 1115,
-            "iu-Cans-CA": 1117,
-            "am-ET": 1118,
-            "ne-NP": 1121,
-            "fy-NL": 1122,
-            "ps-AF": 1123,
-            "fil-PH": 1124,
-            "dv-MV": 1125,
-            "ha-Latn-NG": 1128,
-            "yo-NG": 1130,
-            "quz-BO": 1131,
-            "nso-ZA": 1132,
-            "ba-RU": 1133,
-            "lb-LU": 1134,
-            "kl-GL": 1135,
-            "ig-NG": 1136,
-            "ii-CN": 1144,
-            "arn-CL": 1146,
-            "moh-CA": 1148,
-            "br-FR": 1150,
-            "ug-CN": 1152,
-            "mi-NZ": 1153,
-            "oc-FR": 1154,
-            "co-FR": 1155,
-            "gsw-FR": 1156,
-            "sah-RU": 1157,
-            "qut-GT": 1158,
-            "rw-RW": 1159,
-            "wo-SN": 1160,
-            "prs-AF": 1164,
-            "gd-GB": 1169,
-            "ar-IQ": 2049,
-            "zh-CN": 2052,
-            "de-CH": 2055,
-            "en-GB": 2057,
-            "es-MX": 2058,
-            "fr-BE": 2060,
-            "it-CH": 2064,
-            "nl-BE": 2067,
-            "nn-NO": 2068,
-            "pt-PT": 2070,
-            "sr-Latn-CS": 2074,
-            "sv-FI": 2077,
-            "az-Cyrl-AZ": 2092,
-            "dsb-DE": 2094,
-            "se-SE": 2107,
-            "ga-IE": 2108,
-            "ms-BN": 2110,
-            "uz-Cyrl-UZ": 2115,
-            "bn-BD": 2117,
-            "mn-Mong-CN": 2128,
-            "iu-Latn-CA": 2141,
-            "tzm-Latn-DZ": 2143,
-            "quz-EC": 2155,
-            "ar-EG": 3073,
-            "zh-HK": 3076,
-            "de-AT": 3079,
-            "en-AU": 3081,
-            "es-ES": 3082,
-            "fr-CA": 3084,
-            "sr-Cyrl-CS": 3098,
-            "se-FI": 3131,
-            "quz-PE": 3179,
-            "ar-LY": 4097,
-            "zh-SG": 4100,
-            "de-LU": 4103,
-            "en-CA": 4105,
-            "es-GT": 4106,
-            "fr-CH": 4108,
-            "hr-BA": 4122,
-            "smj-NO": 4155,
-            "ar-DZ": 5121,
-            "zh-MO": 5124,
-            "de-LI": 5127,
-            "en-NZ": 5129,
-            "es-CR": 5130,
-            "fr-LU": 5132,
-            "bs-Latn-BA": 5146,
-            "smj-SE": 5179,
-            "ar-MA": 6145,
-            "en-IE": 6153,
-            "es-PA": 6154,
-            "fr-MC": 6156,
-            "sr-Latn-BA": 6170,
-            "sma-NO": 6203,
-            "ar-TN": 7169,
-            "en-ZA": 7177,
-            "es-DO": 7178,
-            "sr-Cyrl-BA": 7194,
-            "sma-SE": 7227,
-            "ar-OM": 8193,
-            "en-JM": 8201,
-            "es-VE": 8202,
-            "bs-Cyrl-BA": 8218,
-            "sms-FI": 8251,
-            "ar-YE": 9217,
-            "en-029": 9225,
-            "es-CO": 9226,
-            "sr-Latn-RS": 9242,
-            "smn-FI": 9275,
-            "ar-SY": 10241,
-            "en-BZ": 10249,
-            "es-PE": 10250,
-            "sr-Cyrl-RS": 10266,
-            "ar-JO": 11265,
-            "en-TT": 11273,
-            "es-AR": 11274,
-            "sr-Latn-ME": 11290,
-            "ar-LB": 12289,
-            "en-ZW": 12297,
-            "es-EC": 12298,
-            "sr-Cyrl-ME": 12314,
-            "ar-KW": 13313,
-            "en-PH": 13321,
-            "es-CL": 13322,
-            "ar-AE": 14337,
-            "es-UY": 14346,
-            "ar-BH": 15361,
-            "es-PY": 15370,
-            "ar-QA": 16385,
-            "en-IN": 16393,
-            "es-BO": 16394,
-            "en-MY": 17417,
-            "es-SV": 17418,
-            "en-SG": 18441,
-            "es-HN": 18442,
-            "es-NI": 19466,
-            "es-PR": 20490,
-            "es-US": 21514,
-            "bs-Cyrl": 25626,
-            "bs-Latn": 26650,
-            "sr-Cyrl": 27674,
-            "sr-Latn": 28698,
-            smn: 28731,
-            "az-Cyrl": 29740,
-            sms: 29755,
-            zh: 30724,
-            nn: 30740,
-            bs: 30746,
-            "az-Latn": 30764,
-            sma: 30779,
-            "uz-Cyrl": 30787,
-            "mn-Cyrl": 30800,
-            "iu-Cans": 30813,
-            "zh-Hant": 31748,
-            nb: 31764,
-            sr: 31770,
-            "tg-Cyrl": 31784,
-            dsb: 31790,
-            smj: 31803,
-            "uz-Latn": 31811,
-            "mn-Mong": 31824,
-            "iu-Latn": 31837,
-            "tzm-Latn": 31839,
-            "ha-Latn": 31848
-        };
-        exports.getLanguageID = function(locale) {
-            return LANGUAGE_CODES[locale]
+    /*!*******************************************!*\
+      !*** ./js/localization/language_codes.js ***!
+      \*******************************************/
+    function(module, exports, __webpack_require__) {
+        var locale = __webpack_require__( /*! ./core */ 28).locale,
+            LANGUAGE_CODES = {
+                ar: 1,
+                bg: 2,
+                ca: 3,
+                "zh-Hans": 4,
+                cs: 5,
+                da: 6,
+                de: 7,
+                el: 8,
+                en: 9,
+                es: 10,
+                fi: 11,
+                fr: 12,
+                he: 13,
+                hu: 14,
+                is: 15,
+                it: 16,
+                ja: 17,
+                ko: 18,
+                nl: 19,
+                no: 20,
+                pl: 21,
+                pt: 22,
+                rm: 23,
+                ro: 24,
+                ru: 25,
+                hr: 26,
+                sk: 27,
+                sq: 28,
+                sv: 29,
+                th: 30,
+                tr: 31,
+                ur: 32,
+                id: 33,
+                uk: 34,
+                be: 35,
+                sl: 36,
+                et: 37,
+                lv: 38,
+                lt: 39,
+                tg: 40,
+                fa: 41,
+                vi: 42,
+                hy: 43,
+                az: 44,
+                eu: 45,
+                hsb: 46,
+                mk: 47,
+                tn: 50,
+                xh: 52,
+                zu: 53,
+                af: 54,
+                ka: 55,
+                fo: 56,
+                hi: 57,
+                mt: 58,
+                se: 59,
+                ga: 60,
+                ms: 62,
+                kk: 63,
+                ky: 64,
+                sw: 65,
+                tk: 66,
+                uz: 67,
+                tt: 68,
+                bn: 69,
+                pa: 70,
+                gu: 71,
+                or: 72,
+                ta: 73,
+                te: 74,
+                kn: 75,
+                ml: 76,
+                as: 77,
+                mr: 78,
+                sa: 79,
+                mn: 80,
+                bo: 81,
+                cy: 82,
+                km: 83,
+                lo: 84,
+                gl: 86,
+                kok: 87,
+                syr: 90,
+                si: 91,
+                iu: 93,
+                am: 94,
+                tzm: 95,
+                ne: 97,
+                fy: 98,
+                ps: 99,
+                fil: 100,
+                dv: 101,
+                ha: 104,
+                yo: 106,
+                quz: 107,
+                nso: 108,
+                ba: 109,
+                lb: 110,
+                kl: 111,
+                ig: 112,
+                ii: 120,
+                arn: 122,
+                moh: 124,
+                br: 126,
+                ug: 128,
+                mi: 129,
+                oc: 130,
+                co: 131,
+                gsw: 132,
+                sah: 133,
+                qut: 134,
+                rw: 135,
+                wo: 136,
+                prs: 140,
+                gd: 145,
+                "ar-SA": 1025,
+                "bg-BG": 1026,
+                "ca-ES": 1027,
+                "zh-TW": 1028,
+                "cs-CZ": 1029,
+                "da-DK": 1030,
+                "de-DE": 1031,
+                "el-GR": 1032,
+                "en-US": 1033,
+                "fi-FI": 1035,
+                "fr-FR": 1036,
+                "he-IL": 1037,
+                "hu-HU": 1038,
+                "is-IS": 1039,
+                "it-IT": 1040,
+                "ja-JP": 1041,
+                "ko-KR": 1042,
+                "nl-NL": 1043,
+                "nb-NO": 1044,
+                "pl-PL": 1045,
+                "pt-BR": 1046,
+                "rm-CH": 1047,
+                "ro-RO": 1048,
+                "ru-RU": 1049,
+                "hr-HR": 1050,
+                "sk-SK": 1051,
+                "sq-AL": 1052,
+                "sv-SE": 1053,
+                "th-TH": 1054,
+                "tr-TR": 1055,
+                "ur-PK": 1056,
+                "id-ID": 1057,
+                "uk-UA": 1058,
+                "be-BY": 1059,
+                "sl-SI": 1060,
+                "et-EE": 1061,
+                "lv-LV": 1062,
+                "lt-LT": 1063,
+                "tg-Cyrl-TJ": 1064,
+                "fa-IR": 1065,
+                "vi-VN": 1066,
+                "hy-AM": 1067,
+                "az-Latn-AZ": 1068,
+                "eu-ES": 1069,
+                "hsb-DE": 1070,
+                "mk-MK": 1071,
+                "tn-ZA": 1074,
+                "xh-ZA": 1076,
+                "zu-ZA": 1077,
+                "af-ZA": 1078,
+                "ka-GE": 1079,
+                "fo-FO": 1080,
+                "hi-IN": 1081,
+                "mt-MT": 1082,
+                "se-NO": 1083,
+                "ms-MY": 1086,
+                "kk-KZ": 1087,
+                "ky-KG": 1088,
+                "sw-KE": 1089,
+                "tk-TM": 1090,
+                "uz-Latn-UZ": 1091,
+                "tt-RU": 1092,
+                "bn-IN": 1093,
+                "pa-IN": 1094,
+                "gu-IN": 1095,
+                "or-IN": 1096,
+                "ta-IN": 1097,
+                "te-IN": 1098,
+                "kn-IN": 1099,
+                "ml-IN": 1100,
+                "as-IN": 1101,
+                "mr-IN": 1102,
+                "sa-IN": 1103,
+                "mn-MN": 1104,
+                "bo-CN": 1105,
+                "cy-GB": 1106,
+                "km-KH": 1107,
+                "lo-LA": 1108,
+                "gl-ES": 1110,
+                "kok-IN": 1111,
+                "syr-SY": 1114,
+                "si-LK": 1115,
+                "iu-Cans-CA": 1117,
+                "am-ET": 1118,
+                "ne-NP": 1121,
+                "fy-NL": 1122,
+                "ps-AF": 1123,
+                "fil-PH": 1124,
+                "dv-MV": 1125,
+                "ha-Latn-NG": 1128,
+                "yo-NG": 1130,
+                "quz-BO": 1131,
+                "nso-ZA": 1132,
+                "ba-RU": 1133,
+                "lb-LU": 1134,
+                "kl-GL": 1135,
+                "ig-NG": 1136,
+                "ii-CN": 1144,
+                "arn-CL": 1146,
+                "moh-CA": 1148,
+                "br-FR": 1150,
+                "ug-CN": 1152,
+                "mi-NZ": 1153,
+                "oc-FR": 1154,
+                "co-FR": 1155,
+                "gsw-FR": 1156,
+                "sah-RU": 1157,
+                "qut-GT": 1158,
+                "rw-RW": 1159,
+                "wo-SN": 1160,
+                "prs-AF": 1164,
+                "gd-GB": 1169,
+                "ar-IQ": 2049,
+                "zh-CN": 2052,
+                "de-CH": 2055,
+                "en-GB": 2057,
+                "es-MX": 2058,
+                "fr-BE": 2060,
+                "it-CH": 2064,
+                "nl-BE": 2067,
+                "nn-NO": 2068,
+                "pt-PT": 2070,
+                "sr-Latn-CS": 2074,
+                "sv-FI": 2077,
+                "az-Cyrl-AZ": 2092,
+                "dsb-DE": 2094,
+                "se-SE": 2107,
+                "ga-IE": 2108,
+                "ms-BN": 2110,
+                "uz-Cyrl-UZ": 2115,
+                "bn-BD": 2117,
+                "mn-Mong-CN": 2128,
+                "iu-Latn-CA": 2141,
+                "tzm-Latn-DZ": 2143,
+                "quz-EC": 2155,
+                "ar-EG": 3073,
+                "zh-HK": 3076,
+                "de-AT": 3079,
+                "en-AU": 3081,
+                "es-ES": 3082,
+                "fr-CA": 3084,
+                "sr-Cyrl-CS": 3098,
+                "se-FI": 3131,
+                "quz-PE": 3179,
+                "ar-LY": 4097,
+                "zh-SG": 4100,
+                "de-LU": 4103,
+                "en-CA": 4105,
+                "es-GT": 4106,
+                "fr-CH": 4108,
+                "hr-BA": 4122,
+                "smj-NO": 4155,
+                "ar-DZ": 5121,
+                "zh-MO": 5124,
+                "de-LI": 5127,
+                "en-NZ": 5129,
+                "es-CR": 5130,
+                "fr-LU": 5132,
+                "bs-Latn-BA": 5146,
+                "smj-SE": 5179,
+                "ar-MA": 6145,
+                "en-IE": 6153,
+                "es-PA": 6154,
+                "fr-MC": 6156,
+                "sr-Latn-BA": 6170,
+                "sma-NO": 6203,
+                "ar-TN": 7169,
+                "en-ZA": 7177,
+                "es-DO": 7178,
+                "sr-Cyrl-BA": 7194,
+                "sma-SE": 7227,
+                "ar-OM": 8193,
+                "en-JM": 8201,
+                "es-VE": 8202,
+                "bs-Cyrl-BA": 8218,
+                "sms-FI": 8251,
+                "ar-YE": 9217,
+                "en-029": 9225,
+                "es-CO": 9226,
+                "sr-Latn-RS": 9242,
+                "smn-FI": 9275,
+                "ar-SY": 10241,
+                "en-BZ": 10249,
+                "es-PE": 10250,
+                "sr-Cyrl-RS": 10266,
+                "ar-JO": 11265,
+                "en-TT": 11273,
+                "es-AR": 11274,
+                "sr-Latn-ME": 11290,
+                "ar-LB": 12289,
+                "en-ZW": 12297,
+                "es-EC": 12298,
+                "sr-Cyrl-ME": 12314,
+                "ar-KW": 13313,
+                "en-PH": 13321,
+                "es-CL": 13322,
+                "ar-AE": 14337,
+                "es-UY": 14346,
+                "ar-BH": 15361,
+                "es-PY": 15370,
+                "ar-QA": 16385,
+                "en-IN": 16393,
+                "es-BO": 16394,
+                "en-MY": 17417,
+                "es-SV": 17418,
+                "en-SG": 18441,
+                "es-HN": 18442,
+                "es-NI": 19466,
+                "es-PR": 20490,
+                "es-US": 21514,
+                "bs-Cyrl": 25626,
+                "bs-Latn": 26650,
+                "sr-Cyrl": 27674,
+                "sr-Latn": 28698,
+                smn: 28731,
+                "az-Cyrl": 29740,
+                sms: 29755,
+                zh: 30724,
+                nn: 30740,
+                bs: 30746,
+                "az-Latn": 30764,
+                sma: 30779,
+                "uz-Cyrl": 30787,
+                "mn-Cyrl": 30800,
+                "iu-Cans": 30813,
+                "zh-Hant": 31748,
+                nb: 31764,
+                sr: 31770,
+                "tg-Cyrl": 31784,
+                dsb: 31790,
+                smj: 31803,
+                "uz-Latn": 31811,
+                "mn-Mong": 31824,
+                "iu-Latn": 31837,
+                "tzm-Latn": 31839,
+                "ha-Latn": 31848
+            };
+        exports.getLanguageId = function() {
+            return LANGUAGE_CODES[locale()]
         }
     },
     /*!*************************************!*\
@@ -3405,7 +3414,9 @@
                 }
                 switch (attr.result.value) {
                     case "gaussianBlurResult":
-                        filterOptions.blur = _number(attr.stdDeviation.value);
+                        if (attr.stdDeviation) {
+                            filterOptions.blur = _number(attr.stdDeviation.value)
+                        }
                         break;
                     case "offsetResult":
                         filterOptions.offsetX = _number(attr.dx.value);
@@ -3455,7 +3466,7 @@
 
         function setLineDash(context, options) {
             var matches = options["stroke-dasharray"] && options["stroke-dasharray"].match(/(\d+)/g);
-            if (matches && matches.length) {
+            if (matches && matches.length && context.setLineDash) {
                 matches = $.map(matches, function(item) {
                     return _number(item)
                 });
@@ -4720,6 +4731,7 @@
       \******************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
+            Config = __webpack_require__( /*! ./config */ 13),
             Class = __webpack_require__( /*! ./class */ 22),
             Action = __webpack_require__( /*! ./action */ 42),
             errors = __webpack_require__( /*! ./errors */ 7),
@@ -5021,10 +5033,16 @@
                         action = that._createAction(actionFunc, config);
                         that._resumeDeprecatedWarnings()
                     }
+                    if (Config().wrapActionsBeforeExecute) {
+                        var beforeActionExecute = that.option("beforeActionExecute") || $.noop;
+                        action = beforeActionExecute(that, action, config) || action
+                    }
                     return action.apply(that, arguments)
                 };
-                var onActionCreated = that.option("onActionCreated") || $.noop;
-                result = onActionCreated(that, result, config) || result;
+                if (!Config().wrapActionsBeforeExecute) {
+                    var onActionCreated = that.option("onActionCreated") || $.noop;
+                    result = onActionCreated(that, result, config) || result
+                }
                 return result
             },
             _getEventName: function(actionName) {
@@ -7012,9 +7030,9 @@
         };
         var dateInRange = function(date, min, max, format) {
             if ("date" === format) {
-                min = min && new Date(min.getFullYear(), min.getMonth(), min.getDate());
-                max = max && new Date(max.getFullYear(), max.getMonth(), max.getDate());
-                date = date && new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                min = min && dateUtils.correctDateWithUnitBeginning(min, "day");
+                max = max && dateUtils.correctDateWithUnitBeginning(max, "day");
+                date = date && dateUtils.correctDateWithUnitBeginning(date, "day")
             }
             return normalizeDate(date, min, max) === date
         };
@@ -8807,8 +8825,8 @@
                 if ($.isWindow( of [0])) {
                     h.atLocation = of .scrollLeft();
                     v.atLocation = of .scrollTop();
-                    h.atSize = of .width();
-                    v.atSize = of [0].innerHeight
+                    h.atSize = of [0].innerWidth > of [0].outerWidth ? of [0].innerWidth : of .width();
+                    v.atSize = of [0].innerHeight > of [0].outerHeight ? of [0].innerHeight : of .height()
                 } else {
                     if (9 === of [0].nodeType) {
                         h.atLocation = 0;
@@ -10925,9 +10943,9 @@
                             }
                         },
                         optionNameToModelMap = {};
-                    var applyModelValueToOption = function(optionName, modelValue) {
+                    var applyModelValueToOption = function(optionName, modelValue, unwrap) {
                         var locks = $element.data(LOCKS_DATA_KEY),
-                            optionValue = ko.unwrap(modelValue);
+                            optionValue = unwrap ? ko.unwrap(modelValue) : modelValue;
                         if (ko.isWriteableObservable(modelValue)) {
                             optionNameToModelMap[optionName] = modelValue
                         }
@@ -10980,7 +10998,7 @@
                             var unwrappedPropertyValue;
                             ko.computed(function() {
                                 var propertyValue = currentModel[propertyName];
-                                applyModelValueToOption(propertyPath, propertyValue);
+                                applyModelValueToOption(propertyPath, propertyValue, true);
                                 unwrappedPropertyValue = ko.unwrap(propertyValue)
                             }, null, {
                                 disposeWhenNodeIsRemoved: domNode
@@ -10991,7 +11009,7 @@
                                 }
                             }
                         } else {
-                            ctorOptions[propertyPath] = currentModel[propertyName]
+                            applyModelValueToOption(propertyPath, currentModel[propertyName], false)
                         }
                     };
                     var unwrapModel = function(model, propertyPath) {
@@ -12442,7 +12460,14 @@
             },
             _setSubmitElementName: function(name) {
                 var $submitElement = this._getSubmitElement();
-                $submitElement && $submitElement.attr("name", name)
+                if (!$submitElement) {
+                    return
+                }
+                if (name.length > 0) {
+                    $submitElement.attr("name", name)
+                } else {
+                    $submitElement.removeAttr("name")
+                }
             },
             _getSubmitElement: function() {
                 return null
@@ -12801,7 +12826,7 @@
                 }
                 if (closeOnOutsideClick) {
                     var $container = this._$content,
-                        outsideClick = !$container.is(e.target) && !$.contains($container.get(0), e.target);
+                        outsideClick = !$container.is(e.target) && !$.contains($container.get(0), e.target) && $(e.target).closest(document).length;
                     if (outsideClick) {
                         if (this.option("shading")) {
                             e.preventDefault()
@@ -14379,179 +14404,169 @@
             commonUtils = __webpack_require__( /*! ../core/utils/common */ 12),
             numberLocalization = __webpack_require__( /*! ../localization/number */ 25),
             messageLocalization = __webpack_require__( /*! ../localization/message */ 85);
-        var rulesValidators = {
-            required: {
-                validate: function(value, rule) {
-                    if (!commonUtils.isDefined(value)) {
-                        return false
-                    }
-                    if (false === value) {
-                        return false
-                    }
-                    value = String(value);
-                    if (rule.trim || !commonUtils.isDefined(rule.trim)) {
-                        value = $.trim(value)
-                    }
-                    return "" !== value
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-required")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-required-formatted")(value)
-                }
+        var BaseRuleValidator = Class.inherit({
+            NAME: "base",
+            defaultMessage: function(value) {
+                return messageLocalization.getFormatter("validation-" + this.NAME)(value)
             },
-            numeric: {
-                validate: function(value, rule) {
-                    if (!rulesValidators.required.validate(value, {})) {
-                        return true
-                    }
-                    if (rule.useCultureSettings && commonUtils.isString(value)) {
-                        return !isNaN(numberLocalization.parse(value))
-                    } else {
-                        return $.isNumeric(value)
-                    }
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-numeric")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-numeric-formatted")(value)
-                }
+            defaultFormattedMessage: function(value) {
+                return messageLocalization.getFormatter("validation-" + this.NAME + "-formatted")(value)
             },
-            range: {
-                validate: function(value, rule) {
-                    if (!rulesValidators.required.validate(value, {})) {
-                        return true
-                    }
-                    var validNumber = rulesValidators.numeric.validate(value, rule),
-                        validValue = commonUtils.isDefined(value),
-                        number = validNumber ? parseFloat(value) : validValue && value.valueOf(),
-                        min = rule.min,
-                        max = rule.max;
-                    if (!(validNumber || commonUtils.isDate(value)) && !validValue) {
-                        return false
-                    }
-                    if (commonUtils.isDefined(min)) {
-                        if (commonUtils.isDefined(max)) {
-                            return number >= min && number <= max
-                        }
-                        return number >= min
-                    } else {
-                        if (commonUtils.isDefined(max)) {
-                            return number <= max
-                        } else {
-                            throw errors.Error("E0101")
-                        }
-                    }
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-range")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-range-formatted")(value)
+            validate: function(value, rule) {
+                var valueArray = Array.isArray(value) ? value : [value],
+                    result = true;
+                if (valueArray.length) {
+                    valueArray.every(function(itemValue) {
+                        result = this._validate(itemValue, rule);
+                        return result
+                    }, this)
+                } else {
+                    result = this._validate(value, rule)
                 }
-            },
-            stringLength: {
-                validate: function(value, rule) {
-                    value = commonUtils.isDefined(value) ? String(value) : "";
-                    if (rule.trim || !commonUtils.isDefined(rule.trim)) {
-                        value = $.trim(value)
-                    }
-                    return rulesValidators.range.validate(value.length, $.extend({}, rule))
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-stringLength")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-stringLength-formatted")(value)
+                return result
+            }
+        });
+        var RequiredRuleValidator = BaseRuleValidator.inherit({
+            NAME: "required",
+            _validate: function(value, rule) {
+                if (!commonUtils.isDefined(value)) {
+                    return false
                 }
-            },
-            custom: {
-                validate: function(value, rule) {
-                    return rule.validationCallback({
-                        value: value,
-                        validator: rule.validator,
-                        rule: rule
-                    })
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-custom")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-custom-formatted")(value)
+                if (false === value) {
+                    return false
                 }
-            },
-            compare: {
-                validate: function(value, rule) {
-                    if (!rule.comparisonTarget) {
-                        throw errors.Error("E0102")
-                    }
-                    $.extend(rule, {
-                        reevaluate: true
-                    });
-                    var otherValue = rule.comparisonTarget(),
-                        type = rule.comparisonType || "==";
-                    switch (type) {
-                        case "==":
-                            return value == otherValue;
-                        case "!=":
-                            return value != otherValue;
-                        case "===":
-                            return value === otherValue;
-                        case "!==":
-                            return value !== otherValue;
-                        case ">":
-                            return value > otherValue;
-                        case ">=":
-                            return value >= otherValue;
-                        case "<":
-                            return value < otherValue;
-                        case "<=":
-                            return value <= otherValue
-                    }
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-compare")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-compare-formatted")(value)
+                value = String(value);
+                if (rule.trim || !commonUtils.isDefined(rule.trim)) {
+                    value = $.trim(value)
                 }
-            },
-            pattern: {
-                validate: function(value, rule) {
-                    if (!rulesValidators.required.validate(value, {})) {
-                        return true
-                    }
-                    var pattern = rule.pattern;
-                    if (commonUtils.isString(pattern)) {
-                        pattern = new RegExp(pattern)
-                    }
-                    return pattern.test(value)
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-pattern")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-pattern-formatted")(value)
+                return "" !== value
+            }
+        });
+        var NumericRuleValidator = BaseRuleValidator.inherit({
+            NAME: "numeric",
+            _validate: function(value, rule) {
+                if (!rulesValidators.required.validate(value, {})) {
+                    return true
                 }
-            },
-            email: {
-                validate: function(value, rule) {
-                    if (!rulesValidators.required.validate(value, {})) {
-                        return true
-                    }
-                    return rulesValidators.pattern.validate(value, $.extend({}, rule, {
-                        pattern: /^[\d\w\._\-]+@([\d\w\._\-]+\.)+[\w]+$/i
-                    }))
-                },
-                defaultMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-email")(value)
-                },
-                defaultFormattedMessage: function(value) {
-                    return messageLocalization.getFormatter("validation-email-formatted")(value)
+                if (rule.useCultureSettings && commonUtils.isString(value)) {
+                    return !isNaN(numberLocalization.parse(value))
+                } else {
+                    return $.isNumeric(value)
                 }
             }
+        });
+        var RangeRuleValidator = BaseRuleValidator.inherit({
+            NAME: "range",
+            _validate: function(value, rule) {
+                if (!rulesValidators.required.validate(value, {})) {
+                    return true
+                }
+                var validNumber = rulesValidators.numeric.validate(value, rule),
+                    validValue = commonUtils.isDefined(value),
+                    number = validNumber ? parseFloat(value) : validValue && value.valueOf(),
+                    min = rule.min,
+                    max = rule.max;
+                if (!(validNumber || commonUtils.isDate(value)) && !validValue) {
+                    return false
+                }
+                if (commonUtils.isDefined(min)) {
+                    if (commonUtils.isDefined(max)) {
+                        return number >= min && number <= max
+                    }
+                    return number >= min
+                } else {
+                    if (commonUtils.isDefined(max)) {
+                        return number <= max
+                    } else {
+                        throw errors.Error("E0101")
+                    }
+                }
+            }
+        });
+        var StringLengthRuleValidator = BaseRuleValidator.inherit({
+            NAME: "stringLength",
+            _validate: function(value, rule) {
+                value = commonUtils.isDefined(value) ? String(value) : "";
+                if (rule.trim || !commonUtils.isDefined(rule.trim)) {
+                    value = $.trim(value)
+                }
+                return rulesValidators.range.validate(value.length, $.extend({}, rule))
+            }
+        });
+        var CustomRuleValidator = BaseRuleValidator.inherit({
+            NAME: "custom",
+            validate: function(value, rule) {
+                return rule.validationCallback({
+                    value: value,
+                    validator: rule.validator,
+                    rule: rule
+                })
+            }
+        });
+        var CompareRuleValidator = BaseRuleValidator.inherit({
+            NAME: "compare",
+            _validate: function(value, rule) {
+                if (!rule.comparisonTarget) {
+                    throw errors.Error("E0102")
+                }
+                $.extend(rule, {
+                    reevaluate: true
+                });
+                var otherValue = rule.comparisonTarget(),
+                    type = rule.comparisonType || "==";
+                switch (type) {
+                    case "==":
+                        return value == otherValue;
+                    case "!=":
+                        return value != otherValue;
+                    case "===":
+                        return value === otherValue;
+                    case "!==":
+                        return value !== otherValue;
+                    case ">":
+                        return value > otherValue;
+                    case ">=":
+                        return value >= otherValue;
+                    case "<":
+                        return value < otherValue;
+                    case "<=":
+                        return value <= otherValue
+                }
+            }
+        });
+        var PatternRuleValidator = BaseRuleValidator.inherit({
+            NAME: "pattern",
+            _validate: function(value, rule) {
+                if (!rulesValidators.required.validate(value, {})) {
+                    return true
+                }
+                var pattern = rule.pattern;
+                if (commonUtils.isString(pattern)) {
+                    pattern = new RegExp(pattern)
+                }
+                return pattern.test(value)
+            }
+        });
+        var EmailRuleValidator = BaseRuleValidator.inherit({
+            NAME: "email",
+            _validate: function(value, rule) {
+                if (!rulesValidators.required.validate(value, {})) {
+                    return true
+                }
+                return rulesValidators.pattern.validate(value, $.extend({}, rule, {
+                    pattern: /^[\d\w\._\-]+@([\d\w\._\-]+\.)+[\w]+$/i
+                }))
+            }
+        });
+        var rulesValidators = {
+            required: new RequiredRuleValidator,
+            numeric: new NumericRuleValidator,
+            range: new RangeRuleValidator,
+            stringLength: new StringLengthRuleValidator,
+            custom: new CustomRuleValidator,
+            compare: new CompareRuleValidator,
+            pattern: new PatternRuleValidator,
+            email: new EmailRuleValidator
         };
         var GroupConfig = Class.inherit({
             ctor: function(group) {
@@ -20038,6 +20053,7 @@
       \*********************************************************/
     function(module, exports, __webpack_require__) {
         var $ = __webpack_require__( /*! jquery */ 9),
+            Config = __webpack_require__( /*! ../../core/config */ 13),
             registerComponent = __webpack_require__( /*! ../../core/component_registrator */ 52),
             Class = __webpack_require__( /*! ../../core/class */ 22),
             Locker = __webpack_require__( /*! ../../core/utils/locker */ 108),
@@ -20192,6 +20208,9 @@
                     that._ngLocker.obtain(fullName);
                     safeApply(function() {
                         $.each(optionDependencies[optionName], function(optionPath, valuePath) {
+                            if (!that._optionsAreLinked(fullName, optionPath)) {
+                                return
+                            }
                             var value = component.option(optionPath);
                             that._parse(valuePath).assign(that._scope, value);
                             var scopeValue = that._parse(valuePath)(that._scope);
@@ -20209,6 +20228,16 @@
                     releaseOption();
                     that._digestCallbacks.end.add(releaseOption)
                 })
+            },
+            _optionsAreNested: function(optionPath1, optionPath2) {
+                var parentSeparator = optionPath1[optionPath2.length];
+                return 0 === optionPath1.indexOf(optionPath2) && ("." === parentSeparator || "[" === parentSeparator)
+            },
+            _optionsAreLinked: function(optionPath1, optionPath2) {
+                if (optionPath1 === optionPath2) {
+                    return true
+                }
+                return optionPath1.length > optionPath2.length ? this._optionsAreNested(optionPath1, optionPath2) : this._optionsAreNested(optionPath2, optionPath1)
             },
             _compilerByTemplate: function(template) {
                 var that = this,
@@ -20331,28 +20360,45 @@
                     };
                     return wrappedAction
                 };
+                result.beforeActionExecute = result.onActionCreated;
                 result.nestedComponentOptions = function(component) {
                     return {
                         templatesRenderAsynchronously: component.option("templatesRenderAsynchronously"),
+                        forceApplyBindings: component.option("forceApplyBindings"),
                         modelByElement: component.option("modelByElement"),
                         onActionCreated: component.option("onActionCreated"),
+                        beforeActionExecute: component.option("beforeActionExecute"),
                         nestedComponentOptions: component.option("nestedComponentOptions")
                     }
                 };
                 result.templatesRenderAsynchronously = true;
+                if (Config().wrapActionsBeforeExecute) {
+                    result.forceApplyBindings = function() {
+                        safeApply(function() {}, scope)
+                    }
+                }
                 result.integrationOptions = {
                     createTemplate: function(element) {
                         return new NgTemplate(element, this._compilerByTemplate.bind(this))
                     }.bind(this),
                     watchMethod: function(fn, callback, options) {
                         options = options || {};
+                        var immediateValue;
                         var skipCallback = options.skipImmediate;
                         var disposeWatcher = scope.$watch(fn, function(newValue) {
-                            if (!skipCallback) {
+                            var isSameValue = immediateValue === newValue;
+                            if (!skipCallback && (!isSameValue || isSameValue && options.deep)) {
                                 callback(newValue)
                             }
                             skipCallback = false
                         }, options.deep);
+                        if (!skipCallback) {
+                            immediateValue = fn();
+                            callback(immediateValue)
+                        }
+                        if (Config().wrapActionsBeforeExecute) {
+                            safeApply(function() {}, scope)
+                        }
                         return disposeWatcher
                     },
                     templates: {
@@ -20538,6 +20584,7 @@
                     selectionByClick: true,
                     selectedItems: [],
                     selectedItemKeys: [],
+                    maxFilterLengthInRequest: 1500,
                     keyExpr: null,
                     selectedIndex: -1,
                     selectedItem: null,
@@ -20598,6 +20645,7 @@
                     itemsGetter = that._editStrategy.itemsGetter;
                 this._selection = new Selection({
                     mode: this.option("selectionMode"),
+                    maxFilterLengthInRequest: this.option("maxFilterLengthInRequest"),
                     equalByReference: !this._isKeySpecified(),
                     onSelectionChanged: function(args) {
                         if (args.addedItemKeys.length || args.removedItemKeys.length) {
@@ -20746,6 +20794,17 @@
                 }
                 return optionName
             },
+            _compareKeys: function(oldKeys, newKeys) {
+                if (oldKeys.length !== newKeys.length) {
+                    return false
+                }
+                for (var i = 0; i < newKeys.length; i++) {
+                    if (oldKeys[i] !== newKeys[i]) {
+                        return false
+                    }
+                }
+                return true
+            },
             _normalizeSelectedItems: function() {
                 if ("none" === this.option("selectionMode")) {
                     this._setOptionSilent("selectedItems", []);
@@ -20769,7 +20828,11 @@
                             this._selection.setSelection(this._getKeysByItems(newSelection))
                         }
                     } else {
-                        this._selection.setSelection(this._getKeysByItems(this.option("selectedItems")))
+                        var newKeys = this._getKeysByItems(this.option("selectedItems"));
+                        var oldKeys = this._selection.getSelectedItemKeys();
+                        if (!this._compareKeys(oldKeys, newKeys)) {
+                            this._selection.setSelection(newKeys)
+                        }
                     }
                 }
             },
@@ -20906,6 +20969,7 @@
                     case "onItemDeleting":
                     case "onItemDeleted":
                     case "onItemReordered":
+                    case "maxFilterLengthInRequest":
                         break;
                     default:
                         this.callBase(args)
@@ -20926,7 +20990,10 @@
                 }
                 $itemElement.data(ITEM_DELETING_DATA_KEY, true);
                 var deferred = $.Deferred(),
-                    deletePromise = this._itemEventHandler($itemElement, "onItemDeleting", {}, {
+                    deletingActionArgs = {
+                        cancel: false
+                    },
+                    deletePromise = this._itemEventHandler($itemElement, "onItemDeleting", deletingActionArgs, {
                         excludeValidators: ["disabled", "readOnly"]
                     });
                 when(deletePromise).always($.proxy(function(value) {
@@ -20934,8 +21001,11 @@
                         deletePromiseResolved = !deletePromiseExists && "resolved" === deletePromise.state(),
                         argumentsSpecified = !!arguments.length,
                         shouldDelete = deletePromiseExists || deletePromiseResolved && !argumentsSpecified || deletePromiseResolved && value;
-                    $itemElement.data(ITEM_DELETING_DATA_KEY, false);
-                    shouldDelete ? deferred.resolve() : deferred.reject()
+                    when(deletingActionArgs.cancel).always(function() {
+                        $itemElement.data(ITEM_DELETING_DATA_KEY, false)
+                    }).done(function(cancel) {
+                        shouldDelete && !cancel ? deferred.resolve() : deferred.reject()
+                    }).fail(deferred.reject)
                 }, this));
                 return deferred.promise()
             },
@@ -21084,7 +21154,7 @@
                 return deferred.promise().done(function() {
                     $destinationItem[strategy.itemPlacementFunc(movingIndex, destinationIndex)]($movingItem);
                     strategy.moveItemAtIndexToIndex(movingIndex, destinationIndex);
-                    that.option("selectedItems", that._getItemsByKeys(that._selection.getSelectedItemKeys()));
+                    that.option("selectedItems", that._getItemsByKeys(that._selection.getSelectedItemKeys(), that._selection.getSelectedItems()));
                     if ("items" === changingOption) {
                         that._simulateOptionChange(changingOption)
                     }
@@ -21802,8 +21872,9 @@
                 return this._itemEventHandlerImpl(initiator, action, actionArgs)
             },
             _itemEventHandlerImpl: function(initiator, action, actionArgs) {
-                var $itemElement = this._closestItemElement($(initiator));
-                return action($.extend(this._extendActionArgs($itemElement), actionArgs))
+                var $itemElement = this._closestItemElement($(initiator)),
+                    args = $.extend({}, actionArgs);
+                return action($.extend(actionArgs, this._extendActionArgs($itemElement), args))
             },
             _extendActionArgs: function($itemElement) {
                 return {
@@ -24789,7 +24860,7 @@
                             filteredItems = dataQuery(filteredItems).filter(remoteFilter).toArray()
                         }
                         if (localFilter) {
-                            filteredItems = dataQuery(filteredItems).filter(localFilter).toArray()
+                            filteredItems = filteredItems.filter(localFilter)
                         }
                         deferred.resolve(filteredItems)
                     }).fail($.proxy(deferred.reject, deferred))
@@ -24866,18 +24937,12 @@
             errors = __webpack_require__( /*! ../widget/ui.errors */ 19),
             SelectionStrategy = __webpack_require__( /*! ./selection.strategy */ 167);
 
-        function SelectionFilterCreator(keyExpr, selectedItemKeys, isSelectAll, equalKeys) {
-            this.getFilter = function() {
-                return this._filter || this.getExpr() || this.getFunction()
-            };
-            this.getFunction = function() {
-                if (!isFunction()) {
-                    return
-                }
+        function SelectionFilterCreator(keyExpr, selectedItemKeys, isSelectAll, equalKeys, keyOf) {
+            this.getLocalFilter = function() {
                 return functionFilter
             };
             this.getExpr = function() {
-                if (isFunction()) {
+                if (!keyExpr) {
                     return
                 }
                 var filterExpr;
@@ -24893,6 +24958,9 @@
                         filterExprPart = getFilterForCompositeKey(itemKeyValue)
                     }
                     filterExpr.push(filterExprPart)
+                }
+                if (filterExpr && 1 === filterExpr.length) {
+                    filterExpr = filterExpr[0]
                 }
                 this._filter = filterExpr;
                 return filterExpr
@@ -24911,16 +24979,13 @@
                 }
                 return combinedFilter
             };
-            var isFunction = function() {
-                return !keyExpr
-            };
             var functionFilter = function(item) {
                 for (var i = 0; i < selectedItemKeys.length; i++) {
-                    if (equalKeys(selectedItemKeys[i], item)) {
+                    if (equalKeys(selectedItemKeys[i], keyOf(item))) {
                         return !isSelectAll
                     }
                 }
-                return isSelectAll
+                return !!isSelectAll
             };
             var getFilterForPlainKey = function(keyValue, key) {
                 return [key || keyExpr, isSelectAll ? "<>" : "=", keyValue]
@@ -24999,24 +25064,24 @@
                     deferred.resolve([]);
                     return deferred
                 }
-                if (isSelectAll && isDeselect && !this.options.filter) {
-                    return this._clearSelection()
+                var filter = this.options.filter();
+                if (isSelectAll && isDeselect && !filter) {
+                    deferred.resolve(this.getSelectedItemKeys());
+                    return deferred
                 }
-                var selectionFilterCreator = new SelectionFilterCreator(key(), keys, isSelectAll, this.equalKeys.bind(this)),
-                    combinedFilter = selectionFilterCreator.getCombinedFilter(this.options.filter());
+                var selectionFilterCreator = new SelectionFilterCreator(key(), keys, isSelectAll, this.equalKeys.bind(this), this.options.keyOf),
+                    combinedFilter = selectionFilterCreator.getCombinedFilter(filter);
                 var deselectedItems = [];
                 if (isDeselect) {
                     deselectedItems = combinedFilter ? dataQuery(this.options.selectedItems).filter(combinedFilter).toArray() : this.options.selectedItems.slice(0)
                 }
                 var filteredItems = deselectedItems.length ? deselectedItems : this.options.plainItems().filter(this.options.isSelectableItem).map(this.options.getItemData);
-                var filter = selectionFilterCreator.getFilter();
-                if (filter) {
-                    filteredItems = dataQuery(filteredItems).filter(filter).toArray()
-                }
-                if (!isSelectAll && (deselectedItems.length || filteredItems.length === keys.length)) {
+                var localFilter = selectionFilterCreator.getLocalFilter();
+                filteredItems = filteredItems.filter(localFilter);
+                if (deselectedItems.length || !isSelectAll && filteredItems.length === keys.length) {
                     deferred.resolve(filteredItems)
                 } else {
-                    deferred = this._loadFilteredData(combinedFilter, selectionFilterCreator.getFilter())
+                    deferred = this._loadFilteredData(combinedFilter, localFilter)
                 }
                 return deferred
             },
@@ -26483,7 +26548,7 @@
                         if ("currency" === format.type) {
                             return this._formatNumber(value, this._parseNumberFormatString("currency"), format)
                         } else {
-                            if (format.currency) {
+                            if (!format.type && format.currency) {
                                 return getFormatter(format.currency, format)(value)
                             }
                         }
@@ -28393,6 +28458,7 @@
         viz.currentPalette = __webpack_require__( /*! ../../../viz/palette */ 452).currentPalette;
         viz.getPalette = __webpack_require__( /*! ../../../viz/palette */ 452).getPalette;
         viz.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 452).registerPalette;
+        viz.refreshTheme = __webpack_require__( /*! ../../../viz/themes */ 448).refreshTheme;
         viz.dxChart = __webpack_require__( /*! ../../../viz/chart */ 453);
         viz.dxPieChart = __webpack_require__( /*! ../../../viz/pie_chart */ 524);
         viz.dxPolarChart = __webpack_require__( /*! ../../../viz/polar_chart */ 526);
@@ -28416,7 +28482,7 @@
         core.registerPalette = __webpack_require__( /*! ../../../viz/palette */ 452).registerPalette;
         viz.BaseWidget = __webpack_require__( /*! ../../../viz/core/base_widget */ 455);
         viz.findTheme = __webpack_require__( /*! ../../../viz/themes */ 448).findTheme;
-        viz.refreshAll = __webpack_require__( /*! ../../../viz/themes */ 448).refreshAll;
+        viz.refreshAll = __webpack_require__( /*! ../../../viz/themes */ 448).refreshTheme;
         viz.refreshPaths = __webpack_require__( /*! ../../../viz/utils */ 596).refreshPaths;
         viz.gauges = {
             __internals: {}
@@ -28677,7 +28743,7 @@
             delete widgetsCache[target._cache]
         }
 
-        function refreshAll() {
+        function refreshTheme() {
             _each(widgetsCache, function() {
                 this.refresh()
             });
@@ -28689,7 +28755,7 @@
             findTheme: findTheme,
             registerThemeAlias: registerThemeAlias,
             registerThemeSchemeAlias: registerThemeSchemeAlias,
-            refreshAll: refreshAll,
+            refreshTheme: refreshTheme,
             addCacheItem: addCacheItem,
             removeCacheItem: removeCacheItem
         });
@@ -30893,9 +30959,16 @@
                 that._argumentAxes[0] && that._argumentAxes[0].resetZoom()
             },
             getVisibleArgumentBounds: function() {
-                var range = this._argumentAxes[0].getTranslator().getBusinessRange(),
-                    isDiscrete = "discrete" === range.axisType,
-                    categories = range.categories;
+                var range, isDiscrete, categories, translator = this._argumentAxes[0].getTranslator();
+                if (!translator) {
+                    return {
+                        minVisible: this._zoomMinArg,
+                        maxVisible: this._zoomMaxArg
+                    }
+                }
+                range = translator.getBusinessRange();
+                isDiscrete = "discrete" === range.axisType;
+                categories = range.categories;
                 return {
                     minVisible: isDiscrete ? range.minVisible || categories[0] : range.minVisible,
                     maxVisible: isDiscrete ? range.maxVisible || categories[categories.length - 1] : range.maxVisible
@@ -31000,19 +31073,25 @@
                 stubCanvas = {
                     start: isRotated ? canvas.left : canvas.top,
                     end: isRotated ? canvas.width - canvas.right : canvas.height - canvas.bottom
-                };
+                },
+                hasStackedSeries = false;
             checkHeightLabelsInCanvas(points, stubCanvas, isRotated);
             points.forEach(function(p) {
                 if (!p) {
                     return
                 }
+                hasStackedSeries = hasStackedSeries || p.series.isStackedSeries() || p.series.isFullStackedSeries();
                 p.getLabels().forEach(function(l) {
                     l.isVisible() && rollingStocks.push(new RollingStock(l, isRotated, shiftFunction))
                 })
             });
-            rollingStocks.sort(function(a, b) {
-                return a.getInitialPosition() - b.getInitialPosition()
-            });
+            if (hasStackedSeries) {
+                !isRotated && rollingStocks.reverse()
+            } else {
+                rollingStocks.sort(function(a, b) {
+                    return a.getInitialPosition() - b.getInitialPosition()
+                })
+            }
             if (!checkStackOverlap(rollingStocks)) {
                 return
             }
@@ -31028,16 +31107,16 @@
         }
 
         function checkStackOverlap(rollingStocks) {
-            var i, j, currentRollingStock, nextRollingStock, overlap;
-            for (i = 0; i < rollingStocks.length; i++) {
-                currentRollingStock = rollingStocks[i];
-                for (j = i + 1; j < rollingStocks.length; j++) {
-                    nextRollingStock = rollingStocks[j];
-                    if (overlapRollingStock(currentRollingStock, nextRollingStock)) {
-                        currentRollingStock.toChain(nextRollingStock);
-                        overlap = true;
-                        rollingStocks[j] = null
-                    }
+            var i, currentRollingStock, overlap, root;
+            for (i = 0; i < rollingStocks.length - 1; i++) {
+                currentRollingStock = root || rollingStocks[i];
+                if (overlapRollingStock(currentRollingStock, rollingStocks[i + 1])) {
+                    currentRollingStock.toChain(rollingStocks[i + 1]);
+                    rollingStocks[i + 1] = null;
+                    root = currentRollingStock;
+                    overlap = true
+                } else {
+                    root = null
                 }
             }
             return overlap
@@ -33127,27 +33206,29 @@
                 if ("BR" === node.tagName) {
                     ++line
                 } else {
-                    extend(style = {}, parentStyle);
-                    switch (node.tagName) {
-                        case "B":
-                        case "STRONG":
-                            style[KEY_FONT_WEIGHT] = "bold";
-                            break;
-                        case "I":
-                        case "EM":
-                            style[KEY_FONT_STYLE] = "italic";
-                            break;
-                        case "U":
-                            style[KEY_TEXT_DECORATION] = "underline"
-                    }
-                    realStyle = node.style;
-                    realStyle.color && (style.fill = realStyle.color);
-                    realStyle.fontSize && (style[KEY_FONT_SIZE] = _parseInt(realStyle.fontSize, 10));
-                    realStyle.fontStyle && (style[KEY_FONT_STYLE] = realStyle.fontStyle);
-                    realStyle.fontWeight && (style[KEY_FONT_WEIGHT] = realStyle.fontWeight);
-                    realStyle.textDecoration && (style[KEY_TEXT_DECORATION] = realStyle.textDecoration);
-                    for (i = 0, nodes = node.childNodes, ii = nodes.length; i < ii; ++i) {
-                        line = orderHtmlTree(list, line, nodes[i], style, node.className || parentClassName)
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        extend(style = {}, parentStyle);
+                        switch (node.tagName) {
+                            case "B":
+                            case "STRONG":
+                                style[KEY_FONT_WEIGHT] = "bold";
+                                break;
+                            case "I":
+                            case "EM":
+                                style[KEY_FONT_STYLE] = "italic";
+                                break;
+                            case "U":
+                                style[KEY_TEXT_DECORATION] = "underline"
+                        }
+                        realStyle = node.style;
+                        realStyle.color && (style.fill = realStyle.color);
+                        realStyle.fontSize && (style[KEY_FONT_SIZE] = _parseInt(realStyle.fontSize, 10));
+                        realStyle.fontStyle && (style[KEY_FONT_STYLE] = realStyle.fontStyle);
+                        realStyle.fontWeight && (style[KEY_FONT_WEIGHT] = realStyle.fontWeight);
+                        realStyle.textDecoration && (style[KEY_TEXT_DECORATION] = realStyle.textDecoration);
+                        for (i = 0, nodes = node.childNodes, ii = nodes.length; i < ii; ++i) {
+                            line = orderHtmlTree(list, line, nodes[i], style, node.className || parentClassName)
+                        }
                     }
                 }
             }
@@ -33309,7 +33390,7 @@
                 return
             }
             text = "" + text;
-            if (!wrapper.renderer.encodeHtml && (text.indexOf("<") !== -1 || text.indexOf("&") !== -1)) {
+            if (!wrapper.renderer.encodeHtml && (/<[a-z][\s\S]*>/i.test(text) || text.indexOf("&") !== -1)) {
                 parsedHtml = removeExtraAttrs(text);
                 items = parseHTML(parsedHtml);
                 wrapper.DEBUG_parsedHtml = parsedHtml
@@ -38088,6 +38169,7 @@
             _degreesToRadians = vizUtils.degreesToRadians,
             _patchFontOptions = vizUtils.patchFontOptions,
             _round = Math.round,
+            _floor = Math.floor,
             _getCosAndSin = vizUtils.getCosAndSin,
             _rotateBBox = vizUtils.rotateBBox,
             LABEL_BACKGROUND_PADDING_X = 8,
@@ -38344,7 +38426,7 @@
                         [xc - that._textSize[0] / 2, yc]
                     ], [xc, yc], -that._options.rotationAngle || 0);
                     labelPoint = getClosestCoord(strategy.getFigureCenter(figure), points);
-                    labelPoint = [_round(labelPoint[0]), _round(labelPoint[1])];
+                    labelPoint = [_floor(labelPoint[0]), _floor(labelPoint[1])];
                     figurePoint = strategy.findFigurePoint(figure, labelPoint);
                     points = figurePoint.concat(labelPoint)
                 }
@@ -45934,7 +46016,7 @@
                     if (series !== that.hoveredSeries) {
                         that._setTimeout(function() {
                             that._setHoveredSeries(series);
-                            that._stuckSeries = series;
+                            that._setStuckSeries(e, series, x, y);
                             that._pointerComplete(point, x, y)
                         }, series);
                         return
@@ -45943,14 +46025,14 @@
                     if (point) {
                         if (that.hoveredSeries) {
                             that._setTimeout(function() {
-                                that._pointerOnPoint(point, x, y)
+                                that._pointerOnPoint(point, x, y, e)
                             }, point)
                         } else {
-                            that._pointerOnPoint(point, x, y)
+                            that._pointerOnPoint(point, x, y, e)
                         }
                         return
                     } else {
-                        if (that._setStuckSeries(x, y)) {
+                        if (that._setStuckSeries(e, void 0, x, y)) {
                             series = that._stuckSeries;
                             point = series.getNeighborPoint(x, y);
                             that._releaseHoveredSeries();
@@ -46266,8 +46348,12 @@
                     }
                 }
             },
-            _setStuckSeries: function(x, y) {
-                this._stuckSeries = this._stuckSeries || this._getSeriesForShared(x, y);
+            _setStuckSeries: function(e, series, x, y) {
+                if ("mouse" !== e.pointerType) {
+                    this._stuckSeries = null
+                } else {
+                    this._stuckSeries = series || this._stuckSeries || this._getSeriesForShared(x, y)
+                }
                 return !!this._stuckSeries
             },
             _pointerOut: function() {
@@ -46304,12 +46390,10 @@
                 this._hideCrosshair();
                 baseTrackerPrototype._hoverLegendItem.call(this, x, y)
             },
-            _pointerOnPoint: function(point, x, y) {
-                var that = this,
-                    seriesFromPoint = point.series;
-                that._stuckSeries = seriesFromPoint;
-                that._releaseHoveredSeries();
-                baseTrackerPrototype._pointerOnPoint.call(that, point, x, y)
+            _pointerOnPoint: function(point, x, y, e) {
+                this._setStuckSeries(e, point.series, x, y);
+                this._releaseHoveredSeries();
+                baseTrackerPrototype._pointerOnPoint.call(this, point, x, y, e)
             },
             _notifyLegendOnHoverArgument: false,
             _getArgumentHoverMode: function() {
@@ -59228,11 +59312,6 @@
             _setContentSize: function() {
                 this.__isResizing = 2 === this._changes.count();
                 this.callBase.apply(this, arguments)
-            },
-            render: function(isResizing) {
-                this.__isResizing = isResizing;
-                this.callBase.apply(this, arguments);
-                this._requestChange(["MOSTLY_TOTAL"])
             }
         });
         $.each(["selectedRangeColor", "containerBackgroundColor", "sliderMarker", "sliderHandle", "shutter", OPTION_BACKGROUND, "behavior", "chart", "indent"], function(_, name) {
@@ -62305,7 +62384,7 @@
                 if (!state) {
                     return
                 }
-                if (_now() - state.time <= CLICK_TIME_THRESHOLD) {
+                if (data && _now() - state.time <= CLICK_TIME_THRESHOLD) {
                     threshold = state.threshold;
                     coords = getEventCoords(event);
                     if (_abs(coords.x - state.x) <= threshold && _abs(coords.y - state.y) <= threshold) {
