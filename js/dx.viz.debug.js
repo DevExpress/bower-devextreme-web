@@ -1,7 +1,7 @@
 /*! 
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.1.11
- * Build date: Mon Feb 27 2017
+ * Version: 16.1.13
+ * Build date: Fri Jul 28 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * EULA: https://www.devexpress.com/Support/EULAs/DevExtreme.xml
@@ -831,7 +831,7 @@
       !*** ./Scripts/core/version.js ***!
       \*********************************/
     function(module, exports) {
-        module.exports = "16.1.11"
+        module.exports = "16.1.13"
     },
     /*!********************************!*\
       !*** ./Scripts/core/errors.js ***!
@@ -5663,7 +5663,8 @@
                         if (!prevTargetValue) {
                             assignPropValue(target, targetPropName, {}, options)
                         }
-                        objectUtils.deepExtendArraySafe(unwrap(readPropValue(target, targetPropName), options), value)
+                        target = unwrap(readPropValue(target, targetPropName), options);
+                        objectUtils.deepExtendArraySafe(target, value, true)
                     } else {
                         assignPropValue(target, targetPropName, value, options)
                     }
@@ -5744,14 +5745,14 @@
                 func(key, map[key])
             }
         };
-        var assignValueToProperty = function(target, property, value) {
-            if (variableWrapper.isWrapped(target[property])) {
+        var assignValueToProperty = function(target, property, value, assignByReference) {
+            if (!assignByReference && variableWrapper.isWrapped(target[property])) {
                 variableWrapper.assign(target[property], value)
             } else {
                 target[property] = value
             }
         };
-        var deepExtendArraySafe = function(target, changes) {
+        var deepExtendArraySafe = function(target, changes, assignByReference) {
             var prevValue, newValue;
             for (var name in changes) {
                 prevValue = target[name];
@@ -5760,10 +5761,10 @@
                     continue
                 }
                 if ($.isPlainObject(newValue) && !(newValue instanceof $.Event)) {
-                    assignValueToProperty(target, name, deepExtendArraySafe($.isPlainObject(prevValue) ? prevValue : {}, newValue))
+                    assignValueToProperty(target, name, deepExtendArraySafe($.isPlainObject(prevValue) ? prevValue : {}, newValue, assignByReference), assignByReference)
                 } else {
                     if (void 0 !== newValue) {
-                        assignValueToProperty(target, name, newValue)
+                        assignValueToProperty(target, name, newValue, assignByReference)
                     }
                 }
             }
@@ -5878,7 +5879,7 @@
             androidTablet: "Android",
             win8: "MSAppHost",
             win8Phone: "Windows Phone 8.0",
-            msSurface: "Windows Tablet PC",
+            msSurface: "Windows ARM Tablet PC",
             desktop: "desktop",
             win10Phone: "Windows Phone 10.0",
             win10: "MSAppHost/3.0"
@@ -5899,7 +5900,7 @@
         var uaParsers = {
             win: function(userAgent) {
                 var isPhone = /windows phone/i.test(userAgent) || userAgent.match(/WPDesktop/),
-                    isTablet = !isPhone && /Windows(.*)Tablet PC/i.test(userAgent),
+                    isTablet = !isPhone && /Windows(.*)arm(.*)Tablet PC/i.test(userAgent),
                     isDesktop = !isPhone && !isTablet && /msapphost/i.test(userAgent);
                 if (!(isPhone || isTablet || isDesktop)) {
                     return
@@ -7151,9 +7152,9 @@
         };
         var dateInRange = function(date, min, max, format) {
             if ("date" === format) {
-                min = min && new Date(min.getFullYear(), min.getMonth(), min.getDate());
-                max = max && new Date(max.getFullYear(), max.getMonth(), max.getDate());
-                date = date && new Date(date.getFullYear(), date.getMonth(), date.getDate())
+                min = min && dateUtils.correctDateWithUnitBeginning(min, "day");
+                max = max && dateUtils.correctDateWithUnitBeginning(max, "day");
+                date = date && dateUtils.correctDateWithUnitBeginning(date, "day")
             }
             return normalizeDate(date, min, max) === date
         };
@@ -7212,7 +7213,7 @@
         var deserializeDate = function(value, serializationFormat, localizationParseFunc) {
             var parsedValue;
             if (!serializationFormat || serializationFormat === NUMBER_SERIALIZATION_FORMAT || serializationFormat === DATE_SERIALIZATION_FORMAT || serializationFormat === DATETIME_SERIALIZATION_FORMAT) {
-                parsedValue = serializationFormat === NUMBER_SERIALIZATION_FORMAT ? value : !isDate(value) && Date.parse(value);
+                parsedValue = serializationFormat === NUMBER_SERIALIZATION_FORMAT || "number" === typeof value ? value : !isDate(value) && Date.parse(value);
                 return isNumber(parsedValue) ? new Date(parsedValue) : value
             }
             if (void 0 !== value) {
@@ -20255,7 +20256,8 @@
             devices = __webpack_require__( /*! ../core/devices */ 51),
             viewPortUtils = __webpack_require__( /*! ../core/utils/view_port */ 53),
             viewPort = viewPortUtils.value,
-            viewPortChanged = viewPortUtils.changeCallback;
+            viewPortChanged = viewPortUtils.changeCallback,
+            holdReady = $.holdReady || $.fn.holdReady;
         var DX_LINK_SELECTOR = "link[rel=dx-theme]",
             THEME_ATTR = "data-theme",
             ACTIVE_ATTR = "data-active",
@@ -20472,11 +20474,11 @@
         function detachCssClasses(element, themeName) {
             $(element).removeClass(themeClasses)
         }
-        $.holdReady(true);
+        holdReady(true);
         init({
             _autoInit: true,
             loadCallback: function() {
-                $.holdReady(false)
+                holdReady(false)
             }
         });
         $(function() {
@@ -33000,7 +33002,7 @@
                         left: rtl ? "end" : "start",
                         center: "middle",
                         right: rtl ? "start" : "end"
-                    }[value] || ""
+                    }[value] || null
                 } else {
                     if ("dashStyle" === key) {
                         recalculateDashStyle = true;
