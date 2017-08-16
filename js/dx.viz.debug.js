@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.8
- * Build date: Wed Jun 28 2017
+ * Version: 16.2.9
+ * Build date: Mon Aug 14 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -795,7 +795,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.8"
+        module.exports = "16.2.9"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
@@ -20569,7 +20569,11 @@
             DataSource = __webpack_require__( /*! ../../data/data_source/data_source */ 149).DataSource,
             Selection = __webpack_require__( /*! ../selection/selection */ 165),
             when = __webpack_require__( /*! ../../integration/jquery/deferred */ 14).when;
-        var ITEM_DELETING_DATA_KEY = "dxItemDeleting";
+        var ITEM_DELETING_DATA_KEY = "dxItemDeleting",
+            NOT_EXISTING_INDEX = -1;
+        var indexExists = function(index) {
+            return index !== NOT_EXISTING_INDEX
+        };
         var CollectionWidget = BaseCollectionWidget.inherit({
             _setOptionsByReference: function() {
                 this.callBase();
@@ -20586,7 +20590,7 @@
                     selectedItemKeys: [],
                     maxFilterLengthInRequest: 1500,
                     keyExpr: null,
-                    selectedIndex: -1,
+                    selectedIndex: NOT_EXISTING_INDEX,
                     selectedItem: null,
                     onSelectionChanged: null,
                     onItemReordered: null,
@@ -20696,7 +20700,7 @@
                 keys = keys || this._selection.getSelectedItemKeys();
                 $.each(keys, function(_, key) {
                     var selectedIndex = that._getIndexByKey(key);
-                    if (selectedIndex !== -1) {
+                    if (indexExists(selectedIndex)) {
                         indices.push(selectedIndex)
                     }
                 });
@@ -20737,7 +20741,7 @@
                     case "selectedItems":
                         selectedItems = this.option("selectedItems") || [];
                         selectedIndex = this._editStrategy.getIndexByItemData(selectedItems[0]);
-                        if (this.option("selectionRequired") && selectedIndex === -1) {
+                        if (this.option("selectionRequired") && !indexExists(selectedIndex)) {
                             this._syncSelectionOptions("selectedIndex");
                             return
                         }
@@ -20748,7 +20752,7 @@
                     case "selectedItem":
                         selectedItem = this.option("selectedItem");
                         selectedIndex = this._editStrategy.getIndexByItemData(selectedItem);
-                        if (this.option("selectionRequired") && selectedIndex === -1) {
+                        if (this.option("selectionRequired") && !indexExists(selectedIndex)) {
                             this._syncSelectionOptions("selectedIndex");
                             return
                         }
@@ -20759,20 +20763,16 @@
                         } else {
                             this._setOptionSilent("selectedItems", []);
                             this._setOptionSilent("selectedItemKeys", []);
-                            this._setOptionSilent("selectedIndex", -1)
+                            this._setOptionSilent("selectedIndex", NOT_EXISTING_INDEX)
                         }
                         break;
                     case "selectedItemKeys":
-                        if (this.option("selectionRequired")) {
-                            var selectedItemKeys = this.option("selectedItemKeys");
-                            selectedIndex = this._getIndexByKey(selectedItemKeys[0]);
-                            if (selectedIndex === -1) {
-                                this._syncSelectionOptions("selectedIndex");
-                                return
-                            }
-                        } else {
-                            this._selection.setSelection(this.option("selectedItemKeys"))
+                        var selectedItemKeys = this.option("selectedItemKeys");
+                        if (this.option("selectionRequired") && !indexExists(this._getIndexByKey(selectedItemKeys[0]))) {
+                            this._syncSelectionOptions("selectedIndex");
+                            return
                         }
+                        this._selection.setSelection(selectedItemKeys)
                 }
             },
             _chooseSelectOption: function() {
@@ -20917,7 +20917,7 @@
             },
             _removeSelection: function(normalizedIndex) {
                 var $itemElement = this._editStrategy.getItemElement(normalizedIndex);
-                if (normalizedIndex !== -1) {
+                if (indexExists(normalizedIndex)) {
                     $itemElement.removeClass(this._selectedItemClass());
                     this._setAriaSelected($itemElement, "false");
                     $itemElement.triggerHandler("stateChanged")
@@ -20929,7 +20929,7 @@
             },
             _addSelection: function(normalizedIndex) {
                 var $itemElement = this._editStrategy.getItemElement(normalizedIndex);
-                if (normalizedIndex !== -1) {
+                if (indexExists(normalizedIndex)) {
                     $itemElement.addClass(this._selectedItemClass());
                     this._setAriaSelected($itemElement, "true");
                     $itemElement.triggerHandler("stateChanged")
@@ -21072,7 +21072,7 @@
                     return
                 }
                 var itemIndex = this._editStrategy.getNormalizedIndex(itemElement);
-                if (itemIndex === -1) {
+                if (!indexExists(itemIndex)) {
                     return
                 }
                 var key = this._getKeyByIndex(itemIndex);
@@ -21089,7 +21089,7 @@
             },
             unselectItem: function(itemElement) {
                 var itemIndex = this._editStrategy.getNormalizedIndex(itemElement);
-                if (itemIndex === -1) {
+                if (!indexExists(itemIndex)) {
                     return
                 }
                 var selectedItemKeys = this._selection.getSelectedItemKeys();
@@ -21106,7 +21106,7 @@
                     index = this._editStrategy.getNormalizedIndex(itemElement),
                     changingOption = this._dataSource ? "dataSource" : "items",
                     itemResponseWaitClass = this._itemResponseWaitClass();
-                if (index > -1) {
+                if (indexExists(index)) {
                     this._waitDeletingPrepare($item).done(function() {
                         $item.addClass(itemResponseWaitClass);
                         var deletedActionArgs = that._extendActionArgs($item);
@@ -21145,7 +21145,7 @@
                     movingIndex = strategy.getNormalizedIndex(itemElement),
                     destinationIndex = strategy.getNormalizedIndex(toItemElement),
                     changingOption = this._dataSource ? "dataSource" : "items";
-                var canMoveItems = movingIndex > -1 && destinationIndex > -1 && movingIndex !== destinationIndex;
+                var canMoveItems = indexExists(movingIndex) && indexExists(destinationIndex) && movingIndex !== destinationIndex;
                 if (canMoveItems) {
                     deferred.resolveWith(this)
                 } else {
@@ -25066,7 +25066,7 @@
                 }
                 var filter = this.options.filter();
                 if (isSelectAll && isDeselect && !filter) {
-                    deferred.resolve(this.getSelectedItemKeys());
+                    deferred.resolve(this.getSelectedItems());
                     return deferred
                 }
                 var selectionFilterCreator = new SelectionFilterCreator(key(), keys, isSelectAll, this.equalKeys.bind(this), this.options.keyOf),
@@ -29282,6 +29282,9 @@
         exports.exportFromMarkup = function(markup, options) {
             options.format = validateFormat(options.format) || "PNG";
             options.fileName = options.fileName || "file";
+            options.exportingAction = options.onExporting;
+            options.exportedAction = options.onExported;
+            options.fileSavingAction = options.onFileSaving;
             clientExporter.export(markup, options, getCreatorFunc(options.format))
         };
         exports.ExportMenu = function(params) {
@@ -30955,7 +30958,7 @@
             },
             _resetZoom: function() {
                 var that = this;
-                that._zoomMinArg = that._zoomMaxArg = void 0;
+                that._zoomMinArg = that._zoomMaxArg = that._notApplyMargins = void 0;
                 that._argumentAxes[0] && that._argumentAxes[0].resetZoom()
             },
             getVisibleArgumentBounds: function() {
@@ -35843,10 +35846,10 @@
         function sort(a, b) {
             var result = a - b;
             if (isNaN(result)) {
-                if (!a) {
+                if (!_isDefined(a)) {
                     return 1
                 }
-                if (!b) {
+                if (!_isDefined(b)) {
                     return -1
                 }
                 return 0
@@ -49325,7 +49328,8 @@
                 axis.append(that._axisLineGroup)
             },
             _correctMinForTicks: function(min, max, screenDelta) {
-                var correctingValue, digitPosition = _getSignificantDigitPosition(_abs(max - min) / screenDelta),
+                var correctingValue, diff = _abs(max - min) / screenDelta,
+                    digitPosition = commonUtils.isExponential(diff) && diff < 1 ? vizUtils.getPrecision(diff) : _getSignificantDigitPosition(diff),
                     newMin = _roundValue(Number(min), digitPosition);
                 if (newMin < min) {
                     correctingValue = _math.pow(10, -digitPosition);
@@ -52829,14 +52833,13 @@
             var spacing, width, middleIndex = count / 2;
             if (!percentWidth) {
                 spacing = _round(barsArea / count * .2);
-                width = _round((barsArea - spacing * (count - 1)) / count);
-                width < 2 && (width = 2)
+                width = _round((barsArea - spacing * (count - 1)) / count)
             } else {
                 width = _round(barsArea * percentWidth / count);
                 spacing = _round(count > 1 ? (barsArea - barsArea * percentWidth) / (count - 1) : 0)
             }
             return {
-                width: width,
+                width: width > 1 ? width : 1,
                 spacing: spacing,
                 middleIndex: middleIndex
             }
