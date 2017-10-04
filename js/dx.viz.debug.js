@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.9
- * Build date: Mon Aug 14 2017
+ * Version: 16.2.10
+ * Build date: Fri Sep 29 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -795,7 +795,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.9"
+        module.exports = "16.2.10"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
