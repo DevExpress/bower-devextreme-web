@@ -1,9 +1,9 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.11
- * Build date: Tue Nov 07 2017
+ * Version: 16.2.12
+ * Build date: Mon Jan 15 2018
  *
- * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
+ * Copyright (c) 2012 - 2018 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
  */
 "use strict";
@@ -795,7 +795,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.11"
+        module.exports = "16.2.12"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
@@ -1142,7 +1142,7 @@
                 };
                 if (commonUtils.isObject(format)) {
                     return $.extend(result, format, {
-                        format: format.type,
+                        format: format.formatter || format.type,
                         currency: format.currency
                     })
                 }
@@ -1900,7 +1900,7 @@
                         pattern: "d"
                     }, {
                         date: [new Date(2009, 8, 2, 6, 5, 4), new Date(2009, 8, 3, 6, 5, 4), new Date(2009, 8, 4, 6, 5, 4)],
-                        pattern: "d"
+                        pattern: "E"
                     }, {
                         date: new Date(2009, 9, 6, 6, 5, 4),
                         pattern: "M"
@@ -1916,6 +1916,8 @@
                     result = that._replaceChars(result, diff, test.pattern, patternPositions)
                 });
                 result = that._escapeChars(result, defaultPattern, processedIndexes, patternPositions);
+                result = result.replace(/dE+/g, "d");
+                result = result.replace(/E/g, "d");
                 result = that._getLanguageInfo(defaultPattern) + result;
                 return result
             },
@@ -6350,7 +6352,8 @@
             if (realDevice.android) {
                 resizeCallbacks.add(function() {
                     setTimeout(function() {
-                        document.activeElement.scrollIntoViewIfNeeded()
+                        var activeElement = document.activeElement;
+                        activeElement.scrollIntoViewIfNeeded ? activeElement.scrollIntoViewIfNeeded() : activeElement.scrollIntoView(false)
                     })
                 })
             }
@@ -20953,7 +20956,7 @@
                         }
                         break;
                     case "dataSource":
-                        if (!args.value || !args.value.length) {
+                        if (!args.value || Array.isArray(args.value) && !args.value.length) {
                             this.option("selectedItemKeys", [])
                         }
                         this.callBase(args);
@@ -38201,17 +38204,29 @@
                     closestCoord = coord
                 }
             });
-            return closestCoord
+            return [_floor(closestCoord[0]), _floor(closestCoord[1])]
         }
         var barPointStrategy = {
             isLabelInside: function(labelPoint, figure) {
                 return labelPoint.x >= figure.x && labelPoint.x <= figure.x + figure.width && labelPoint.y >= figure.y && labelPoint.y <= figure.y + figure.height
             },
-            prepareLabelPoints: function(points) {
-                return points
+            prepareLabelPoints: function(bBox) {
+                var x1 = bBox.x,
+                    xc = x1 + bBox.width / 2,
+                    x2 = x1 + bBox.width - 1,
+                    y1 = bBox.y,
+                    y2 = y1 + bBox.height - 1;
+                return [
+                    [x1, y1],
+                    [xc, y1],
+                    [x2, y1],
+                    [x1, y2],
+                    [xc, y2],
+                    [x2, y2]
+                ]
             },
             getFigureCenter: function(figure) {
-                return [figure.x + figure.width / 2, figure.y + figure.height / 2]
+                return [_floor(figure.x + figure.width / 2), _floor(figure.y + figure.height / 2)]
             },
             findFigurePoint: function(figure, labelPoint) {
                 var figureCenter = barPointStrategy.getFigureCenter(figure),
@@ -38221,7 +38236,18 @@
                         [figure.x + figure.width, figureCenter[1]],
                         [figureCenter[0], figure.y]
                     ]);
-                return [_round(point[0]), _round(point[1])]
+                return point
+            },
+            adjustPoints: function(points) {
+                var lineIsVertical = Math.abs(points[1] - points[3]) <= 1,
+                    lineIsHorizontal = Math.abs(points[0] - points[2]) <= 1;
+                if (lineIsHorizontal) {
+                    points[0] = points[2]
+                }
+                if (lineIsVertical) {
+                    points[1] = points[3]
+                }
+                return points
             }
         };
         var symbolPointStrategy = {
@@ -38235,19 +38261,26 @@
             findFigurePoint: function(figure, labelPoint) {
                 var angle = Math.atan2(figure.y - labelPoint[1], labelPoint[0] - figure.x);
                 return [_round(figure.x + figure.r * Math.cos(angle)), _round(figure.y - figure.r * Math.sin(angle))]
-            }
+            },
+            adjustPoints: barPointStrategy.adjustPoints
         };
         var piePointStrategy = {
             isLabelInside: function(_0, _1, isOutside) {
                 return !isOutside
             },
-            prepareLabelPoints: function(points, center, angle) {
-                var rotatedPoints = [],
-                    x0 = center[0],
-                    y0 = center[1],
+            prepareLabelPoints: function(bBox, textSize, angle) {
+                var xc = bBox.x + bBox.width / 2,
+                    yc = bBox.y + bBox.height / 2,
+                    points = [
+                        [xc, yc - textSize[1] / 2],
+                        [xc + textSize[0] / 2, yc],
+                        [xc, yc + textSize[1] / 2],
+                        [xc - textSize[0] / 2, yc]
+                    ],
+                    rotatedPoints = [],
                     cosSin = _getCosAndSin(angle || 0);
                 $.each(points, function(_, point) {
-                    rotatedPoints.push([_round((point[0] - x0) * cosSin.cos + (point[1] - y0) * cosSin.sin + x0), _round(-(point[0] - x0) * cosSin.sin + (point[1] - y0) * cosSin.cos + y0)])
+                    rotatedPoints.push([_round((point[0] - xc) * cosSin.cos + (point[1] - yc) * cosSin.sin + xc), _round(-(point[0] - xc) * cosSin.sin + (point[1] - yc) * cosSin.cos + yc)])
                 });
                 return rotatedPoints
             },
@@ -38259,6 +38292,9 @@
                     point.push(_round(x), labelPoint[1])
                 }
                 return point
+            },
+            adjustPoints: function(points) {
+                return points
             }
         };
 
@@ -38426,26 +38462,18 @@
                 that._bBox = bBox
             },
             _getConnectorPoints: function() {
-                var labelPoint, figurePoint, xc, yc, that = this,
+                var labelPoint, figurePoint, that = this,
                     figure = that._figure,
                     strategy = selectStrategy(figure),
                     bBox = that.getBoundingRect(),
                     points = [];
                 if (!strategy.isLabelInside(bBox, figure, "inside" !== that._options.position)) {
-                    xc = bBox.x + bBox.width / 2;
-                    yc = bBox.y + bBox.height / 2;
-                    points = strategy.prepareLabelPoints([
-                        [xc, yc - that._textSize[1] / 2],
-                        [xc + that._textSize[0] / 2, yc],
-                        [xc, yc + that._textSize[1] / 2],
-                        [xc - that._textSize[0] / 2, yc]
-                    ], [xc, yc], -that._options.rotationAngle || 0);
+                    points = strategy.prepareLabelPoints(bBox, this._textSize, -that._options.rotationAngle || 0);
                     labelPoint = getClosestCoord(strategy.getFigureCenter(figure), points);
-                    labelPoint = [_floor(labelPoint[0]), _floor(labelPoint[1])];
                     figurePoint = strategy.findFigurePoint(figure, labelPoint);
                     points = figurePoint.concat(labelPoint)
                 }
-                return points
+                return strategy.adjustPoints(points)
             },
             fit: function(maxWidth) {
                 this._text && this._text.applyEllipsis(maxWidth);
