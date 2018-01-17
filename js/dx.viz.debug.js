@@ -1,7 +1,7 @@
 /*!
  * DevExtreme (dx.viz.debug.js)
- * Version: 16.2.10
- * Build date: Fri Sep 29 2017
+ * Version: 16.2.11
+ * Build date: Tue Nov 07 2017
  *
  * Copyright (c) 2012 - 2017 Developer Express Inc. ALL RIGHTS RESERVED
  * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -795,7 +795,7 @@
       !*** ./js/core/version.js ***!
       \****************************/
     function(module, exports) {
-        module.exports = "16.2.10"
+        module.exports = "16.2.11"
     },
     /*!*******************************!*\
       !*** ./js/client_exporter.js ***!
@@ -20632,6 +20632,9 @@
             _isKeySpecified: function() {
                 return !!(this._dataSource && this._dataSource.key())
             },
+            _getCombinedFilter: function() {
+                return this._dataSource && this._dataSource.filter()
+            },
             keyOf: function(item) {
                 var key = item,
                     store = this._dataSource && this._dataSource.store();
@@ -20657,9 +20660,7 @@
                             that._updateSelectedItems(args.addedItems, args.removedItems)
                         }
                     },
-                    filter: function() {
-                        return that._dataSource && that._dataSource.filter()
-                    },
+                    filter: that._getCombinedFilter.bind(that),
                     totalCount: function() {
                         var items = that.option("items");
                         var dataSource = that._dataSource;
@@ -20950,6 +20951,12 @@
                         } else {
                             this._invalidate()
                         }
+                        break;
+                    case "dataSource":
+                        if (!args.value || !args.value.length) {
+                            this.option("selectedItemKeys", [])
+                        }
+                        this.callBase(args);
                         break;
                     case "selectedIndex":
                     case "selectedItem":
@@ -24511,6 +24518,9 @@
             _resetItemSelectionWhenShiftKeyPressed: function() {
                 delete this._shiftFocusedItemIndex
             },
+            _resetFocusedItemIndex: function() {
+                this._focusedItemIndex = -1
+            },
             changeItemSelectionWhenShiftKeyPressed: function(itemIndex, items) {
                 var itemIndexStep, index, isSelectedItemsChanged = false,
                     keyOf = this.options.keyOf,
@@ -24553,6 +24563,7 @@
                 this._setSelectedItems([], [])
             },
             selectAll: function(isOnePage) {
+                this._resetFocusedItemIndex();
                 if (isOnePage) {
                     return this._onePageSelectAll(false)
                 } else {
@@ -24560,6 +24571,7 @@
                 }
             },
             deselectAll: function(isOnePage) {
+                this._resetFocusedItemIndex();
                 if (isOnePage) {
                     return this._onePageSelectAll(true)
                 } else {
@@ -33253,13 +33265,13 @@
         }
 
         function removeExtraAttrs(html) {
-            var findTagAttrs = /(?:<[a-z0-9])+(?:[\s\S]*?>)/gi,
-                findStyleAttrWithValue = /(\S*\s*)=\s*(["'])(?:(?!\2).)*\2\s?/gi;
-            return html.replace(findTagAttrs, function(allTagAttrs) {
-                return allTagAttrs.replace(findStyleAttrWithValue, function(currentAttr, attrName) {
-                    var lowerCaseAttrName = attrName.toLowerCase();
-                    return "style" === lowerCaseAttrName || "class" === lowerCaseAttrName ? currentAttr : ""
-                })
+            var findTagAttrs = /(?:(<[a-z0-9]+\s*))([\s\S]*?)(>|\/>)/gi,
+                findStyleAndClassAttrs = /(style|class)\s*=\s*(["'])(?:(?!\2).)*\2\s?/gi;
+            return html.replace(findTagAttrs, function(allTagAttrs, p1, p2, p3) {
+                p2 = (p2 && p2.match(findStyleAndClassAttrs) || []).map(function(str) {
+                    return str
+                }).join(" ");
+                return p1 + p2 + p3
             })
         }
 
@@ -34065,7 +34077,7 @@
                 var elem = new exports.PathSvgElement(this, type);
                 return elem.attr({
                     points: points || []
-                })
+                });
             },
             arc: function(x, y, innerRadius, outerRadius, startAngle, endAngle) {
                 var elem = new exports.ArcSvgElement(this);
@@ -64001,8 +64013,8 @@
             },
             image: {
                 _draw: function(ctx, figure, data) {
-                    figure.image = ctx.renderer.image().attr({
-                        location: "center"
+                    figure.image = ctx.renderer.image(null, null, null, null, null, "center").attr({
+                        "pointer-events": "visible"
                     }).data(ctx.dataKey, data).append(figure.root)
                 },
                 refresh: function(ctx, figure, data, proxy) {
